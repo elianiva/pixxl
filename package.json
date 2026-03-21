@@ -3,10 +3,10 @@
   "private": true,
   "type": "module",
   "imports": {
-    "#/*": "./src/*"
+    "@/*": "./src/*"
   },
   "scripts": {
-    "dev": "vp dev --port 3000",
+    "dev": "vp dev",
     "build": "vp build",
     "preview": "vp preview",
     "test": "vp test run",
@@ -18,12 +18,14 @@
     "@tanstack/react-router": "latest",
     "@tanstack/react-router-devtools": "latest",
     "@tanstack/router-plugin": "^1.167.2",
+    "hono": "^4.12.8",
     "lucide-react": "^0.577.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "tailwindcss": "^4.2.2"
   },
   "devDependencies": {
+    "@hono/vite-dev-server": "^0.25.1",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/devtools-vite": "latest",
     "@tanstack/router-plugin": "latest",
