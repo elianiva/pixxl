@@ -11,6 +11,7 @@ import {
   RiQuestionLine,
 } from "@remixicon/react";
 import { Button } from "@/views/components/ui/button";
+import { rpc } from "@/views/lib/rpc";
 
 export const Route = createFileRoute("/")({
   component: RouteComponent,
@@ -118,7 +119,14 @@ function RouteComponent() {
 
         {/* Footer */}
         <footer className="flex items-center justify-center gap-6 pt-4 border-t border-border">
-          <FooterLink icon={RiSettings4Line} label="Settings" href="#" />
+          <FooterLink
+            icon={RiSettings4Line}
+            label="Settings"
+            onClick={async () => {
+              const result = await rpc.agent.hello({ message: "suck my balls" });
+              console.log({ result });
+            }}
+          />
           <FooterLink icon={RiQuestionLine} label="Help" href="#" />
           <FooterLink icon={RiGithubLine} label="GitHub" href="#" external />
         </footer>
@@ -196,20 +204,28 @@ function RecentProjectItem({ project, isLast }: RecentProjectItemProps) {
 interface FooterLinkProps {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  href: string;
   external?: boolean;
+  href?: string;
+  onClick?: () => void;
 }
 
-function FooterLink({ icon: Icon, label, href, external }: FooterLinkProps) {
+function FooterLink(props: FooterLinkProps) {
+  if (props.onClick && props.href) {
+    throw new Error("Cannot use onClick and href on the same element");
+  }
+
+  const FooterElement = props.onClick ? "button" : "a";
+
   return (
-    <a
-      href={href}
-      target={external ? "_blank" : undefined}
-      rel={external ? "noopener noreferrer" : undefined}
+    <FooterElement
+      href={props.href}
+      onClick={props.onClick}
+      target={props.external ? "_blank" : undefined}
+      rel={props.external ? "noopener noreferrer" : undefined}
       className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
     >
-      <Icon className="size-3.5" />
-      {label}
-    </a>
+      <props.icon className="size-3.5" />
+      {props.label}
+    </FooterElement>
   );
 }
