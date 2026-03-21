@@ -36,16 +36,18 @@ export function AppearanceSettings({
             </SelectTrigger>
             <SelectContent>
               {colorSchemes.map((c) => (
-                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                <SelectItem key={c.value} value={c.value}>
+                  {c.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </SettingRow>
         <SettingRow label="Compact Mode" description="Reduce spacing for denser UI">
-          <Switch checked={false} onCheckedChange={() => { }} />
+          <Switch checked={false} onCheckedChange={() => {}} />
         </SettingRow>
         <SettingRow label="Show Line Numbers" description="Display line numbers in editor">
-          <Switch checked={true} onCheckedChange={() => { }} />
+          <Switch checked={true} onCheckedChange={() => {}} />
         </SettingRow>
       </div>
     </div>

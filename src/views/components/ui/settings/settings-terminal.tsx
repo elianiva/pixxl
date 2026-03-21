@@ -104,7 +104,7 @@ export function TerminalSettings({
           <Switch checked={cursorBlink} onCheckedChange={setCursorBlink} />
         </SettingRow>
         <SettingRow label="Shell" description="Default shell to use">
-          <Select value="/bin/zsh" onValueChange={() => { }}>
+          <Select value="/bin/zsh" onValueChange={() => {}}>
             <SelectTrigger className="w-28">
               <SelectValue />
             </SelectTrigger>

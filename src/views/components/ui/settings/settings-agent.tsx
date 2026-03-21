@@ -1,5 +1,11 @@
 import { SettingRow } from "./setting-row";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/views/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/views/components/ui/select";
 import type { SelectEntry } from "@/views/components/ui/select";
 import { Slider } from "@/views/components/ui/slider";
 import { Input } from "@/views/components/ui/input";
@@ -55,7 +61,11 @@ export function AgentSettings({
       <h3 className="text-base font-semibold mb-4">Agent</h3>
       <div className="border border-border">
         <SettingRow label="Agent Name" description="What to call your coding assistant">
-          <Input value={agentName} onChange={(e) => setAgentName(e.target.value)} placeholder="pi" />
+          <Input
+            value={agentName}
+            onChange={(e) => setAgentName(e.target.value)}
+            placeholder="pi"
+          />
         </SettingRow>
         <SettingRow label="Provider" description="AI provider to use for the agent">
           <Select value={provider} onValueChange={(v) => setProvider(v ?? provider)}>
@@ -64,7 +74,9 @@ export function AgentSettings({
             </SelectTrigger>
             <SelectContent>
               {providers.map((p) => (
-                <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                <SelectItem key={p.value} value={p.value}>
+                  {p.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -90,7 +102,9 @@ export function AgentSettings({
             </SelectTrigger>
             <SelectContent>
               {maxTokens.map((t) => (
-                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
