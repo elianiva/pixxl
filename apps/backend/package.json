@@ -1,0 +1,15 @@
+{
+  "name": "backend",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --hot src/main.ts"
+  },
+  "dependencies": {
+    "@effect/platform-bun": "4.0.0-beta.36",
+    "@orpc/contract": "catalog:",
+    "@orpc/server": "^1.13.9",
+    "@pixxl/shared": "workspace:*",
+    "effect": "catalog:"
+  }
+}

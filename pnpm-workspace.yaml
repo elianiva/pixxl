@@ -1,0 +1,22 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+catalog:
+  "@orpc/contract": "^1.13.9"
+  "effect": "4.0.0-beta.36"
+
+allowBuilds:
+  esbuild: true
+  msgpackr-extract: true
+  msw: true
+
+pnpm:
+  onlyBuiltDependencies:
+    - esbuild
+    - lightningcss
+    - msgpackr-extract
+    - msw
+  overrides:
+    vite: "npm:@voidzero-dev/vite-plus-core@latest"
+    vitest: "npm:@voidzero-dev/vite-plus-test@latest"
