@@ -10,6 +10,7 @@ import type { SelectEntry } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import type { Agent } from "@pixxl/shared/schema/config";
+import { useBlurSubmitInput, useBlurSubmitSlider } from "../hooks/use-blur-submit";
 
 interface AgentSettingsProps {
   agent: Agent;
@@ -48,14 +49,21 @@ const maxTokenOptions: SelectEntry[] = [
 ];
 
 export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
+  const nameInput = useBlurSubmitInput(agent.name, (name) => onUpdate({ name }));
+  const temperatureSlider = useBlurSubmitSlider(agent.temperature, (temperature) =>
+    onUpdate({ temperature }),
+  );
+
   return (
     <div>
       <h3 className="text-base font-semibold mb-4">Agent</h3>
       <div className="border border-border">
         <SettingRow label="Agent Name" description="What to call your coding assistant">
           <Input
-            value={agent.name}
-            onChange={(e) => onUpdate({ name: e.target.value })}
+            value={nameInput.localValue}
+            onChange={nameInput.handleChange}
+            onBlur={nameInput.handleBlur}
+            onKeyDown={nameInput.handleKeyDown}
             placeholder="pi"
           />
         </SettingRow>
@@ -109,13 +117,13 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
           description="Response creativity (0 = focused, 1 = creative)"
         >
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground w-8">{agent.temperature}</span>
+            <span className="text-sm text-muted-foreground w-8">
+              {temperatureSlider.localValue}
+            </span>
             <Slider
-              value={[agent.temperature]}
-              onValueChange={(values) => {
-                const val = Array.isArray(values) ? values[0] : values;
-                onUpdate({ temperature: val });
-              }}
+              value={[temperatureSlider.localValue]}
+              onValueChange={temperatureSlider.handleValueChange}
+              onValueCommit={temperatureSlider.handleValueCommit}
               min={0}
               max={1}
               step={0.1}

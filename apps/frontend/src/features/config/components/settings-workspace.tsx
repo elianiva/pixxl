@@ -3,6 +3,7 @@ import { SettingRow } from "./setting-row";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import type { Workspace } from "@pixxl/shared/schema/config";
+import { useBlurSubmitInput } from "../hooks/use-blur-submit";
 
 interface WorkspaceSettingsProps {
   workspace: Workspace;
@@ -10,6 +11,10 @@ interface WorkspaceSettingsProps {
 }
 
 export function WorkspaceSettings({ workspace, onUpdate }: WorkspaceSettingsProps) {
+  const directoryInput = useBlurSubmitInput(workspace.directory, (directory) =>
+    onUpdate({ directory }),
+  );
+
   return (
     <div>
       <h3 className="text-base font-semibold mb-4">Workspace</h3>
@@ -20,8 +25,10 @@ export function WorkspaceSettings({ workspace, onUpdate }: WorkspaceSettingsProp
         >
           <div className="flex items-center gap-2">
             <Input
-              value={workspace.directory}
-              onChange={(e) => onUpdate({ directory: e.target.value })}
+              value={directoryInput.localValue}
+              onChange={directoryInput.handleChange}
+              onBlur={directoryInput.handleBlur}
+              onKeyDown={directoryInput.handleKeyDown}
               placeholder="~/Development"
             />
             <Button size="sm" className="h-8">

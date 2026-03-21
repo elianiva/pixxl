@@ -1,17 +1,66 @@
-import { AppConfig, AppConfigSchema, DEFAULT_CONFIG } from "@pixxl/shared";
 import {
-  Schema,
-  Effect,
-  Layer,
-  ServiceMap,
-  FileSystem,
-  Path,
-  Config,
-  type PlatformError,
-} from "effect";
+  AgentSchema,
+  AppearanceSchema,
+  AppConfig,
+  DEFAULT_CONFIG,
+  TerminalSchema,
+  WorkspaceSchema,
+} from "@pixxl/shared";
+import { Config, Effect, FileSystem, Layer, Path, Schema, ServiceMap, Struct } from "effect";
 
 const APP_DIR = "pixxl";
 const CONFIG_FILE = "config.json";
+
+const PartialAppConfigSchema = Schema.Struct({
+  workspace: Schema.optionalKey(WorkspaceSchema.mapFields(Struct.map(Schema.optionalKey))),
+  terminal: Schema.optionalKey(TerminalSchema.mapFields(Struct.map(Schema.optionalKey))),
+  agent: Schema.optionalKey(AgentSchema.mapFields(Struct.map(Schema.optionalKey))),
+  appearance: Schema.optionalKey(AppearanceSchema.mapFields(Struct.map(Schema.optionalKey))),
+});
+
+export class ConfigParseError extends Schema.TaggedErrorClass<ConfigParseError>()(
+  "ConfigParseError",
+  {
+    message: Schema.String,
+    details: Schema.String,
+  },
+) {}
+
+export class ConfigSerializeError extends Schema.TaggedErrorClass<ConfigSerializeError>()(
+  "ConfigSerializeError",
+  {
+    message: Schema.String,
+    details: Schema.String,
+  },
+) {}
+
+export type ConfigServiceError = ConfigParseError | ConfigSerializeError;
+
+function formatError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  try {
+    return JSON.stringify(error, null, 2);
+  } catch {
+    return String(error);
+  }
+}
+
+function toParseError(error: unknown): ConfigParseError {
+  return new ConfigParseError({
+    message: "Invalid config file. Fix missing/invalid fields in config.json.",
+    details: formatError(error),
+  });
+}
+
+function toSerializeError(error: unknown): ConfigSerializeError {
+  return new ConfigSerializeError({
+    message: "Failed to serialize config.json.",
+    details: formatError(error),
+  });
+}
 
 function deepMerge<T extends object>(target: T, source: Partial<T>): T {
   const output = { ...target } as Record<string, unknown>;
@@ -64,11 +113,11 @@ function deepPartial<T extends object>(target: T, source: Partial<T>): Partial<T
 }
 
 type ConfigServiceShape = {
-  readonly loadConfig: () => Effect.Effect<AppConfig, PlatformError.PlatformError>;
-  readonly saveConfig: (config: AppConfig) => Effect.Effect<void, PlatformError.PlatformError>;
+  readonly loadConfig: () => Effect.Effect<AppConfig, ConfigServiceError>;
+  readonly saveConfig: (config: AppConfig) => Effect.Effect<void, ConfigServiceError>;
   readonly updateConfig: (
     partial: Partial<AppConfig>,
-  ) => Effect.Effect<AppConfig, PlatformError.PlatformError>;
+  ) => Effect.Effect<AppConfig, ConfigServiceError>;
   readonly configPath: string;
 };
 
@@ -85,6 +134,13 @@ export class ConfigService extends ServiceMap.Service<ConfigService, ConfigServi
       const configDir = pathModule.join(configBaseDir, APP_DIR);
       const configPath = pathModule.join(configDir, CONFIG_FILE);
 
+      const decodeConfig = Schema.decodeUnknownEffect(
+        Schema.fromJsonString(PartialAppConfigSchema),
+      );
+      const encodeConfig = Schema.encodeUnknownEffect(
+        Schema.fromJsonString(PartialAppConfigSchema),
+      );
+
       const loadConfig = Effect.fn("ConfigService.loadConfig")(function* () {
         const dirExists = yield* fs.exists(configDir);
         if (!dirExists) {
@@ -99,14 +155,11 @@ export class ConfigService extends ServiceMap.Service<ConfigService, ConfigServi
 
         const content = yield* fs.readFileString(configPath);
 
-        // if it's an empty file, return the default config
         if (content === "{}" || content === "") {
           return DEFAULT_CONFIG;
         }
 
-        const userConfig = yield* Schema.decodeUnknownEffect(
-          Schema.fromJsonString(AppConfigSchema),
-        )(content);
+        const userConfig = yield* decodeConfig(content).pipe(Effect.mapError(toParseError));
 
         return deepMerge(DEFAULT_CONFIG, userConfig);
       });
@@ -124,10 +177,7 @@ export class ConfigService extends ServiceMap.Service<ConfigService, ConfigServi
           return;
         }
 
-        const json = yield* Schema.encodeUnknownEffect(Schema.fromJsonString(AppConfigSchema))(
-          userConfig,
-        );
-
+        const json = yield* encodeConfig(userConfig).pipe(Effect.mapError(toSerializeError));
         yield* fs.writeFileString(configPath, json);
       });
 

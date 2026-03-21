@@ -10,6 +10,7 @@ import type { SelectEntry } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import type { Terminal } from "@pixxl/shared/schema/config";
+import { useBlurSubmitSlider } from "../hooks/use-blur-submit";
 
 interface TerminalSettingsProps {
   terminal: Terminal;
@@ -37,19 +38,21 @@ const shells: SelectEntry[] = [
 ];
 
 export function TerminalSettings({ terminal, onUpdate }: TerminalSettingsProps) {
+  const fontSizeSlider = useBlurSubmitSlider(terminal.fontSize, (fontSize) =>
+    onUpdate({ fontSize }),
+  );
+
   return (
     <div>
       <h3 className="text-base font-semibold mb-4">Terminal</h3>
       <div className="border border-border">
         <SettingRow label="Font Size" description="Terminal text size in pixels">
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground w-8">{terminal.fontSize}px</span>
+            <span className="text-sm text-muted-foreground w-8">{fontSizeSlider.localValue}px</span>
             <Slider
-              value={[terminal.fontSize]}
-              onValueChange={(values) => {
-                const val = Array.isArray(values) ? values[0] : values;
-                onUpdate({ fontSize: val });
-              }}
+              value={[fontSizeSlider.localValue]}
+              onValueChange={fontSizeSlider.handleValueChange}
+              onValueCommit={fontSizeSlider.handleValueCommit}
               min={10}
               max={24}
             />
