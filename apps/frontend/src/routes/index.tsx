@@ -12,6 +12,7 @@ import {
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { SettingsDialog } from "@/features/config/components/settings-dialog";
+import { NewProjectDialog } from "@/features/project/components/new-project-dialog";
 
 export const Route = createFileRoute("/")({
   component: RouteComponent,
@@ -42,6 +43,7 @@ const recentProjects = [
 function RouteComponent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
 
   const filteredProjects = recentProjects.filter((project) =>
     project.name.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -84,7 +86,7 @@ function RouteComponent() {
               icon={RiAddLine}
               title="New Project"
               description="Create a new workspace"
-              href="#"
+              onClick={() => setNewProjectOpen(true)}
             />
           </div>
         </section>
@@ -132,6 +134,7 @@ function RouteComponent() {
 
       {/* Settings Dialog */}
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <NewProjectDialog open={newProjectOpen} onOpenChange={setNewProjectOpen} />
     </main>
   );
 }
@@ -140,14 +143,22 @@ interface QuickActionCardProps {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
   description: string;
-  href: string;
+  href?: string;
+  onClick?: () => void;
 }
 
-function QuickActionCard({ icon: Icon, title, description, href }: QuickActionCardProps) {
+function QuickActionCard({ icon: Icon, title, description, href, onClick }: QuickActionCardProps) {
+  if (onClick && href) {
+    throw new Error("Cannot use onClick and href on the same element");
+  }
+
+  const QuickActionElement = onClick ? "button" : "a";
+
   return (
-    <a
+    <QuickActionElement
       href={href}
-      className="group flex justify-between gap-2 p-4 border border-border bg-card hover:bg-muted hover:border-ring/50 transition-all cursor-pointer"
+      onClick={onClick}
+      className="group flex justify-between gap-2 p-4 border border-border bg-card hover:bg-muted hover:border-ring/50 transition-all cursor-pointer text-left"
     >
       <div>
         <h3 className="font-medium text-sm">{title}</h3>
@@ -156,7 +167,7 @@ function QuickActionCard({ icon: Icon, title, description, href }: QuickActionCa
       <div className="flex items-center justify-between">
         <Icon className="size-5 text-muted-foreground group-hover:text-foreground transition-colors" />
       </div>
-    </a>
+    </QuickActionElement>
   );
 }
 
@@ -174,8 +185,9 @@ function RecentProjectItem({ project, isLast }: RecentProjectItemProps) {
   return (
     <a
       href="#"
-      className={`group flex items-center gap-3 px-4 py-3 hover:bg-muted transition-colors cursor-pointer ${!isLast ? "border-b border-border" : ""
-        }`}
+      className={`group flex items-center gap-3 px-4 py-3 hover:bg-muted transition-colors cursor-pointer ${
+        !isLast ? "border-b border-border" : ""
+      }`}
     >
       <RiFolderOpenLine className="size-5 text-muted-foreground shrink-0" />
       <div className="flex-1 min-w-0">
