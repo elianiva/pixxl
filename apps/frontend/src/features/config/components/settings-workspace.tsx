@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import { SettingRow } from "./setting-row";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -23,18 +22,13 @@ export function WorkspaceSettings({ workspace, onUpdate }: WorkspaceSettingsProp
           label="Workspace Directory"
           description="Where projects are stored and opened from"
         >
-          <div className="flex items-center gap-2">
-            <Input
-              value={directoryInput.localValue}
-              onChange={directoryInput.handleChange}
-              onBlur={directoryInput.handleBlur}
-              onKeyDown={directoryInput.handleKeyDown}
-              placeholder="~/Development"
-            />
-            <Button size="sm" className="h-8">
-              Browse
-            </Button>
-          </div>
+          <Input
+            value={directoryInput.localValue}
+            onChange={directoryInput.handleChange}
+            onBlur={directoryInput.handleBlur}
+            onKeyDown={directoryInput.handleKeyDown}
+            placeholder="~/Development"
+          />
         </SettingRow>
         <SettingRow label="Auto-save Workspace" description="Remember open projects when closing">
           <Switch
