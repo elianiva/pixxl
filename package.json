@@ -6,10 +6,11 @@
     "#/*": "./src/*"
   },
   "scripts": {
-    "dev": "vite dev --port 3000",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "vitest run"
+    "dev": "vp dev --port 3000",
+    "build": "vp build",
+    "preview": "vp preview",
+    "test": "vp test run",
+    "prepare": "vp config"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",
@@ -34,15 +35,19 @@
     "@vitejs/plugin-react": "^6.0.1",
     "jsdom": "^29.0.1",
     "typescript": "^5.9.3",
-    "vite": "^8.0.1",
-    "vite-tsconfig-paths": "^6.1.1",
-    "vitest": "^4.1.0"
+    "vite": "npm:@voidzero-dev/vite-plus-core@latest",
+    "vite-plus": "latest",
+    "vitest": "npm:@voidzero-dev/vite-plus-test@latest"
   },
+  "packageManager": "pnpm@10.32.1",
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild",
       "lightningcss"
-    ]
-  },
-  "packageManager": "pnpm@10.32.1"
+    ],
+    "overrides": {
+      "vite": "npm:@voidzero-dev/vite-plus-core@latest",
+      "vitest": "npm:@voidzero-dev/vite-plus-test@latest"
+    }
+  }
 }
