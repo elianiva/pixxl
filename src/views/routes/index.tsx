@@ -11,7 +11,7 @@ import {
   RiQuestionLine,
 } from "@remixicon/react";
 import { Button } from "@/views/components/ui/button";
-import { rpc } from "@/views/lib/rpc";
+import { SettingsDialog } from "@/views/components/ui/settings";
 
 export const Route = createFileRoute("/")({
   component: RouteComponent,
@@ -41,6 +41,7 @@ const recentProjects = [
 
 function RouteComponent() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const filteredProjects = recentProjects.filter((project) =>
     project.name.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -122,15 +123,15 @@ function RouteComponent() {
           <FooterLink
             icon={RiSettings4Line}
             label="Settings"
-            onClick={async () => {
-              const result = await rpc.agent.hello({ message: "suck my balls" });
-              console.log({ result });
-            }}
+            onClick={() => setSettingsOpen(true)}
           />
           <FooterLink icon={RiQuestionLine} label="Help" href="#" />
           <FooterLink icon={RiGithubLine} label="GitHub" href="#" external />
         </footer>
       </div>
+
+      {/* Settings Dialog */}
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </main>
   );
 }
@@ -173,8 +174,9 @@ function RecentProjectItem({ project, isLast }: RecentProjectItemProps) {
   return (
     <a
       href="#"
-      className={`group flex items-center gap-3 px-4 py-3 hover:bg-muted transition-colors cursor-pointer ${!isLast ? "border-b border-border" : ""
-        }`}
+      className={`group flex items-center gap-3 px-4 py-3 hover:bg-muted transition-colors cursor-pointer ${
+        !isLast ? "border-b border-border" : ""
+      }`}
     >
       <RiFolderOpenLine className="size-5 text-muted-foreground shrink-0" />
       <div className="flex-1 min-w-0">
