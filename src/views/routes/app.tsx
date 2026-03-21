@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "../components/ui/sidebar";
-import { AppSidebar } from "../components/layout/sidebar/app-sidebar";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/views/components/ui/sidebar";
+import { AppSidebar } from "@/views/components/layout/sidebar/app-sidebar";
 import { Separator } from "@base-ui/react";
 import {
   Breadcrumb,
@@ -9,9 +9,9 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "../components/ui/breadcrumb";
+} from "@/views/components/ui/breadcrumb";
 
-export const Route = createFileRoute("/_app")({
+export const Route = createFileRoute("/app")({
   component: RouteComponent,
 });
 
