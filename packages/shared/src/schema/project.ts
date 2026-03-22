@@ -51,14 +51,29 @@ export const AgentSchema = Schema.Struct({
   temperature: Schema.Number,
 });
 
+export const ListAgentsInputSchema = Schema.Struct({
+  projectId: Schema.String,
+});
+
 export const ProjectDetailSchema = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   path: Schema.String,
   createdAt: Schema.String,
   updatedAt: Schema.String,
-  agents: Schema.Array(AgentSchema),
 });
+
+export const AgentListSchema = Schema.Array(AgentSchema);
+
+export const TerminalSchema = Schema.Struct({
+  name: Schema.String,
+});
+
+export const ListTerminalsInputSchema = Schema.Struct({
+  projectId: Schema.String,
+});
+
+export const TerminalListSchema = Schema.Array(TerminalSchema);
 
 export type CreateProjectInput = typeof CreateProjectInputSchema.Type;
 export type ListProjectsInput = typeof ListProjectsInputSchema.Type;
@@ -67,3 +82,7 @@ export type ProjectMetadataList = typeof ProjectMetadataListSchema.Type;
 export type DeleteProjectInput = typeof DeleteProjectInputSchema.Type;
 export type GetProjectDetailInput = typeof GetProjectDetailInputSchema.Type;
 export type ProjectDetail = typeof ProjectDetailSchema.Type;
+export type ListAgentsInput = typeof ListAgentsInputSchema.Type;
+export type AgentList = typeof AgentListSchema.Type;
+export type ListTerminalsInput = typeof ListTerminalsInputSchema.Type;
+export type TerminalList = typeof TerminalListSchema.Type;

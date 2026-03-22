@@ -4,9 +4,12 @@ import {
   CreateProjectInput,
   DeleteProjectInput,
   GetProjectDetailInput,
+  ListAgentsInput,
+  ListTerminalsInput,
   ProjectDetail,
   ProjectMetadata,
   ProjectMetadataSchema,
+  TerminalSchema,
 } from "@pixxl/shared";
 import { ProjectError } from "./error";
 import { ConfigService } from "../config/service";
@@ -29,6 +32,10 @@ type ProjectServiceShape = {
   readonly getProjectDetail: (
     input: GetProjectDetailInput,
   ) => Effect.Effect<ProjectDetail, ProjectError>;
+  readonly listAgents: (input: ListAgentsInput) => Effect.Effect<AgentSchema.Type[], ProjectError>;
+  readonly listTerminals: (
+    input: ListTerminalsInput,
+  ) => Effect.Effect<TerminalSchema.Type[], ProjectError>;
 };
 
 const mapToProjectError = (message: string) =>
@@ -183,52 +190,131 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
           });
         }
 
-        const agentsPath = path.join(project.path, "agents");
-        const agentsDirExists = yield* fs
-          .exists(agentsPath)
-          .pipe(mapToProjectError(`Failed to check if agents directory exists at ${agentsPath}`));
-
-        let agents: ProjectDetail["agents"] = [];
-
-        if (agentsDirExists) {
-          const agentEntries = yield* fs
-            .readDirectory(agentsPath)
-            .pipe(mapToProjectError(`Failed to read agents directory at ${agentsPath}`));
-
-          const agentFiles = agentEntries.filter((entry) => entry.endsWith(".json"));
-
-          agents = yield* Effect.all(
-            agentFiles.map((file) =>
-              Effect.gen(function* () {
-                const agentFilePath = path.join(agentsPath, file);
-                const content = yield* fs
-                  .readFileString(agentFilePath)
-                  .pipe(mapToProjectError(`Failed to read agent file at ${agentFilePath}`));
-                const agent = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(AgentSchema))(
-                  content,
-                ).pipe(
-                  mapToProjectError(
-                    `Failed to decode agent file at ${agentFilePath}. Fix missing/invalid fields in agent JSON.`,
-                  ),
-                );
-                return agent;
-              }),
-            ),
-            { concurrency: "unbounded" },
-          );
-        }
-
         return {
           id: project.id,
           name: project.name,
           path: project.path,
           createdAt: project.createdAt,
           updatedAt: project.updatedAt,
-          agents,
         };
       });
 
-      return { createProject, deleteProject, listProjects, getProjectDetail } as const;
+      const listAgents = Effect.fn("ProjectService.listAgents")(function* (input: ListAgentsInput) {
+        const projects = yield* listProjects();
+        const project = projects.find((p) => p.id === input.projectId);
+
+        if (!project) {
+          yield* new ProjectError({
+            message: `Project with id ${input.projectId} not found`,
+          });
+        }
+
+        const agentsPath = path.join(project.path, "agents");
+        const agentsDirExists = yield* fs
+          .exists(agentsPath)
+          .pipe(mapToProjectError(`Failed to check if agents directory exists at ${agentsPath}`));
+
+        if (!agentsDirExists) {
+          return [];
+        }
+
+        const agentEntries = yield* fs
+          .readDirectory(agentsPath)
+          .pipe(mapToProjectError(`Failed to read agents directory at ${agentsPath}`));
+
+        const agentFiles = agentEntries.filter((entry) => entry.endsWith(".json"));
+
+        if (agentFiles.length === 0) {
+          return [];
+        }
+
+        const agents = yield* Effect.all(
+          agentFiles.map((file) =>
+            Effect.gen(function* () {
+              const agentFilePath = path.join(agentsPath, file);
+              const content = yield* fs
+                .readFileString(agentFilePath)
+                .pipe(mapToProjectError(`Failed to read agent file at ${agentFilePath}`));
+              const agent = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(AgentSchema))(
+                content,
+              ).pipe(
+                mapToProjectError(
+                  `Failed to decode agent file at ${agentFilePath}. Fix missing/invalid fields in agent JSON.`,
+                ),
+              );
+              return agent;
+            }),
+          ),
+          { concurrency: "unbounded" },
+        );
+
+        return agents;
+      });
+
+      const listTerminals = Effect.fn("ProjectService.listTerminals")(function* (
+        input: ListTerminalsInput,
+      ) {
+        const projects = yield* listProjects();
+        const project = projects.find((p) => p.id === input.projectId);
+
+        if (!project) {
+          yield* new ProjectError({
+            message: `Project with id ${input.projectId} not found`,
+          });
+        }
+
+        const terminalsPath = path.join(project.path, "terminals");
+        const terminalsDirExists = yield* fs
+          .exists(terminalsPath)
+          .pipe(
+            mapToProjectError(`Failed to check if terminals directory exists at ${terminalsPath}`),
+          );
+
+        if (!terminalsDirExists) {
+          return [];
+        }
+
+        const terminalEntries = yield* fs
+          .readDirectory(terminalsPath)
+          .pipe(mapToProjectError(`Failed to read terminals directory at ${terminalsPath}`));
+
+        const terminalFiles = terminalEntries.filter((entry) => entry.endsWith(".json"));
+
+        if (terminalFiles.length === 0) {
+          return [];
+        }
+
+        const terminals = yield* Effect.all(
+          terminalFiles.map((file) =>
+            Effect.gen(function* () {
+              const terminalFilePath = path.join(terminalsPath, file);
+              const content = yield* fs
+                .readFileString(terminalFilePath)
+                .pipe(mapToProjectError(`Failed to read terminal file at ${terminalFilePath}`));
+              const terminal = yield* Schema.decodeUnknownEffect(
+                Schema.fromJsonString(TerminalSchema),
+              )(content).pipe(
+                mapToProjectError(
+                  `Failed to decode terminal file at ${terminalFilePath}. Fix missing/invalid fields in terminal JSON.`,
+                ),
+              );
+              return terminal;
+            }),
+          ),
+          { concurrency: "unbounded" },
+        );
+
+        return terminals;
+      });
+
+      return {
+        createProject,
+        deleteProject,
+        listProjects,
+        getProjectDetail,
+        listAgents,
+        listTerminals,
+      } as const;
     }),
   },
 ) {

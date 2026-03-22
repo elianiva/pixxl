@@ -42,3 +42,23 @@ export const getProjectDetailRpc = os.project.getProjectDetail.handler(({ input 
     Effect.runPromise,
   ),
 );
+
+export const listAgentsRpc = os.project.listAgents.handler(({ input }) =>
+  Effect.gen(function* () {
+    const service = yield* ProjectService;
+    return yield* service.listAgents(input);
+  }).pipe(
+    Effect.provide(ProjectService.live.pipe(Layer.provide(ConfigService.live))),
+    Effect.runPromise,
+  ),
+);
+
+export const listTerminalsRpc = os.project.listTerminals.handler(({ input }) =>
+  Effect.gen(function* () {
+    const service = yield* ProjectService;
+    return yield* service.listTerminals(input);
+  }).pipe(
+    Effect.provide(ProjectService.live.pipe(Layer.provide(ConfigService.live))),
+    Effect.runPromise,
+  ),
+);

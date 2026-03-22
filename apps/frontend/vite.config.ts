@@ -11,7 +11,10 @@ const config = defineConfig({
   staged: {
     "*": "vp check --fix",
   },
-  lint: { options: { typeAware: true, typeCheck: true } },
+  lint: {
+    exclude: ["src/routeTree.gen.ts"],
+    options: { typeAware: true, typeCheck: true },
+  },
   plugins: [
     devtools(),
     tailwindcss(),

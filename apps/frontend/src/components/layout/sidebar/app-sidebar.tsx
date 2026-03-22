@@ -21,6 +21,12 @@ import {
   RiRobot2Line,
   RiTerminalBoxLine,
 } from "@remixicon/react";
+import type { Agent } from "@pixxl/shared";
+
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  agents?: Agent[];
+  isAgentsLoading?: boolean;
+}
 
 // This is sample data.
 const data = {
@@ -52,27 +58,13 @@ const data = {
       url: "#",
       icon: <RiRobot2Line />,
       isActive: true,
-      items: [
-        {
-          title: "Implementing something blablabla",
-          url: "#",
-        },
-      ],
+      items: [],
     },
     {
       title: "Commands",
       url: "#",
       icon: <RiTerminalBoxLine />,
-      items: [
-        {
-          title: "dev:client",
-          url: "#",
-        },
-        {
-          title: "dev:server",
-          url: "#",
-        },
-      ],
+      items: [],
     },
   ],
   projects: [
@@ -94,14 +86,38 @@ const data = {
   ],
 };
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({ agents = [], isAgentsLoading = false, ...props }: AppSidebarProps) {
+  const navMain = React.useMemo(
+    () => [
+      {
+        title: "Agents",
+        url: "#",
+        icon: <RiRobot2Line />,
+        isActive: true,
+        items: isAgentsLoading
+          ? [{ title: "Loading...", url: "#" }]
+          : agents.map((agent) => ({
+              title: agent.name,
+              url: `#`,
+            })),
+      },
+      {
+        title: "Commands",
+        url: "#",
+        icon: <RiTerminalBoxLine />,
+        items: [],
+      },
+    ],
+    [agents, isAgentsLoading],
+  );
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <TeamSwitcher teams={data.teams} />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={navMain} />
         <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>

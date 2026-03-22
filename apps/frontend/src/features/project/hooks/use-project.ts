@@ -4,7 +4,9 @@ import type {
   CreateProjectInput,
   DeleteProjectInput,
   GetProjectDetailInput,
+  ListAgentsInput,
   ListProjectsInput,
+  ListTerminalsInput,
 } from "@pixxl/shared";
 
 export function useCreateProject() {
@@ -51,5 +53,19 @@ export function useGetProjectDetail(input: GetProjectDetailInput) {
   return useQuery({
     queryKey: ["project", input.id],
     queryFn: () => rpc.project.getProjectDetail(input),
+  });
+}
+
+export function useListAgents(input: ListAgentsInput) {
+  return useQuery({
+    queryKey: ["project", input.projectId, "agents"],
+    queryFn: () => rpc.project.listAgents(input),
+  });
+}
+
+export function useListTerminals(input: ListTerminalsInput) {
+  return useQuery({
+    queryKey: ["project", input.projectId, "terminals"],
+    queryFn: () => rpc.project.listTerminals(input),
   });
 }

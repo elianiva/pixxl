@@ -3,7 +3,9 @@ import {
   createProjectContract,
   deleteProjectContract,
   getProjectDetailContract,
+  listAgentsContract,
   listProjectsContract,
+  listTerminalsContract,
 } from "./contracts/project";
 
 export const routerContract = {
@@ -16,5 +18,7 @@ export const routerContract = {
     deleteProject: deleteProjectContract,
     listProjects: listProjectsContract,
     getProjectDetail: getProjectDetailContract,
+    listAgents: listAgentsContract,
+    listTerminals: listTerminalsContract,
   },
 };

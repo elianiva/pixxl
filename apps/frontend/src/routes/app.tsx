@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useParams } from "@tanstack/react-router";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/sidebar/app-sidebar";
 import { Separator } from "@base-ui/react";
@@ -10,15 +10,23 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { useListAgents } from "@/features/project/hooks/use-project";
+import type { Agent } from "@pixxl/shared";
 
 export const Route = createFileRoute("/app")({
   component: RouteComponent,
 });
 
 function RouteComponent() {
+  const projectId = useParams({ from: "/app/$projectId/" }).projectId;
+  const agentsQuery = useListAgents({ projectId });
+
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar
+        agents={[...(agentsQuery.data ?? [])] as Agent[]}
+        isAgentsLoading={agentsQuery.isLoading}
+      />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
