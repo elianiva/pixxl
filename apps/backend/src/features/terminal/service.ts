@@ -19,6 +19,10 @@ type TerminalServiceShape = {
   readonly updateTerminal: (
     input: UpdateTerminalInput,
   ) => Effect.Effect<Option.Option<TerminalMetadata>, TerminalError>;
+  readonly deleteTerminal: (input: {
+    projectId: string;
+    id: string;
+  }) => Effect.Effect<boolean, TerminalError>;
   readonly listTerminals: (
     input: ListTerminalsInput,
   ) => Effect.Effect<TerminalMetadata[], TerminalError>;
@@ -130,6 +134,40 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
         return Option.some(updated);
       });
 
+      const deleteTerminal = Effect.fn("TerminalService.deleteTerminal")(function* (input: {
+        projectId: string;
+        id: string;
+      }) {
+        const project = yield* projectService
+          .getProjectDetail({ id: input.projectId })
+          .pipe(TerminalError.mapTo(`Failed to get project with id ${input.projectId}`));
+
+        if (Option.isNone(project)) {
+          yield* new TerminalError({ message: `Project with id ${input.projectId} not found` });
+          return false;
+        }
+
+        const filePath = path.join(project.value.path, "terminals", `${input.id}.json`);
+        const fileExists = yield* fs
+          .exists(filePath)
+          .pipe(TerminalError.mapTo(`Failed to check if terminal exists at path ${filePath}`));
+
+        if (!fileExists) {
+          yield* new TerminalError({ message: `Terminal with id ${input.id} not found` });
+          return false;
+        }
+
+        yield* fs
+          .remove(filePath)
+          .pipe(
+            TerminalError.mapTo(
+              `Failed to delete terminal with id ${input.id} at path ${filePath}`,
+            ),
+          );
+
+        return true;
+      });
+
       const listTerminals = Effect.fn("TerminalService.listTerminals")(function* (
         input: ListTerminalsInput,
       ) {
@@ -178,7 +216,7 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
         return terminals.filter((terminal) => terminal !== null);
       });
 
-      return { createTerminal, updateTerminal, listTerminals } as const;
+      return { createTerminal, updateTerminal, deleteTerminal, listTerminals } as const;
     }),
   },
 ) {

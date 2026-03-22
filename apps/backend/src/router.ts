@@ -6,9 +6,19 @@ import {
   getProjectDetailRpc,
   listProjectsRpc,
 } from "./features/project/rpc";
-import { createAgentRpc, updateAgentRpc, listAgentsRpc } from "./features/agent/rpc";
-import { createTerminalRpc, updateTerminalRpc, listTerminalsRpc } from "./features/terminal/rpc";
-import { createCommandRpc, listCommandsRpc } from "./features/command/rpc";
+import {
+  createAgentRpc,
+  updateAgentRpc,
+  deleteAgentRpc,
+  listAgentsRpc,
+} from "./features/agent/rpc";
+import {
+  createTerminalRpc,
+  updateTerminalRpc,
+  deleteTerminalRpc,
+  listTerminalsRpc,
+} from "./features/terminal/rpc";
+import { createCommandRpc, deleteCommandRpc, listCommandsRpc } from "./features/command/rpc";
 
 export const router = os.router({
   config: {
@@ -24,15 +34,18 @@ export const router = os.router({
   agent: {
     createAgent: createAgentRpc,
     updateAgent: updateAgentRpc,
+    deleteAgent: deleteAgentRpc,
     listAgents: listAgentsRpc,
   },
   terminal: {
     createTerminal: createTerminalRpc,
     updateTerminal: updateTerminalRpc,
+    deleteTerminal: deleteTerminalRpc,
     listTerminals: listTerminalsRpc,
   },
   command: {
     createCommand: createCommandRpc,
+    deleteCommand: deleteCommandRpc,
     listCommands: listCommandsRpc,
   },
 });

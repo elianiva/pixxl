@@ -1,20 +1,8 @@
-import { Schema, SchemaTransformation } from "effect";
-
-function nameRule(name: string): string {
-  return name.trim().replace(/\s+/g, "-").toLowerCase();
-}
+import { Schema } from "effect";
 
 export const CreateCommandInputSchema = Schema.Struct({
   projectId: Schema.String,
-  name: Schema.NonEmptyString.pipe(
-    Schema.decodeTo(
-      Schema.NonEmptyString,
-      SchemaTransformation.transform({
-        decode: nameRule,
-        encode: (val) => val,
-      }),
-    ),
-  ),
+  name: Schema.NonEmptyString,
   command: Schema.String,
   description: Schema.String,
 });
@@ -32,9 +20,15 @@ export const ListCommandsInputSchema = Schema.Struct({
   projectId: Schema.String,
 });
 
+export const DeleteCommandInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  id: Schema.String,
+});
+
 export const CommandMetadataListSchema = Schema.Array(CommandMetadataSchema);
 
 export type CreateCommandInput = typeof CreateCommandInputSchema.Type;
+export type DeleteCommandInput = typeof DeleteCommandInputSchema.Type;
 export type CommandMetadata = typeof CommandMetadataSchema.Type;
 export type CommandMetadataList = typeof CommandMetadataListSchema.Type;
 export type ListCommandsInput = typeof ListCommandsInputSchema.Type;

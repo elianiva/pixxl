@@ -9,15 +9,22 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { RiArrowRightSLine, RiPencilLine } from "@remixicon/react";
+import { RiArrowRightSLine, RiPencilLine, RiDeleteBin2Line, RiMoreLine } from "@remixicon/react";
 
-interface NavSubItem {
+export interface NavSubItem {
   title: string;
   url: string;
   disabled?: boolean;
   onClick?: () => void;
   onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 interface NavItem {
@@ -52,6 +59,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
                     return (
                       <SidebarMenuSubItem key={`empty-${index}`}>
                         <SidebarMenuSubButton
+                          render={<span />}
                           className={cn(
                             subItem.disabled &&
                               "text-muted-foreground hover:bg-transparent active:bg-transparent hover:text-muted-foreground active:text-muted-foreground opacity-50",
@@ -62,14 +70,14 @@ export function NavMain({ items }: { items: NavItem[] }) {
                       </SidebarMenuSubItem>
                     );
                   }
-                  const isActionItem = subItem.title.startsWith("+ ");
-                  const hasEdit = Boolean(subItem.onEdit);
+                  const isActionItem = subItem.onClick !== undefined;
+                  const hasMenu = Boolean(subItem.onEdit) || Boolean(subItem.onDelete);
 
                   return (
                     <SidebarMenuSubItem key={subItem.title} className="group/item">
                       <SidebarMenuSubButton
                         render={
-                          isActionItem || subItem.onClick ? (
+                          isActionItem ? (
                             <button
                               type="button"
                               onClick={subItem.onClick}
@@ -79,23 +87,38 @@ export function NavMain({ items }: { items: NavItem[] }) {
                             <a href={subItem.url} />
                           )
                         }
-                        className="pr-1"
+                        className="w-full group-hover/item:bg-sidebar-accent flex items-center justify-between"
                       >
                         <span
                           className={isActionItem ? "text-muted-foreground font-normal" : undefined}
                         >
                           {subItem.title}
                         </span>
+                        {hasMenu && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              onClick={(e) => e.stopPropagation()}
+                              className="opacity-0 group-hover/item:opacity-100 transition-none p-1 rounded cursor-pointer"
+                            >
+                              <RiMoreLine className="size-3.5 text-muted-foreground" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {subItem.onEdit && (
+                                <DropdownMenuItem onClick={subItem.onEdit}>
+                                  <RiPencilLine className="size-3.5" />
+                                  <span>Edit</span>
+                                </DropdownMenuItem>
+                              )}
+                              {subItem.onDelete && (
+                                <DropdownMenuItem variant="destructive" onClick={subItem.onDelete}>
+                                  <RiDeleteBin2Line className="size-3.5" />
+                                  <span>Delete</span>
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </SidebarMenuSubButton>
-                      {hasEdit && (
-                        <button
-                          type="button"
-                          onClick={subItem.onEdit}
-                          className="opacity-0 group-hover/item:opacity-100 transition-opacity p-1 hover:bg-accent rounded"
-                        >
-                          <RiPencilLine className="size-3.5 text-muted-foreground" />
-                        </button>
-                      )}
                     </SidebarMenuSubItem>
                   );
                 })}

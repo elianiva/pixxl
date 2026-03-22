@@ -47,6 +47,42 @@ export function useCreateCommand() {
   });
 }
 
+export function useDeleteCommand() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { projectId: string; id: string }) => rpc.command.deleteCommand(input),
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({
+        queryKey: ["project", input.projectId, "commands"],
+      });
+
+      const previousCommands = queryClient.getQueryData<CommandMetadata[]>([
+        "project",
+        input.projectId,
+        "commands",
+      ]);
+
+      queryClient.setQueryData<CommandMetadata[]>(
+        ["project", input.projectId, "commands"],
+        (old) => old?.filter((command) => command.id !== input.id) ?? [],
+      );
+
+      return { previousCommands };
+    },
+    onError: (_err, _input, context) => {
+      if (context?.previousCommands) {
+        queryClient.setQueryData(
+          ["project", _input.projectId, "commands"],
+          context.previousCommands,
+        );
+      }
+    },
+    onSettled: (_data, _err, input) => {
+      queryClient.invalidateQueries({ queryKey: ["project", input.projectId, "commands"] });
+    },
+  });
+}
+
 export function useListCommands(input: ListCommandsInput) {
   return useQuery({
     queryKey: ["project", input.projectId, "commands"],

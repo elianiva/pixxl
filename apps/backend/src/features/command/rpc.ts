@@ -9,6 +9,13 @@ export const createCommandRpc = os.command.createCommand.handler(({ input }) =>
   }).pipe(Effect.provide(CommandService.live), Effect.runPromise),
 );
 
+export const deleteCommandRpc = os.command.deleteCommand.handler(({ input }) =>
+  Effect.gen(function* () {
+    const service = yield* CommandService;
+    return yield* service.deleteCommand(input);
+  }).pipe(Effect.provide(CommandService.live), Effect.runPromise),
+);
+
 export const listCommandsRpc = os.command.listCommands.handler(({ input }) =>
   Effect.gen(function* () {
     const service = yield* CommandService;

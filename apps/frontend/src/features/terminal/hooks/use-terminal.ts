@@ -75,6 +75,42 @@ export function useUpdateTerminal() {
   });
 }
 
+export function useDeleteTerminal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { projectId: string; id: string }) => rpc.terminal.deleteTerminal(input),
+    onMutate: (input) => {
+      void queryClient.cancelQueries({
+        queryKey: ["project", input.projectId, "terminals"],
+      });
+
+      const previousTerminals = queryClient.getQueryData<TerminalMetadata[]>([
+        "project",
+        input.projectId,
+        "terminals",
+      ]);
+
+      queryClient.setQueryData<TerminalMetadata[]>(
+        ["project", input.projectId, "terminals"],
+        (old) => old?.filter((terminal) => terminal.id !== input.id) ?? [],
+      );
+
+      return { previousTerminals };
+    },
+    onError: (_err, _input, context) => {
+      if (context?.previousTerminals) {
+        queryClient.setQueryData(
+          ["project", _input.projectId, "terminals"],
+          context.previousTerminals,
+        );
+      }
+    },
+    onSettled: (_data, _err, input) => {
+      void queryClient.invalidateQueries({ queryKey: ["project", input.projectId, "terminals"] });
+    },
+  });
+}
+
 export function useListTerminals(input: ListTerminalsInput) {
   return useQuery({
     queryKey: ["project", input.projectId, "terminals"],

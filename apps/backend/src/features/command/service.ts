@@ -15,6 +15,10 @@ type CommandServiceShape = {
   readonly createCommand: (
     input: CreateCommandInput,
   ) => Effect.Effect<Option.Option<CommandMetadata>, CommandError>;
+  readonly deleteCommand: (input: {
+    projectId: string;
+    id: string;
+  }) => Effect.Effect<boolean, CommandError>;
   readonly listCommands: (
     input: ListCommandsInput,
   ) => Effect.Effect<CommandMetadata[], CommandError>;
@@ -78,6 +82,38 @@ export class CommandService extends ServiceMap.Service<CommandService, CommandSe
         return Option.some(metadata);
       });
 
+      const deleteCommand = Effect.fn("CommandService.deleteCommand")(function* (input: {
+        projectId: string;
+        id: string;
+      }) {
+        const project = yield* projectService
+          .getProjectDetail({ id: input.projectId })
+          .pipe(CommandError.mapTo(`Failed to get project detail`));
+
+        if (Option.isNone(project)) {
+          yield* new CommandError({ message: `Project with id ${input.projectId} not found` });
+          return false;
+        }
+
+        const filePath = path.join(project.value.path, "commands", `${input.id}.json`);
+        const fileExists = yield* fs
+          .exists(filePath)
+          .pipe(CommandError.mapTo(`Failed to check if command exists at path ${filePath}`));
+
+        if (!fileExists) {
+          yield* new CommandError({ message: `Command with id ${input.id} not found` });
+          return false;
+        }
+
+        yield* fs
+          .remove(filePath)
+          .pipe(
+            CommandError.mapTo(`Failed to delete command with id ${input.id} at path ${filePath}`),
+          );
+
+        return true;
+      });
+
       const listCommands = Effect.fn("CommandService.listCommands")(function* (
         input: ListCommandsInput,
       ) {
@@ -118,7 +154,7 @@ export class CommandService extends ServiceMap.Service<CommandService, CommandSe
         return commands.filter((command) => command !== null);
       });
 
-      return { createCommand, listCommands } as const;
+      return { createCommand, deleteCommand, listCommands } as const;
     }),
   },
 ) {

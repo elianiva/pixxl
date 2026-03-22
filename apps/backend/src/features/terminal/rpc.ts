@@ -16,6 +16,13 @@ export const updateTerminalRpc = os.terminal.updateTerminal.handler(({ input }) 
   }).pipe(Effect.provide(TerminalService.live), Effect.runPromise),
 );
 
+export const deleteTerminalRpc = os.terminal.deleteTerminal.handler(({ input }) =>
+  Effect.gen(function* () {
+    const service = yield* TerminalService;
+    return yield* service.deleteTerminal(input);
+  }).pipe(Effect.provide(TerminalService.live), Effect.runPromise),
+);
+
 export const listTerminalsRpc = os.terminal.listTerminals.handler(({ input }) =>
   Effect.gen(function* () {
     const service = yield* TerminalService;

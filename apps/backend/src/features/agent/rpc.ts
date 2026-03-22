@@ -16,6 +16,13 @@ export const updateAgentRpc = os.agent.updateAgent.handler(({ input }) =>
   }).pipe(Effect.provide(AgentService.live), Effect.runPromise),
 );
 
+export const deleteAgentRpc = os.agent.deleteAgent.handler(({ input }) =>
+  Effect.gen(function* () {
+    const service = yield* AgentService;
+    return yield* service.deleteAgent(input);
+  }).pipe(Effect.provide(AgentService.live), Effect.runPromise),
+);
+
 export const listAgentsRpc = os.agent.listAgents.handler(({ input }) =>
   Effect.gen(function* () {
     const service = yield* AgentService;

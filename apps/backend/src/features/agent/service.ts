@@ -19,6 +19,10 @@ type AgentServiceShape = {
   readonly updateAgent: (
     input: UpdateAgentInput,
   ) => Effect.Effect<Option.Option<AgentMetadata>, AgentError>;
+  readonly deleteAgent: (input: {
+    projectId: string;
+    id: string;
+  }) => Effect.Effect<boolean, AgentError>;
   readonly listAgents: (input: ListAgentsInput) => Effect.Effect<AgentMetadata[], AgentError>;
 };
 
@@ -119,6 +123,36 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
         return Option.some(updated);
       });
 
+      const deleteAgent = Effect.fn("AgentService.deleteAgent")(function* (input: {
+        projectId: string;
+        id: string;
+      }) {
+        const project = yield* projectService
+          .getProjectDetail({ id: input.projectId })
+          .pipe(AgentError.mapTo(`Failed to get project with id ${input.projectId}`));
+
+        if (Option.isNone(project)) {
+          yield* new AgentError({ message: `Project with id ${input.projectId} not found` });
+          return false;
+        }
+
+        const filePath = path.join(project.value.path, "agents", `${input.id}.json`);
+        const fileExists = yield* fs
+          .exists(filePath)
+          .pipe(AgentError.mapTo(`Failed to check if agent exists at path ${filePath}`));
+
+        if (!fileExists) {
+          yield* new AgentError({ message: `Agent with id ${input.id} not found` });
+          return false;
+        }
+
+        yield* fs
+          .remove(filePath)
+          .pipe(AgentError.mapTo(`Failed to delete agent with id ${input.id} at path ${filePath}`));
+
+        return true;
+      });
+
       const listAgents = Effect.fn("AgentService.listAgents")(function* (input: ListAgentsInput) {
         const project = yield* projectService
           .getProjectDetail({ id: input.projectId })
@@ -157,7 +191,7 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
         return agents.filter((agent) => agent !== null);
       });
 
-      return { createAgent, updateAgent, listAgents } as const;
+      return { createAgent, updateAgent, deleteAgent, listAgents } as const;
     }),
   },
 ) {

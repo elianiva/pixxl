@@ -1,26 +1,19 @@
-import { Schema, SchemaTransformation } from "effect";
-
-function nameRule(name: string): string {
-  return name.trim().replace(/\s+/g, "-").toLowerCase();
-}
+import { Schema } from "effect";
 
 export const CreateAgentInputSchema = Schema.Struct({
   projectId: Schema.String,
-  name: Schema.NonEmptyString.pipe(
-    Schema.decodeTo(
-      Schema.NonEmptyString,
-      SchemaTransformation.transform({
-        decode: nameRule,
-        encode: (val) => val,
-      }),
-    ),
-  ),
+  name: Schema.NonEmptyString,
 });
 
 export const UpdateAgentInputSchema = Schema.Struct({
   projectId: Schema.String,
   id: Schema.String,
   name: Schema.String,
+});
+
+export const DeleteAgentInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  id: Schema.String,
 });
 
 export const AgentMetadataSchema = Schema.Struct({
@@ -38,6 +31,7 @@ export const AgentMetadataListSchema = Schema.Array(AgentMetadataSchema);
 
 export type CreateAgentInput = typeof CreateAgentInputSchema.Type;
 export type UpdateAgentInput = typeof UpdateAgentInputSchema.Type;
+export type DeleteAgentInput = typeof DeleteAgentInputSchema.Type;
 export type AgentMetadata = typeof AgentMetadataSchema.Type;
 export type AgentMetadataList = typeof AgentMetadataListSchema.Type;
 export type ListAgentsInput = typeof ListAgentsInputSchema.Type;

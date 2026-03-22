@@ -12,7 +12,6 @@ const config = defineConfig({
     "*": "vp check --fix",
   },
   lint: {
-    exclude: ["src/routeTree.gen.ts"],
     options: { typeAware: true, typeCheck: true },
   },
   plugins: [

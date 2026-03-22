@@ -12,7 +12,10 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useListAgents } from "@/features/agent/hooks/use-agent";
+import { useDeleteAgent } from "@/features/agent/hooks/use-agent";
 import { useListTerminals } from "@/features/terminal/hooks/use-terminal";
+import { useDeleteTerminal } from "@/features/terminal/hooks/use-terminal";
+import { useDeleteCommand } from "@/features/command/hooks/use-command";
 import { NewCommandDialog } from "@/features/command/components/new-command-dialog";
 import { EditAgentDialog } from "@/features/agent/components/edit-agent-dialog";
 import { EditTerminalDialog } from "@/features/terminal/components/edit-terminal-dialog";
@@ -26,6 +29,9 @@ function RouteComponent() {
   const projectId = useParams({ from: "/app/$projectId/" }).projectId;
   const agentsQuery = useListAgents({ projectId });
   const terminalsQuery = useListTerminals({ projectId });
+  const deleteAgent = useDeleteAgent();
+  const deleteTerminal = useDeleteTerminal();
+  const deleteCommand = useDeleteCommand();
 
   const [commandDialogOpen, setCommandDialogOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<AgentMetadata | null>(null);
@@ -41,6 +47,9 @@ function RouteComponent() {
         isTerminalsLoading={terminalsQuery.isLoading}
         onEditAgent={setEditingAgent}
         onEditTerminal={setEditingTerminal}
+        onDeleteAgent={(agent) => deleteAgent.mutate({ projectId, id: agent.id })}
+        onDeleteTerminal={(terminal) => deleteTerminal.mutate({ projectId, id: terminal.id })}
+        onDeleteCommand={(command) => deleteCommand.mutate({ projectId, id: command.id })}
         onAddCommand={() => setCommandDialogOpen(true)}
       />
       <SidebarInset>

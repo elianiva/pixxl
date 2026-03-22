@@ -72,6 +72,39 @@ export function useUpdateAgent() {
   });
 }
 
+export function useDeleteAgent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { projectId: string; id: string }) => rpc.agent.deleteAgent(input),
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({
+        queryKey: ["project", input.projectId, "agents"],
+      });
+
+      const previousAgents = queryClient.getQueryData<AgentMetadata[]>([
+        "project",
+        input.projectId,
+        "agents",
+      ]);
+
+      queryClient.setQueryData<AgentMetadata[]>(
+        ["project", input.projectId, "agents"],
+        (old) => old?.filter((agent) => agent.id !== input.id) ?? [],
+      );
+
+      return { previousAgents };
+    },
+    onError: (_err, _input, context) => {
+      if (context?.previousAgents) {
+        queryClient.setQueryData(["project", _input.projectId, "agents"], context.previousAgents);
+      }
+    },
+    onSettled: (_data, _err, input) => {
+      queryClient.invalidateQueries({ queryKey: ["project", input.projectId, "agents"] });
+    },
+  });
+}
+
 export function useListAgents(input: ListAgentsInput) {
   return useQuery({
     queryKey: ["project", input.projectId, "agents"],

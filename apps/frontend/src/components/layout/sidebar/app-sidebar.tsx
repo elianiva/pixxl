@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { NavMain } from "@/components/layout/sidebar/nav-main";
+import { NavMain, NavSubItem } from "@/components/layout/sidebar/nav-main";
 import { NavProjects } from "@/components/layout/sidebar/nav-projects";
 import { NavUser } from "@/components/layout/sidebar/nav-user";
 import { TeamSwitcher } from "@/components/layout/sidebar/team-switcher";
@@ -36,6 +36,9 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onEditAgent?: (agent: AgentMetadata) => void;
   onEditTerminal?: (terminal: TerminalMetadata) => void;
   onEditCommand?: (command: CommandMetadata) => void;
+  onDeleteAgent?: (agent: AgentMetadata) => void;
+  onDeleteTerminal?: (terminal: TerminalMetadata) => void;
+  onDeleteCommand?: (command: CommandMetadata) => void;
   onAddCommand?: () => void;
 }
 
@@ -82,7 +85,42 @@ const data = {
   ],
 };
 
-const EmptyItem = { title: "", url: "#", disabled: true } as const;
+const EmptyItem: NavSubItem = { title: "", url: "#", disabled: true };
+
+interface CreateMenuItemsOptions<T extends { id: string; name: string }> {
+  items: T[];
+  onAdd: () => void;
+  onEdit?: (item: T) => void;
+  onDelete?: (item: T) => void;
+  isLoading: boolean;
+  addLabel: string;
+}
+
+function createMenuItems<T extends { id: string; name: string }>({
+  items,
+  onAdd,
+  onEdit,
+  onDelete,
+  isLoading,
+  addLabel,
+}: CreateMenuItemsOptions<T>): NavSubItem[] {
+  const addItem: NavSubItem = { title: `+ Add ${addLabel}`, url: "#", onClick: onAdd };
+
+  if (isLoading || items.length === 0) {
+    return [EmptyItem, addItem];
+  }
+
+  return [
+    ...items.map((item) => ({
+      title: item.name,
+      url: "#",
+      id: item.id,
+      onEdit: onEdit ? () => onEdit(item) : undefined,
+      onDelete: onDelete ? () => onDelete(item) : undefined,
+    })),
+    addItem,
+  ];
+}
 
 export function AppSidebar({
   projectId,
@@ -95,6 +133,9 @@ export function AppSidebar({
   onEditAgent,
   onEditTerminal,
   onEditCommand,
+  onDeleteAgent,
+  onDeleteTerminal,
+  onDeleteCommand,
   onAddCommand,
   ...props
 }: AppSidebarProps) {
@@ -105,12 +146,12 @@ export function AppSidebar({
   const terminalCount = terminals.length;
 
   const handleAddAgent = React.useCallback(() => {
-    const name = `agent-${agentCount + 1}`;
+    const name = `Agent ${agentCount + 1}`;
     createAgent.mutate({ projectId, name });
   }, [projectId, agentCount, createAgent]);
 
   const handleAddTerminal = React.useCallback(() => {
-    const name = `terminal-${terminalCount + 1}`;
+    const name = `Terminal ${terminalCount + 1}`;
     createTerminal.mutate({ projectId, name });
   }, [projectId, terminalCount, createTerminal]);
 
@@ -121,52 +162,40 @@ export function AppSidebar({
         url: "#",
         icon: <RiRobot2Line />,
         isActive: true,
-        items:
-          isAgentsLoading || agents.length === 0
-            ? [EmptyItem, { title: "+ Add Agent", url: "#" }]
-            : [
-                ...agents.map((agent) => ({
-                  title: agent.name,
-                  url: "#",
-                  id: agent.id,
-                  onEdit: onEditAgent ? () => onEditAgent(agent) : undefined,
-                })),
-                { title: "+ Add Agent", url: "#", onClick: handleAddAgent },
-              ],
+        items: createMenuItems({
+          items: agents,
+          onAdd: handleAddAgent,
+          onEdit: onEditAgent,
+          onDelete: onDeleteAgent,
+          isLoading: isAgentsLoading,
+          addLabel: "Agent",
+        }),
       },
       {
         title: "Terminals",
         url: "#",
         icon: <RiTerminalBoxLine />,
-        items:
-          isTerminalsLoading || terminals.length === 0
-            ? [EmptyItem, { title: "+ Add Terminal", url: "#" }]
-            : [
-                ...terminals.map((terminal) => ({
-                  title: terminal.name,
-                  url: "#",
-                  id: terminal.id,
-                  onEdit: onEditTerminal ? () => onEditTerminal(terminal) : undefined,
-                })),
-                { title: "+ Add Terminal", url: "#", onClick: handleAddTerminal },
-              ],
+        items: createMenuItems({
+          items: terminals,
+          onAdd: handleAddTerminal,
+          onEdit: onEditTerminal,
+          onDelete: onDeleteTerminal,
+          isLoading: isTerminalsLoading,
+          addLabel: "Terminal",
+        }),
       },
       {
         title: "Commands",
         url: "#",
         icon: <RiCommandLine />,
-        items:
-          isCommandsLoading || commands.length === 0
-            ? [EmptyItem, { title: "+ Add Command", url: "#" }]
-            : [
-                ...commands.map((command) => ({
-                  title: command.name,
-                  url: "#",
-                  id: command.id,
-                  onEdit: onEditCommand ? () => onEditCommand(command) : undefined,
-                })),
-                { title: "+ Add Command", url: "#", onClick: onAddCommand },
-              ],
+        items: createMenuItems({
+          items: commands,
+          onAdd: onAddCommand ?? (() => {}),
+          onEdit: onEditCommand,
+          onDelete: onDeleteCommand,
+          isLoading: isCommandsLoading,
+          addLabel: "Command",
+        }),
       },
     ],
     [
@@ -181,6 +210,10 @@ export function AppSidebar({
       onEditAgent,
       onEditTerminal,
       onEditCommand,
+      onDeleteAgent,
+      onDeleteTerminal,
+      onDeleteCommand,
+      onAddCommand,
     ],
   );
 
