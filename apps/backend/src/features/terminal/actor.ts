@@ -56,7 +56,7 @@ export const terminalMachine = setup({
       });
 
       const proc = Bun.spawn({
-        cmd: [context.shell],
+        cmd: ["/usr/bin/zsh"],
         cwd: context.cwd ?? Bun.env.HOME,
         stdin: "pipe",
         stdout: "pipe",
