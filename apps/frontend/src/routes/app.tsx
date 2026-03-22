@@ -8,6 +8,7 @@ import { useLiveQuery } from "@tanstack/react-db";
 import { agentsCollection } from "@/features/agent/agents-collection";
 import { terminalsCollection } from "@/features/terminal/terminals-collection";
 import { commandsCollection } from "@/features/command/commands-collection";
+import { projectsCollection } from "@/features/project/projects-collection";
 import { NewCommandDialog } from "@/features/command/components/new-command-dialog";
 import { EditAgentDialog } from "@/features/agent/components/edit-agent-dialog";
 import { EditTerminalDialog } from "@/features/terminal/components/edit-terminal-dialog";
@@ -22,9 +23,17 @@ function RouteComponent() {
   const projectId = useParams({ select: (p) => p.projectId as string, strict: false });
   const navigate = useNavigate();
 
+  const projects = useLiveQuery(projectsCollection);
   const agents = useLiveQuery(agentsCollection);
   const terminals = useLiveQuery(terminalsCollection);
   const commands = useLiveQuery(commandsCollection);
+
+  function handleSelectProject(project: { id: string }) {
+    void navigate({
+      to: "/app/$projectId",
+      params: { projectId: project.id },
+    });
+  }
 
   const [commandDialogOpen, setCommandDialogOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<AgentMetadata | null>(null);
@@ -103,9 +112,12 @@ function RouteComponent() {
   return (
     <SidebarProvider>
       <AppSidebar
+        projects={projects.data ?? []}
+        currentProjectId={projectId}
         agents={agents.data ?? []}
         terminals={terminals.data ?? []}
         isLoading={agents.isLoading || terminals.isLoading}
+        onSelectProject={handleSelectProject}
         onEditAgent={setEditingAgent}
         onEditTerminal={setEditingTerminal}
         onDeleteAgent={handleDeleteAgent}

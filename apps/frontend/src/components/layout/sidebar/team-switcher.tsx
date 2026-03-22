@@ -18,17 +18,24 @@ import {
 } from "@/components/ui/sidebar";
 import { RiArrowUpDownLine, RiAddLine } from "@remixicon/react";
 
+export interface TeamSwitcherTeam {
+  id: string;
+  name: string;
+  logo: React.ReactNode;
+  plan: string;
+}
+
 export function TeamSwitcher({
   teams,
+  currentTeam,
+  onSelectTeam,
 }: {
-  teams: {
-    name: string;
-    logo: React.ReactNode;
-    plan: string;
-  }[];
+  teams: TeamSwitcherTeam[];
+  currentTeam?: TeamSwitcherTeam;
+  onSelectTeam?: (team: TeamSwitcherTeam) => void;
 }) {
   const { isMobile } = useSidebar();
-  const [activeTeam, setActiveTeam] = React.useState(teams[0]);
+  const [activeTeam, setActiveTeam] = React.useState(currentTeam ?? teams[0]);
   if (!activeTeam) {
     return null;
   }
@@ -60,11 +67,16 @@ export function TeamSwitcher({
             sideOffset={4}
           >
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="text-xs text-muted-foreground">Teams</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-xs text-muted-foreground">
+                Projects
+              </DropdownMenuLabel>
               {teams.map((team, index) => (
                 <DropdownMenuItem
-                  key={team.name}
-                  onClick={() => setActiveTeam(team)}
+                  key={team.id}
+                  onClick={() => {
+                    setActiveTeam(team);
+                    onSelectTeam?.(team);
+                  }}
                   className="gap-2 p-2"
                 >
                   <div className="flex size-6 items-center justify-center border">{team.logo}</div>
@@ -79,7 +91,7 @@ export function TeamSwitcher({
                 <div className="flex size-6 items-center justify-center border bg-transparent">
                   <RiAddLine className="size-4" />
                 </div>
-                <div className="font-medium text-muted-foreground">Add team</div>
+                <div className="font-medium text-muted-foreground">Add project</div>
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>

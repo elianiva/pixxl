@@ -2,7 +2,7 @@ import * as React from "react";
 import { NavMain, NavSubItem } from "@/components/layout/sidebar/nav-main";
 import { NavProjects } from "@/components/layout/sidebar/nav-projects";
 import { NavUser } from "@/components/layout/sidebar/nav-user";
-import { TeamSwitcher } from "@/components/layout/sidebar/team-switcher";
+import { TeamSwitcher, type TeamSwitcherTeam } from "@/components/layout/sidebar/team-switcher";
 import {
   Sidebar,
   SidebarContent,
@@ -10,22 +10,16 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import {
-  RiGalleryLine,
-  RiPulseLine,
-  RiCommandLine,
-  RiCropLine,
-  RiPieChartLine,
-  RiMapLine,
-  RiRobot2Line,
-  RiTerminalBoxLine,
-} from "@remixicon/react";
-import type { AgentMetadata, TerminalMetadata } from "@pixxl/shared";
+import { RiCommandLine, RiRobot2Line, RiTerminalBoxLine, RiFolder3Line } from "@remixicon/react";
+import type { AgentMetadata, ProjectMetadata, TerminalMetadata } from "@pixxl/shared";
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  projects: ProjectMetadata[];
+  currentProjectId?: string;
   agents: AgentMetadata[];
   terminals: TerminalMetadata[];
   isLoading: boolean;
+  onSelectProject?: (project: TeamSwitcherTeam) => void;
   onEditAgent?: (agent: AgentMetadata) => void;
   onEditTerminal?: (terminal: TerminalMetadata) => void;
   onDeleteAgent?: (id: string) => void;
@@ -71,9 +65,12 @@ function createMenuItems<T extends { id: string; name: string }>(options: {
 }
 
 export function AppSidebar({
+  projects,
+  currentProjectId,
   agents,
   terminals,
   isLoading,
+  onSelectProject,
   onEditAgent,
   onEditTerminal,
   onDeleteAgent,
@@ -85,6 +82,32 @@ export function AppSidebar({
   onCreateTerminal,
   ...props
 }: AppSidebarProps) {
+  // Transform projects into teams format for the project switcher
+  const projectSwitcherItems = React.useMemo(
+    () =>
+      projects.map((project) => ({
+        id: project.id,
+        name: project.name,
+        logo: <RiFolder3Line />,
+        plan: project.path,
+      })),
+    [projects],
+  );
+
+  const currentProject = React.useMemo(
+    () => projects.find((p) => p.id === currentProjectId) ?? projects[0],
+    [projects, currentProjectId],
+  );
+
+  const projectList = React.useMemo(
+    () =>
+      projects.map((project) => ({
+        name: project.name,
+        url: "#",
+        icon: <RiFolder3Line />,
+      })),
+    [projects],
+  );
   const navMain = React.useMemo(
     () => [
       {
@@ -110,10 +133,10 @@ export function AppSidebar({
               EmptyItem,
               onCreateTerminal
                 ? {
-                  title: "+ Add Terminal",
-                  url: "#",
-                  onClick: () => onCreateTerminal(`Terminal ${terminals.length + 1}`),
-                }
+                    title: "+ Add Terminal",
+                    url: "#",
+                    onClick: () => onCreateTerminal(`Terminal ${terminals.length + 1}`),
+                  }
                 : EmptyItem,
             ];
           }
@@ -128,10 +151,10 @@ export function AppSidebar({
             })),
             onCreateTerminal
               ? {
-                title: "+ Add Terminal",
-                url: "#",
-                onClick: () => onCreateTerminal(`Terminal ${terminals.length + 1}`),
-              }
+                  title: "+ Add Terminal",
+                  url: "#",
+                  onClick: () => onCreateTerminal(`Terminal ${terminals.length + 1}`),
+                }
               : EmptyItem,
           ];
         })(),
@@ -165,31 +188,30 @@ export function AppSidebar({
     ],
   );
 
-  const data = {
-    user: { name: "shadcn", email: "m@example.com", avatar: "/avatars/shadcn.jpg" },
-    teams: [
-      { name: "Acme Inc", logo: <RiGalleryLine />, plan: "Enterprise" },
-      { name: "Acme Corp.", logo: <RiPulseLine />, plan: "Startup" },
-      { name: "Evil Corp.", logo: <RiCommandLine />, plan: "Free" },
-    ],
-    projects: [
-      { name: "Design Engineering", url: "#", icon: <RiCropLine /> },
-      { name: "Sales & Marketing", url: "#", icon: <RiPieChartLine /> },
-      { name: "Travel", url: "#", icon: <RiMapLine /> },
-    ],
-  };
-
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+        <TeamSwitcher
+          teams={projectSwitcherItems}
+          currentTeam={
+            currentProject
+              ? {
+                  id: currentProject.id,
+                  name: currentProject.name,
+                  logo: <RiFolder3Line />,
+                  plan: currentProject.path,
+                }
+              : undefined
+          }
+          onSelectTeam={onSelectProject}
+        />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMain} />
-        <NavProjects projects={data.projects} />
+        <NavProjects projects={projectList} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={{ name: "shadcn", email: "m@example.com", avatar: "/avatars/shadcn.jpg" }} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
