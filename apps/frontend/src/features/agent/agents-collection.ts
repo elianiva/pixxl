@@ -11,7 +11,7 @@ export const store = getDefaultStore();
 export const agentsCollection = createCollection(
   queryCollectionOptions({
     queryClient,
-    queryKey: ["agents"],
+    queryKey: () => ["agents", store.get(currentProjectIdAtom)],
     getKey: (item: AgentMetadata) => item.id,
     queryFn: async () => {
       const projectId = store.get(currentProjectIdAtom);

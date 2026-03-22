@@ -11,7 +11,7 @@ export const store = getDefaultStore();
 export const commandsCollection = createCollection(
   queryCollectionOptions({
     queryClient,
-    queryKey: ["commands"],
+    queryKey: () => ["commands", store.get(currentProjectIdAtom)],
     getKey: (item: CommandMetadata) => item.id,
     queryFn: async () => {
       const projectId = store.get(currentProjectIdAtom);
@@ -20,7 +20,6 @@ export const commandsCollection = createCollection(
       const result = await rpc.command.listCommands({ projectId });
       return [...result];
     },
-
     onInsert: async ({ transaction }) => {
       const projectId = store.get(currentProjectIdAtom);
       if (!projectId) return;
@@ -37,7 +36,6 @@ export const commandsCollection = createCollection(
         });
       }
     },
-
     onDelete: async ({ transaction }) => {
       const projectId = store.get(currentProjectIdAtom);
       if (!projectId) return;

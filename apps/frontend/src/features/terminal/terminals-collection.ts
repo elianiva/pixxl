@@ -11,7 +11,7 @@ export const store = getDefaultStore();
 export const terminalsCollection = createCollection(
   queryCollectionOptions({
     queryClient,
-    queryKey: ["terminals"],
+    queryKey: () => ["terminals", store.get(currentProjectIdAtom)],
     getKey: (item: TerminalMetadata) => item.id,
     queryFn: async () => {
       const projectId = store.get(currentProjectIdAtom);
