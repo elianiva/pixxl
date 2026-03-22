@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { rpc } from "@/lib/rpc";
-import type { CreateAgentInput, ListAgentsInput, AgentMetadata } from "@pixxl/shared";
+import type {
+  CreateAgentInput,
+  UpdateAgentInput,
+  ListAgentsInput,
+  AgentMetadata,
+} from "@pixxl/shared";
 
 export function useCreateAgent() {
   const queryClient = useQueryClient();
@@ -20,10 +25,6 @@ export function useCreateAgent() {
       const optimisticAgent: AgentMetadata = {
         id: `temp-${Date.now()}`,
         name: input.name,
-        provider: input.provider,
-        model: input.model,
-        maxTokens: input.maxTokens,
-        temperature: input.temperature,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -42,6 +43,31 @@ export function useCreateAgent() {
     },
     onSettled: (_data, _err, input) => {
       queryClient.invalidateQueries({ queryKey: ["project", input.projectId, "agents"] });
+    },
+  });
+}
+
+export function useUpdateAgent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateAgentInput) => rpc.agent.updateAgent(input),
+    onSuccess: (_data, input) => {
+      // Invalidate to refetch
+      queryClient.invalidateQueries({ queryKey: ["project", "agents"] });
+      // Also find and update the specific agent in cache
+      queryClient.setQueriesData<AgentMetadata[]>(
+        { queryKey: ["project"], type: "active" },
+        (old) =>
+          old?.map((agent) =>
+            agent.id === input.id
+              ? {
+                  ...agent,
+                  name: input.name,
+                  updatedAt: new Date().toISOString(),
+                }
+              : agent,
+          ),
+      );
     },
   });
 }

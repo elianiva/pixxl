@@ -2,6 +2,7 @@ import { Schema } from "effect";
 import { oc } from "@orpc/contract";
 import {
   CreateAgentInputSchema,
+  UpdateAgentInputSchema,
   AgentMetadataListSchema,
   AgentMetadataSchema,
   ListAgentsInputSchema,
@@ -9,6 +10,10 @@ import {
 
 export const createAgentContract = oc
   .input(Schema.toStandardSchemaV1(CreateAgentInputSchema))
+  .output(Schema.toStandardSchemaV1(AgentMetadataSchema));
+
+export const updateAgentContract = oc
+  .input(Schema.toStandardSchemaV1(UpdateAgentInputSchema))
   .output(Schema.toStandardSchemaV1(AgentMetadataSchema));
 
 export const listAgentsContract = oc

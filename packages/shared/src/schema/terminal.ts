@@ -15,13 +15,16 @@ export const CreateTerminalInputSchema = Schema.Struct({
       }),
     ),
   ),
-  shell: Schema.String,
+});
+
+export const UpdateTerminalInputSchema = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
 });
 
 export const TerminalMetadataSchema = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
-  shell: Schema.String,
   createdAt: Schema.String,
   updatedAt: Schema.String,
 });
@@ -33,6 +36,7 @@ export const ListTerminalsInputSchema = Schema.Struct({
 export const TerminalMetadataListSchema = Schema.Array(TerminalMetadataSchema);
 
 export type CreateTerminalInput = typeof CreateTerminalInputSchema.Type;
+export type UpdateTerminalInput = typeof UpdateTerminalInputSchema.Type;
 export type TerminalMetadata = typeof TerminalMetadataSchema.Type;
 export type TerminalMetadataList = typeof TerminalMetadataListSchema.Type;
 export type ListTerminalsInput = typeof ListTerminalsInputSchema.Type;

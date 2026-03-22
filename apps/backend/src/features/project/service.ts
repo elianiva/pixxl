@@ -21,9 +21,7 @@ type ProjectServiceShape = {
   readonly createProject: (
     input: CreateProjectInput,
   ) => Effect.Effect<ProjectMetadata, ProjectError>;
-  readonly deleteProject: (
-    input: DeleteProjectInput,
-  ) => Effect.Effect<void, ProjectError>;
+  readonly deleteProject: (input: DeleteProjectInput) => Effect.Effect<void, ProjectError>;
   readonly listProjects: () => Effect.Effect<ProjectMetadata[], ProjectError>;
   readonly getProjectDetail: (
     input: GetProjectDetailInput,

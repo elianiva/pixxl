@@ -9,27 +9,33 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useCreateTerminal } from "../hooks/use-terminal";
+import { useUpdateTerminal } from "../hooks/use-terminal";
+import type { TerminalMetadata } from "@pixxl/shared";
 
-interface NewTerminalDialogProps {
-  projectId: string;
+interface EditTerminalDialogProps {
+  terminal: TerminalMetadata | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function NewTerminalDialog({ projectId, open, onOpenChange }: NewTerminalDialogProps) {
-  const [name, setName] = useState("");
-  const [shell, setShell] = useState("bash");
-  const createTerminal = useCreateTerminal();
+export function EditTerminalDialog({ terminal, open, onOpenChange }: EditTerminalDialogProps) {
+  const [name, setName] = useState(terminal?.name ?? "");
+  const updateTerminal = useUpdateTerminal();
+
+  // Reset form when terminal changes
+  useState(() => {
+    if (terminal) {
+      setName(terminal.name);
+    }
+  });
 
   function submit() {
-    if (!name.trim()) return;
+    if (!terminal || !name.trim()) return;
 
-    createTerminal.mutate(
-      { projectId, name, shell },
+    updateTerminal.mutate(
+      { id: terminal.id, name },
       {
         onSuccess: () => {
-          setName("");
           onOpenChange(false);
         },
       },
@@ -40,8 +46,8 @@ export function NewTerminalDialog({ projectId, open, onOpenChange }: NewTerminal
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>New Terminal</DialogTitle>
-          <DialogDescription>Create a new terminal in your project.</DialogDescription>
+          <DialogTitle>Edit Terminal</DialogTitle>
+          <DialogDescription>Update terminal name.</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-3">
@@ -53,12 +59,8 @@ export function NewTerminalDialog({ projectId, open, onOpenChange }: NewTerminal
               placeholder="my-terminal"
             />
           </div>
-          <div className="grid gap-1">
-            <label className="text-xs text-muted-foreground">Shell</label>
-            <Input value={shell} onChange={(e) => setShell(e.target.value)} placeholder="bash" />
-          </div>
-          {createTerminal.error instanceof Error && (
-            <p className="text-xs text-destructive">{createTerminal.error.message}</p>
+          {updateTerminal.error instanceof Error && (
+            <p className="text-xs text-destructive">{updateTerminal.error.message}</p>
           )}
         </div>
 
@@ -66,8 +68,8 @@ export function NewTerminalDialog({ projectId, open, onOpenChange }: NewTerminal
           <Button variant="outline" onClick={onOpenChange.bind(null, false)}>
             Cancel
           </Button>
-          <Button onClick={submit} disabled={createTerminal.isPending}>
-            {createTerminal.isPending ? "Creating..." : "Create Terminal"}
+          <Button onClick={submit} disabled={updateTerminal.isPending}>
+            {updateTerminal.isPending ? "Saving..." : "Save Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>

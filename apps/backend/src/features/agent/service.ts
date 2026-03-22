@@ -3,6 +3,7 @@ import {
   AgentMetadata,
   AgentMetadataSchema,
   CreateAgentInput,
+  UpdateAgentInput,
   ListAgentsInput,
 } from "@pixxl/shared";
 import { AgentError } from "./error";
@@ -18,6 +19,7 @@ function generateId(): string {
 
 type AgentServiceShape = {
   readonly createAgent: (input: CreateAgentInput) => Effect.Effect<AgentMetadata, AgentError>;
+  readonly updateAgent: (input: UpdateAgentInput) => Effect.Effect<AgentMetadata, AgentError>;
   readonly listAgents: (input: ListAgentsInput) => Effect.Effect<AgentMetadata[], AgentError>;
 };
 
@@ -29,7 +31,9 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
       const path = yield* Path.Path;
       const projectService = yield* ProjectService;
 
-      const createAgent = Effect.fn("AgentService.createAgent")(function* (input: CreateAgentInput) {
+      const createAgent = Effect.fn("AgentService.createAgent")(function* (
+        input: CreateAgentInput,
+      ) {
         const projects = yield* projectService.listProjects();
         const project = projects.find((p) => p.id === input.projectId);
 
@@ -49,10 +53,6 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
         const metadata: AgentMetadata = {
           id,
           name: input.name,
-          provider: input.provider,
-          model: input.model,
-          maxTokens: input.maxTokens,
-          temperature: input.temperature,
           createdAt: now,
           updatedAt: now,
         };
@@ -63,6 +63,40 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
         );
 
         return metadata;
+      });
+
+      const updateAgent = Effect.fn("AgentService.updateAgent")(function* (
+        input: UpdateAgentInput,
+      ) {
+        const projects = yield* projectService.listProjects();
+        const project = projects.find((p) => p.id === input.projectId);
+
+        if (!project) {
+          yield* new AgentError({ message: `Project with id ${input.projectId} not found` });
+        }
+
+        const filePath = path.join(project.path, "agents", `${input.id}.json`);
+        const fileExists = yield* fs.exists(filePath);
+
+        if (!fileExists) {
+          yield* new AgentError({ message: `Agent with id ${input.id} not found` });
+        }
+
+        const content = yield* fs.readFileString(filePath);
+        const decodeUnknown = Schema.decodeUnknownEffect(
+          Schema.fromJsonString(AgentMetadataSchema),
+        );
+        const current = yield* decodeUnknown(content);
+
+        const updated: AgentMetadata = {
+          ...current,
+          name: input.name,
+          updatedAt: new Date().toISOString(),
+        };
+
+        yield* fs.writeFileString(filePath, JSON.stringify(updated, null, 2));
+
+        return updated;
       });
 
       const listAgents = Effect.fn("AgentService.listAgents")(function* (input: ListAgentsInput) {
@@ -87,15 +121,13 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
           return [];
         }
 
-        const decodeAgent = Schema.decodeUnknownEffect(
-          Schema.fromJsonString(AgentMetadataSchema),
-        );
+        const decodeAgent = Schema.decodeUnknownEffect(Schema.fromJsonString(AgentMetadataSchema));
 
         const agents = yield* Effect.all(
           agentFiles.map((file) =>
-            fs.readFileString(path.join(agentsPath, file)).pipe(
-              Effect.flatMap((content) => decodeAgent(content)),
-            ),
+            fs
+              .readFileString(path.join(agentsPath, file))
+              .pipe(Effect.flatMap((content) => decodeAgent(content))),
           ),
           { concurrency: "unbounded" },
         );
@@ -103,7 +135,7 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
         return agents;
       });
 
-      return { createAgent, listAgents } as const;
+      return { createAgent, updateAgent, listAgents } as const;
     }),
   },
 ) {

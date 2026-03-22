@@ -99,9 +99,9 @@ export class CommandService extends ServiceMap.Service<CommandService, CommandSe
 
         const commands = yield* Effect.all(
           commandFiles.map((file) =>
-            fs.readFileString(path.join(commandsPath, file)).pipe(
-              Effect.flatMap((content) => decodeCommand(content)),
-            ),
+            fs
+              .readFileString(path.join(commandsPath, file))
+              .pipe(Effect.flatMap((content) => decodeCommand(content))),
           ),
           { concurrency: "unbounded" },
         );

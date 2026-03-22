@@ -13,9 +13,10 @@ import {
 } from "@/components/ui/breadcrumb";
 import { useListAgents } from "@/features/agent/hooks/use-agent";
 import { useListTerminals } from "@/features/terminal/hooks/use-terminal";
-import { NewAgentDialog } from "@/features/agent/components/new-agent-dialog";
-import { NewTerminalDialog } from "@/features/terminal/components/new-terminal-dialog";
 import { NewCommandDialog } from "@/features/command/components/new-command-dialog";
+import { EditAgentDialog } from "@/features/agent/components/edit-agent-dialog";
+import { EditTerminalDialog } from "@/features/terminal/components/edit-terminal-dialog";
+import type { AgentMetadata, TerminalMetadata } from "@pixxl/shared";
 
 export const Route = createFileRoute("/app")({
   component: RouteComponent,
@@ -26,20 +27,20 @@ function RouteComponent() {
   const agentsQuery = useListAgents({ projectId });
   const terminalsQuery = useListTerminals({ projectId });
 
-  const [agentDialogOpen, setAgentDialogOpen] = useState(false);
-  const [terminalDialogOpen, setTerminalDialogOpen] = useState(false);
   const [commandDialogOpen, setCommandDialogOpen] = useState(false);
+  const [editingAgent, setEditingAgent] = useState<AgentMetadata | null>(null);
+  const [editingTerminal, setEditingTerminal] = useState<TerminalMetadata | null>(null);
 
   return (
     <SidebarProvider>
       <AppSidebar
-        _projectId={projectId}
+        projectId={projectId}
         agents={[...(agentsQuery.data ?? [])]}
         terminals={[...(terminalsQuery.data ?? [])]}
         isAgentsLoading={agentsQuery.isLoading}
         isTerminalsLoading={terminalsQuery.isLoading}
-        onAddAgent={() => setAgentDialogOpen(true)}
-        onAddTerminal={() => setTerminalDialogOpen(true)}
+        onEditAgent={setEditingAgent}
+        onEditTerminal={setEditingTerminal}
         onAddCommand={() => setCommandDialogOpen(true)}
       />
       <SidebarInset>
@@ -67,20 +68,20 @@ function RouteComponent() {
         </div>
       </SidebarInset>
 
-      <NewAgentDialog
-        projectId={projectId}
-        open={agentDialogOpen}
-        onOpenChange={setAgentDialogOpen}
-      />
-      <NewTerminalDialog
-        projectId={projectId}
-        open={terminalDialogOpen}
-        onOpenChange={setTerminalDialogOpen}
-      />
       <NewCommandDialog
         projectId={projectId}
         open={commandDialogOpen}
         onOpenChange={setCommandDialogOpen}
+      />
+      <EditAgentDialog
+        agent={editingAgent}
+        open={editingAgent !== null}
+        onOpenChange={(open) => !open && setEditingAgent(null)}
+      />
+      <EditTerminalDialog
+        terminal={editingTerminal}
+        open={editingTerminal !== null}
+        onOpenChange={(open) => !open && setEditingTerminal(null)}
       />
     </SidebarProvider>
   );

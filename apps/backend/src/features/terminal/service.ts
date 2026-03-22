@@ -3,6 +3,7 @@ import {
   TerminalMetadata,
   TerminalMetadataSchema,
   CreateTerminalInput,
+  UpdateTerminalInput,
   ListTerminalsInput,
 } from "@pixxl/shared";
 import { TerminalError } from "./error";
@@ -19,6 +20,9 @@ function generateId(): string {
 type TerminalServiceShape = {
   readonly createTerminal: (
     input: CreateTerminalInput,
+  ) => Effect.Effect<TerminalMetadata, TerminalError>;
+  readonly updateTerminal: (
+    input: UpdateTerminalInput,
   ) => Effect.Effect<TerminalMetadata, TerminalError>;
   readonly listTerminals: (
     input: ListTerminalsInput,
@@ -55,7 +59,6 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
         const metadata: TerminalMetadata = {
           id,
           name: input.name,
-          shell: input.shell,
           createdAt: now,
           updatedAt: now,
         };
@@ -66,6 +69,40 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
         );
 
         return metadata;
+      });
+
+      const updateTerminal = Effect.fn("TerminalService.updateTerminal")(function* (
+        input: UpdateTerminalInput,
+      ) {
+        const projects = yield* projectService.listProjects();
+        const project = projects.find((p) => p.id === input.projectId);
+
+        if (!project) {
+          yield* new TerminalError({ message: `Project with id ${input.projectId} not found` });
+        }
+
+        const filePath = path.join(project.path, "terminals", `${input.id}.json`);
+        const fileExists = yield* fs.exists(filePath);
+
+        if (!fileExists) {
+          yield* new TerminalError({ message: `Terminal with id ${input.id} not found` });
+        }
+
+        const content = yield* fs.readFileString(filePath);
+        const decodeUnknown = Schema.decodeUnknownEffect(
+          Schema.fromJsonString(TerminalMetadataSchema),
+        );
+        const current = yield* decodeUnknown(content);
+
+        const updated: TerminalMetadata = {
+          ...current,
+          name: input.name,
+          updatedAt: new Date().toISOString(),
+        };
+
+        yield* fs.writeFileString(filePath, JSON.stringify(updated, null, 2));
+
+        return updated;
       });
 
       const listTerminals = Effect.fn("TerminalService.listTerminals")(function* (
@@ -98,9 +135,9 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
 
         const terminals = yield* Effect.all(
           terminalFiles.map((file) =>
-            fs.readFileString(path.join(terminalsPath, file)).pipe(
-              Effect.flatMap((content) => decodeTerminal(content)),
-            ),
+            fs
+              .readFileString(path.join(terminalsPath, file))
+              .pipe(Effect.flatMap((content) => decodeTerminal(content))),
           ),
           { concurrency: "unbounded" },
         );
@@ -108,7 +145,7 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
         return terminals;
       });
 
-      return { createTerminal, listTerminals } as const;
+      return { createTerminal, updateTerminal, listTerminals } as const;
     }),
   },
 ) {

@@ -9,6 +9,13 @@ export const createTerminalRpc = os.terminal.createTerminal.handler(({ input }) 
   }).pipe(Effect.provide(TerminalService.live), Effect.runPromise),
 );
 
+export const updateTerminalRpc = os.terminal.updateTerminal.handler(({ input }) =>
+  Effect.gen(function* () {
+    const service = yield* TerminalService;
+    return yield* service.updateTerminal(input);
+  }).pipe(Effect.provide(TerminalService.live), Effect.runPromise),
+);
+
 export const listTerminalsRpc = os.terminal.listTerminals.handler(({ input }) =>
   Effect.gen(function* () {
     const service = yield* TerminalService;

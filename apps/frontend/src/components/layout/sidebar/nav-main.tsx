@@ -10,13 +10,14 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { RiArrowRightSLine } from "@remixicon/react";
+import { RiArrowRightSLine, RiPencilLine } from "@remixicon/react";
 
 interface NavSubItem {
   title: string;
   url: string;
   disabled?: boolean;
   onClick?: () => void;
+  onEdit?: () => void;
 }
 
 interface NavItem {
@@ -62,8 +63,10 @@ export function NavMain({ items }: { items: NavItem[] }) {
                     );
                   }
                   const isActionItem = subItem.title.startsWith("+ ");
+                  const hasEdit = Boolean(subItem.onEdit);
+
                   return (
-                    <SidebarMenuSubItem key={subItem.title}>
+                    <SidebarMenuSubItem key={subItem.title} className="group/item">
                       <SidebarMenuSubButton
                         render={
                           isActionItem || subItem.onClick ? (
@@ -76,6 +79,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
                             <a href={subItem.url} />
                           )
                         }
+                        className="pr-1"
                       >
                         <span
                           className={isActionItem ? "text-muted-foreground font-normal" : undefined}
@@ -83,6 +87,15 @@ export function NavMain({ items }: { items: NavItem[] }) {
                           {subItem.title}
                         </span>
                       </SidebarMenuSubButton>
+                      {hasEdit && (
+                        <button
+                          type="button"
+                          onClick={subItem.onEdit}
+                          className="opacity-0 group-hover/item:opacity-100 transition-opacity p-1 hover:bg-accent rounded"
+                        >
+                          <RiPencilLine className="size-3.5 text-muted-foreground" />
+                        </button>
+                      )}
                     </SidebarMenuSubItem>
                   );
                 })}

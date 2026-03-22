@@ -22,15 +22,17 @@ import {
   RiTerminalBoxLine,
 } from "@remixicon/react";
 import type { AgentMetadata, TerminalMetadata } from "@pixxl/shared";
+import { useCreateAgent } from "@/features/agent/hooks/use-agent";
+import { useCreateTerminal } from "@/features/terminal/hooks/use-terminal";
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  _projectId?: string;
+  projectId: string;
   agents?: AgentMetadata[];
   terminals?: TerminalMetadata[];
   isAgentsLoading?: boolean;
   isTerminalsLoading?: boolean;
-  onAddAgent?: () => void;
-  onAddTerminal?: () => void;
+  onEditAgent?: (agent: AgentMetadata) => void;
+  onEditTerminal?: (terminal: TerminalMetadata) => void;
   onAddCommand?: () => void;
 }
 
@@ -80,16 +82,32 @@ const data = {
 const EmptyItem = { title: "", url: "#", disabled: true } as const;
 
 export function AppSidebar({
-  _projectId,
+  projectId,
   agents = [],
   terminals = [],
   isAgentsLoading = false,
   isTerminalsLoading = false,
-  onAddAgent,
-  onAddTerminal,
+  onEditAgent,
+  onEditTerminal,
   onAddCommand,
   ...props
 }: AppSidebarProps) {
+  const createAgent = useCreateAgent();
+  const createTerminal = useCreateTerminal();
+
+  const agentCount = agents.length;
+  const terminalCount = terminals.length;
+
+  const handleAddAgent = React.useCallback(() => {
+    const name = `agent-${agentCount + 1}`;
+    createAgent.mutate({ projectId, name });
+  }, [projectId, agentCount, createAgent]);
+
+  const handleAddTerminal = React.useCallback(() => {
+    const name = `terminal-${terminalCount + 1}`;
+    createTerminal.mutate({ projectId, name });
+  }, [projectId, terminalCount, createTerminal]);
+
   const navMain = React.useMemo(
     () => [
       {
@@ -97,32 +115,34 @@ export function AppSidebar({
         url: "#",
         icon: <RiRobot2Line />,
         isActive: true,
-        items: isAgentsLoading
-          ? [EmptyItem, { title: "+ Add Agent", url: "#" }]
-          : agents.length === 0
+        items:
+          isAgentsLoading || agents.length === 0
             ? [EmptyItem, { title: "+ Add Agent", url: "#" }]
             : [
                 ...agents.map((agent) => ({
                   title: agent.name,
-                  url: `#`,
+                  url: "#",
+                  id: agent.id,
+                  onEdit: onEditAgent ? () => onEditAgent(agent) : undefined,
                 })),
-                { title: "+ Add Agent", url: "#", onClick: onAddAgent },
+                { title: "+ Add Agent", url: "#", onClick: handleAddAgent },
               ],
       },
       {
         title: "Terminals",
         url: "#",
         icon: <RiTerminalBoxLine />,
-        items: isTerminalsLoading
-          ? [EmptyItem, { title: "+ Add Terminal", url: "#" }]
-          : terminals.length === 0
+        items:
+          isTerminalsLoading || terminals.length === 0
             ? [EmptyItem, { title: "+ Add Terminal", url: "#" }]
             : [
                 ...terminals.map((terminal) => ({
                   title: terminal.name,
-                  url: `#`,
+                  url: "#",
+                  id: terminal.id,
+                  onEdit: onEditTerminal ? () => onEditTerminal(terminal) : undefined,
                 })),
-                { title: "+ Add Terminal", url: "#", onClick: onAddTerminal },
+                { title: "+ Add Terminal", url: "#", onClick: handleAddTerminal },
               ],
       },
       {
@@ -137,8 +157,10 @@ export function AppSidebar({
       terminals,
       isAgentsLoading,
       isTerminalsLoading,
-      onAddAgent,
-      onAddTerminal,
+      handleAddAgent,
+      handleAddTerminal,
+      onEditAgent,
+      onEditTerminal,
       onAddCommand,
     ],
   );
