@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   RiAddLine,
@@ -29,6 +29,7 @@ export const Route = createFileRoute("/")({
 });
 
 function RouteComponent() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
@@ -117,6 +118,9 @@ function RouteComponent() {
                     project={project}
                     isLast={index === filteredProjects.length - 1}
                     onDeleteClick={() => setDeleteProjectId(project.id)}
+                    onProjectClick={(id) =>
+                      navigate({ to: "/app/$projectId", params: { projectId: id } })
+                    }
                   />
                 ))
               ))}
@@ -209,20 +213,34 @@ function QuickActionCard({ icon: Icon, title, description, href, onClick }: Quic
 
 interface RecentProjectItemProps {
   project: {
+    id: string;
     name: string;
     path: string;
     createdAt: string;
   };
   isLast: boolean;
   onDeleteClick: () => void;
+  onProjectClick: (id: string) => void;
 }
 
-function RecentProjectItem({ project, isLast, onDeleteClick }: RecentProjectItemProps) {
+function RecentProjectItem({
+  project,
+  isLast,
+  onDeleteClick,
+  onProjectClick,
+}: RecentProjectItemProps) {
   return (
-    <a
-      href="#"
-      className={`group flex items-center gap-3 px-4 py-3 hover:bg-muted transition-colors cursor-pointer ${!isLast ? "border-b border-border" : ""
-        }`}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onProjectClick(project.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onProjectClick(project.id);
+        }
+      }}
+      className={`group flex items-center gap-3 px-4 py-3 hover:bg-muted transition-colors cursor-pointer ${!isLast ? "border-b border-border" : ""}`}
     >
       <RiFolderOpenLine className="size-5 text-muted-foreground shrink-0" />
       <div className="flex-1 min-w-0">
@@ -237,7 +255,6 @@ function RecentProjectItem({ project, isLast, onDeleteClick }: RecentProjectItem
           variant="destructive"
           size="icon-xs"
           onClick={(e) => {
-            e.preventDefault();
             e.stopPropagation();
             onDeleteClick();
           }}
@@ -247,7 +264,7 @@ function RecentProjectItem({ project, isLast, onDeleteClick }: RecentProjectItem
           <RiDeleteBinLine />
         </Button>
       </div>
-    </a>
+    </div>
   );
 }
 

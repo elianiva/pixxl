@@ -3,7 +3,9 @@ import { oc } from "@orpc/contract";
 import {
   CreateProjectInputSchema,
   DeleteProjectInputSchema,
+  GetProjectDetailInputSchema,
   ListProjectsInputSchema,
+  ProjectDetailSchema,
   ProjectMetadataListSchema,
   ProjectMetadataSchema,
 } from "../schema/project";
@@ -19,3 +21,7 @@ export const deleteProjectContract = oc
 export const listProjectsContract = oc
   .input(Schema.toStandardSchemaV1(ListProjectsInputSchema))
   .output(Schema.toStandardSchemaV1(ProjectMetadataListSchema));
+
+export const getProjectDetailContract = oc
+  .input(Schema.toStandardSchemaV1(GetProjectDetailInputSchema))
+  .output(Schema.toStandardSchemaV1(ProjectDetailSchema));

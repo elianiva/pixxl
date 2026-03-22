@@ -2,6 +2,7 @@ import { getConfigContract, updateConfigContract } from "./contracts/config";
 import {
   createProjectContract,
   deleteProjectContract,
+  getProjectDetailContract,
   listProjectsContract,
 } from "./contracts/project";
 
@@ -14,5 +15,6 @@ export const routerContract = {
     createProject: createProjectContract,
     deleteProject: deleteProjectContract,
     listProjects: listProjectsContract,
+    getProjectDetail: getProjectDetailContract,
   },
 };

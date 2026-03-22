@@ -32,3 +32,13 @@ export const listProjectsRpc = os.project.listProjects.handler(() =>
     Effect.runPromise,
   ),
 );
+
+export const getProjectDetailRpc = os.project.getProjectDetail.handler(({ input }) =>
+  Effect.gen(function* () {
+    const service = yield* ProjectService;
+    return yield* service.getProjectDetail(input);
+  }).pipe(
+    Effect.provide(ProjectService.live.pipe(Layer.provide(ConfigService.live))),
+    Effect.runPromise,
+  ),
+);

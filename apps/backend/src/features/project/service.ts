@@ -1,7 +1,10 @@
 import { Effect, FileSystem, Layer, Path, Schema, ServiceMap } from "effect";
 import {
+  AgentSchema,
   CreateProjectInput,
   DeleteProjectInput,
+  GetProjectDetailInput,
+  ProjectDetail,
   ProjectMetadata,
   ProjectMetadataSchema,
 } from "@pixxl/shared";
@@ -23,6 +26,9 @@ type ProjectServiceShape = {
   ) => Effect.Effect<ProjectMetadata, ProjectError>;
   readonly deleteProject: (input: DeleteProjectInput) => Effect.Effect<void, ProjectError>;
   readonly listProjects: () => Effect.Effect<ProjectMetadata[], ProjectError>;
+  readonly getProjectDetail: (
+    input: GetProjectDetailInput,
+  ) => Effect.Effect<ProjectDetail, ProjectError>;
 };
 
 const mapToProjectError = (message: string) =>
@@ -165,7 +171,64 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
         return projects.filter((project) => project !== undefined);
       });
 
-      return { createProject, deleteProject, listProjects } as const;
+      const getProjectDetail = Effect.fn("ProjectService.getProjectDetail")(function* (
+        input: GetProjectDetailInput,
+      ) {
+        const projects = yield* listProjects();
+        const project = projects.find((p) => p.id === input.id);
+
+        if (!project) {
+          yield* new ProjectError({
+            message: `Project with id ${input.id} not found`,
+          });
+        }
+
+        const agentsPath = path.join(project.path, "agents");
+        const agentsDirExists = yield* fs
+          .exists(agentsPath)
+          .pipe(mapToProjectError(`Failed to check if agents directory exists at ${agentsPath}`));
+
+        let agents: ProjectDetail["agents"] = [];
+
+        if (agentsDirExists) {
+          const agentEntries = yield* fs
+            .readDirectory(agentsPath)
+            .pipe(mapToProjectError(`Failed to read agents directory at ${agentsPath}`));
+
+          const agentFiles = agentEntries.filter((entry) => entry.endsWith(".json"));
+
+          agents = yield* Effect.all(
+            agentFiles.map((file) =>
+              Effect.gen(function* () {
+                const agentFilePath = path.join(agentsPath, file);
+                const content = yield* fs
+                  .readFileString(agentFilePath)
+                  .pipe(mapToProjectError(`Failed to read agent file at ${agentFilePath}`));
+                const agent = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(AgentSchema))(
+                  content,
+                ).pipe(
+                  mapToProjectError(
+                    `Failed to decode agent file at ${agentFilePath}. Fix missing/invalid fields in agent JSON.`,
+                  ),
+                );
+                return agent;
+              }),
+            ),
+            { concurrency: "unbounded" },
+          );
+        }
+
+        return {
+          id: project.id,
+          name: project.name,
+          path: project.path,
+          createdAt: project.createdAt,
+          updatedAt: project.updatedAt,
+          agents,
+        };
+      });
+
+      return { createProject, deleteProject, listProjects, getProjectDetail } as const;
     }),
   },
 ) {
