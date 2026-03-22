@@ -1,9 +1,11 @@
 import { terminalManager } from "./manager";
-import type { TerminalActor } from "./actor";
+import type { TerminalActor, Client } from "./actor";
 
-interface WebSocketClient {
-  send: (data: string) => void;
-  closed: boolean;
+interface TerminalWsData {
+  type: "terminal";
+  terminalId: string;
+  actor: TerminalActor;
+  client: Client;
 }
 
 interface TerminalMessage {
@@ -14,30 +16,29 @@ interface TerminalMessage {
 }
 
 export function handleTerminalConnection(terminalId: string, ws: Bun.ServerWebSocket<unknown>) {
-  const actor = terminalManager.get(terminalId);
+  const actor = terminalManager.getOrCreate({
+    terminalId,
+    shell: "/bin/zsh",
+  });
 
-  if (!actor) {
-    ws.send(JSON.stringify({ type: "error", message: "Terminal not found" }));
-    ws.close();
-    return;
-  }
-
-  const client: WebSocketClient = {
+  const client: Client = {
     send: (data) => ws.send(data),
     closed: false,
+    close: () => ws.close(),
   };
 
   actor.send({ type: "CLIENT_CONNECT", client });
 
-  ws.subscribe("terminal:close");
-
-  ws.data = { actor, client };
+  // Extend ws.data with actor and client (preserve terminalId from initial data)
+  const data = ws.data as TerminalWsData;
+  data.actor = actor;
+  data.client = client;
 }
 
 export function handleTerminalMessage(ws: Bun.ServerWebSocket<unknown>, message: string) {
-  const data = ws.data as { actor: TerminalActor; client: WebSocketClient } | undefined;
+  const data = ws.data as TerminalWsData | undefined;
 
-  if (!data) return;
+  if (!data?.actor || !data?.client) return;
 
   try {
     const parsed: TerminalMessage = JSON.parse(message);
@@ -60,9 +61,9 @@ export function handleTerminalMessage(ws: Bun.ServerWebSocket<unknown>, message:
 }
 
 export function handleTerminalClose(ws: Bun.ServerWebSocket<unknown>) {
-  const data = ws.data as { actor: TerminalActor; client: WebSocketClient } | undefined;
+  const data = ws.data as TerminalWsData | undefined;
 
-  if (!data) return;
+  if (!data?.actor || !data?.client) return;
 
   data.client.closed = true;
   data.actor.send({ type: "CLIENT_DISCONNECT", client: data.client });

@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Console, Effect, Option } from "effect";
 import { os } from "@/contract";
 import { TerminalService } from "./service";
 import { terminalManager } from "./manager";
@@ -44,6 +44,8 @@ export const connectTerminalRpc = os.terminal.connectTerminal.handler(({ input }
   Effect.gen(function* () {
     const configService = yield* ConfigService;
     const config = yield* configService.loadConfig();
+
+    Console.log({ config });
 
     terminalManager.getOrCreate({
       terminalId: input.id,

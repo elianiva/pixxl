@@ -1,6 +1,6 @@
 import { useEffectEvent, useRef } from "react";
-import { init as initGhostty, Terminal, FitAddon } from "ghostty-web";
-import { rpc } from "@/lib/rpc";
+import { init, Terminal, FitAddon } from "ghostty-web";
+import { rpc, WS_URL } from "@/lib/rpc";
 
 export interface GhosttyTerminalOptions {
   terminalId: string;
@@ -12,23 +12,20 @@ export interface GhosttyTerminalOptions {
   onClosed?: (reason: string) => void;
 }
 
-export interface UseGhosttyTerminal {
+export interface UseGhosttyTerminalOptions {
   init: () => Promise<void>;
   dispose: () => void;
   resize: () => void;
 }
 
-export function useGhosttyTerminal(options: GhosttyTerminalOptions): UseGhosttyTerminal {
-  const { terminalId, containerRef, onConnected, onDisconnected, onError, onOutput, onClosed } =
-    options;
-
+export function useGhosttyTerminal(options: GhosttyTerminalOptions): UseGhosttyTerminalOptions {
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
-  const init = useEffectEvent(async () => {
-    // Initialize WASM
-    await initGhostty();
+  const initGhostty = useEffectEvent(async () => {
+    // init ghostty wasm
+    await init();
 
     const terminal = new Terminal({
       fontSize: 14,
@@ -36,15 +33,14 @@ export function useGhosttyTerminal(options: GhosttyTerminalOptions): UseGhosttyT
       cursorStyle: "block",
       cursorBlink: true,
       theme: {
-        background: "#1e1e2e",
-        foreground: "#cdd6f4",
-        cursor: "#f5e0dc",
+        background: "#efefef",
+        foreground: "#242424",
       },
     });
 
     terminalRef.current = terminal;
 
-    if (!containerRef.current) {
+    if (!options.containerRef.current) {
       console.error("Terminal container not found");
       return;
     }
@@ -55,68 +51,67 @@ export function useGhosttyTerminal(options: GhosttyTerminalOptions): UseGhosttyT
     fitAddonRef.current = fitAddon;
 
     // Open terminal in container
-    terminal.open(containerRef.current);
+    terminal.open(options.containerRef.current);
 
     // Fit terminal to container
     fitAddon.fit();
 
     // Connect to backend via WebSocket
-    const result = await rpc.terminal.connectTerminal({ id: terminalId }).catch((err) => {
+    const result = await rpc.terminal.connectTerminal({ id: options.terminalId }).catch((err) => {
       console.error("Failed to connect to terminal:", err);
-      onError?.("Failed to connect to terminal");
+      options.onError?.("Failed to connect to terminal");
       return null;
     });
 
     if (!result?.success) {
       console.error("Failed to connect to terminal");
-      onError?.("Failed to connect to terminal");
+      options.onError?.("Failed to connect to terminal");
       return;
     }
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.host;
-    const ws = new WebSocket(`${protocol}//${host}${result.websocketUrl}`);
+    const url = `${WS_URL}${result.websocketUrl}`;
+    const ws = new WebSocket(url);
+    ws.binaryType = "arraybuffer";
     wsRef.current = ws;
 
-    ws.binaryType = "arraybuffer";
-
-    ws.onopen = () => {
-      console.log(`[Terminal ${terminalId}] Connected`);
-      onConnected?.();
+    ws.addEventListener("open", () => {
+      console.log(`[Terminal ${options.terminalId}] Connected`);
+      options.onConnected?.();
       // Send initial resize after fit
       ws.send(JSON.stringify({ type: "resize", cols: terminal.cols, rows: terminal.rows }));
-    };
+    });
 
-    ws.onmessage = (event) => {
+    ws.addEventListener("message", (event) => {
+      console.log({ event });
       if (typeof event.data === "string") {
         try {
           const message = JSON.parse(event.data);
           if (message.type === "output") {
             const decoded = atob(message.data);
             terminal.write(decoded);
-            onOutput?.(decoded);
+            options.onOutput?.(decoded);
           } else if (message.type === "closed") {
-            console.log(`[Terminal ${terminalId}] Closed: ${message.reason}`);
-            onClosed?.(message.reason);
+            console.log(`[Terminal ${options.terminalId}] Closed: ${message.reason}`);
+            options.onClosed?.(message.reason);
           } else if (message.type === "error") {
-            console.error(`[Terminal ${terminalId}] Error: ${message.message}`);
-            onError?.(message.message);
+            console.error(`[Terminal ${options.terminalId}] Error: ${message.message}`);
+            options.onError?.(message.message);
           }
         } catch {
           // Ignore malformed messages
         }
       }
-    };
+    });
 
-    ws.onerror = () => {
-      console.error(`[Terminal ${terminalId}] WebSocket error`);
-      onError?.("WebSocket error");
-    };
+    ws.addEventListener("error", () => {
+      console.error(`[Terminal ${options.terminalId}] WebSocket error`);
+      options.onError?.("WebSocket error");
+    });
 
-    ws.onclose = () => {
-      console.log(`[Terminal ${terminalId}] Disconnected`);
-      onDisconnected?.();
-    };
+    ws.addEventListener("close", () => {
+      console.log(`[Terminal ${options.terminalId}] Disconnected`);
+      options.onDisconnected?.();
+    });
 
     // Handle terminal input
     terminal.onData((data) => {
@@ -159,7 +154,7 @@ export function useGhosttyTerminal(options: GhosttyTerminalOptions): UseGhosttyT
   });
 
   return {
-    init,
+    init: initGhostty,
     dispose,
     resize,
   };

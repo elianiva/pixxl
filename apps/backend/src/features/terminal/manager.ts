@@ -7,10 +7,25 @@ class TerminalManager {
   getOrCreate(input: TerminalActorInput): TerminalActor {
     const existing = this.actors.get(input.terminalId);
     if (existing) {
-      return existing;
+      // Check if actor is still alive
+      const state = existing.getSnapshot();
+      if (state && !state.matches("closed")) {
+        return existing;
+      }
+      // Actor died, remove it
+      this.actors.delete(input.terminalId);
     }
+
     const actor = createTerminalActor(input);
     this.actors.set(input.terminalId, actor);
+
+    // Subscribe to cleanup when actor reaches final state
+    actor.subscribe((state) => {
+      if (state.matches("closed")) {
+        this.actors.delete(input.terminalId);
+      }
+    });
+
     return actor;
   }
 

@@ -10,23 +10,22 @@ function TerminalPage() {
   const { terminalId } = useParams({ from: "/app/$projectId/terminal/$terminalId/" });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { init, dispose, resize } = useGhosttyTerminal({
+  const ghostty = useGhosttyTerminal({
     terminalId,
     containerRef,
   });
 
   useEffect(() => {
-    void init();
+    void ghostty.init().then(() => console.log("Ghostty initialized"));
 
-    // Handle window resize
-    const handleResize = () => resize();
-    window.addEventListener("resize", handleResize);
+    const controller = new AbortController();
+    window.addEventListener("resize", ghostty.resize.bind(null), { signal: controller.signal });
 
     return () => {
-      window.removeEventListener("resize", handleResize);
-      dispose();
+      controller.abort();
+      ghostty.dispose();
     };
-  }, [init, dispose, resize]);
+  }, []);
 
   return (
     <div className="h-full flex flex-col bg-[#1e1e2e]">

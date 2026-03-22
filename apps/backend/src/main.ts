@@ -6,11 +6,21 @@ import {
   handleTerminalMessage,
   handleTerminalClose,
 } from "./features/terminal/ws-handler";
+import type { TerminalActor, Client } from "./features/terminal/actor";
 import * as Bun from "bun";
 
-interface WsData {
-  terminalId?: string;
+interface TerminalWsData {
+  type: "terminal";
+  terminalId: string;
+  actor?: TerminalActor;
+  client?: Client;
 }
+
+interface RpcWsData {
+  type: "rpc";
+}
+
+type WsData = TerminalWsData | RpcWsData;
 
 const PORT = Number.parseInt(process.env.HONO_PORT || "3000", 10);
 
@@ -26,9 +36,13 @@ Bun.serve<WsData>({
   fetch(req, server) {
     // Extract terminalId from path before upgrade
     const url = new URL(req.url);
-    const pathMatch = url.pathname.match(/^\/terminal\/(.+)$/);
+    const terminalId = url.pathname.match(/^\/terminal\/(.+)$/)?.at(0);
 
-    if (server.upgrade(req, { data: { terminalId: pathMatch?.[1] } })) {
+    if (
+      server.upgrade(req, {
+        data: terminalId ? { type: "terminal", terminalId: terminalId } : { type: "rpc" },
+      })
+    ) {
       return;
     }
 
@@ -36,9 +50,10 @@ Bun.serve<WsData>({
   },
   websocket: {
     async message(ws, message) {
-      const terminalId = ws.data?.terminalId as string | undefined;
+      const data = ws.data as WsData;
 
-      if (terminalId) {
+      // terminal connection
+      if (data.type === "terminal" && data.terminalId.length > 0) {
         handleTerminalMessage(ws, message.toString());
         return;
       }
@@ -48,9 +63,9 @@ Bun.serve<WsData>({
       });
     },
     close(ws) {
-      const terminalId = ws.data?.terminalId as string | undefined;
+      const data = ws.data as WsData;
 
-      if (terminalId) {
+      if (data.type === "terminal") {
         handleTerminalClose(ws);
         return;
       }
@@ -58,10 +73,10 @@ Bun.serve<WsData>({
       handler.close(ws);
     },
     open(ws) {
-      const terminalId = ws.data?.terminalId as string | undefined;
+      const data = ws.data as WsData;
 
-      if (terminalId) {
-        handleTerminalConnection(terminalId, ws);
+      if (data.type === "terminal") {
+        handleTerminalConnection(data.terminalId, ws);
       }
     },
   },

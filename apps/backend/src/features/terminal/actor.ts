@@ -9,6 +9,7 @@ export interface TerminalActorInput {
 export interface Client {
   send: (data: string) => void;
   closed: boolean;
+  close?: () => void;
 }
 
 export interface TerminalActorContext {
@@ -34,48 +35,39 @@ export const terminalMachine = setup({
   },
   actions: {
     spawnTerminal: assign(({ context }) => {
-      const terminal = new Bun.Terminal({
-        cols: 80,
-        rows: 24,
-        data(term, data) {
-          const output = Buffer.from(data).toString("base64");
-          context.clients.forEach((client) => {
-            if (!client.closed) {
-              client.send(JSON.stringify({ type: "output", data: output }));
-            }
-          });
-        },
-        exit(_exitCode) {
-          const message = JSON.stringify({ type: "closed", reason: "Process exited" });
-          context.clients.forEach((client) => {
-            if (!client.closed) {
-              client.send(message);
-            }
-          });
-        },
-      });
-
       const proc = Bun.spawn({
-        cmd: ["/usr/bin/zsh"],
+        cmd: ["/bin/zsh"],
         cwd: context.cwd ?? Bun.env.HOME,
-        stdin: "pipe",
-        stdout: "pipe",
-        stderr: "pipe",
-        terminal,
+        terminal: {
+          cols: 80,
+          rows: 24,
+          data(term, data) {
+            const output = Buffer.from(data).toString("base64");
+            console.log({ size: context.clients.size });
+            context.clients.forEach((client) => {
+              if (!client.closed) {
+                client.send(JSON.stringify({ type: "output", data: output }));
+              }
+            });
+          },
+          exit(exitCode) {
+            const message = JSON.stringify({
+              type: "closed",
+              reason: "Process exited",
+              code: exitCode,
+            });
+            context.clients.forEach((client) => {
+              if (!client.closed) {
+                client.closed = true;
+                client.send(message);
+                client.close?.();
+              }
+            });
+          },
+        },
       });
 
-      // Connect PTY streams - pipe stdout to terminal
-      if (proc.stdout) {
-        proc.stdout.pipeTo(
-          new WritableStream({
-            write(chunk) {
-              terminal.write(chunk);
-            },
-          }),
-        );
-      }
-
-      return { terminal };
+      return { terminal: proc.terminal };
     }),
     addClient: assign({
       clients: ({ context, event }) => {
@@ -113,9 +105,6 @@ export const terminalMachine = setup({
       clients: () => new Set(),
     }),
   },
-  guards: {
-    hasClients: ({ context }) => context.clients.size > 0,
-  },
 }).createMachine({
   id: "terminal",
   initial: "idle",
@@ -144,14 +133,12 @@ export const terminalMachine = setup({
         },
         CLIENT_DISCONNECT: [
           {
-            target: "closing",
-            guard: {
-              type: "hasClients",
-              params: ({ context }) => context.clients.size > 1,
-            },
+            // Multiple clients remain -> stay active
+            guard: ({ context }) => context.clients.size > 1,
             actions: "removeClient",
           },
           {
+            // Last client left -> close
             target: "closing",
             actions: "removeClient",
           },
