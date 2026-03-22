@@ -35,7 +35,9 @@ function RouteComponent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
-  const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
+  const [projectToDelete, setProjectToDelete] = useState<(typeof projects.data)[number] | null>(
+    null,
+  );
 
   const projects = useLiveQuery((q) =>
     q
@@ -124,7 +126,7 @@ function RouteComponent() {
                   key={project.id}
                   project={project}
                   isLast={index === projects.data.length - 1}
-                  onDeleteClick={() => handleDeleteProject(project.id)}
+                  onDeleteClick={() => setProjectToDelete(project)}
                   onProjectClick={(id) =>
                     navigate({ to: "/app/$projectId", params: { projectId: id } })
                   }
@@ -152,15 +154,14 @@ function RouteComponent() {
       />
 
       <AlertDialog
-        open={deleteProjectId !== null}
-        onOpenChange={(open) => !open && setDeleteProjectId(null)}
+        open={projectToDelete !== null}
+        onOpenChange={(open) => !open && setProjectToDelete(null)}
       >
         <AlertDialogContent size="sm">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Project</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "
-              {projects.data.find((p) => p.id === deleteProjectId)?.name}"? This action cannot be
+              Are you sure you want to delete "{projectToDelete?.name}"? This action cannot be
               undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -169,8 +170,8 @@ function RouteComponent() {
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
-                handleDeleteProject(deleteProjectId!);
-                setDeleteProjectId(null);
+                if (projectToDelete) handleDeleteProject(projectToDelete.id);
+                setProjectToDelete(null);
               }}
             >
               Delete Project
