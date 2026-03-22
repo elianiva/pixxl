@@ -10,6 +10,7 @@ import { terminalsCollection } from "@/features/terminal/terminals-collection";
 import { commandsCollection } from "@/features/command/commands-collection";
 import { projectsCollection } from "@/features/project/projects-collection";
 import { NewCommandDialog } from "@/features/command/components/new-command-dialog";
+import { NewProjectDialog } from "@/features/project/components/new-project-dialog";
 import { EditAgentDialog } from "@/features/agent/components/edit-agent-dialog";
 import { EditTerminalDialog } from "@/features/terminal/components/edit-terminal-dialog";
 import type { AgentMetadata, TerminalMetadata } from "@pixxl/shared";
@@ -36,8 +37,20 @@ function RouteComponent() {
   }
 
   const [commandDialogOpen, setCommandDialogOpen] = useState(false);
+  const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<AgentMetadata | null>(null);
   const [editingTerminal, setEditingTerminal] = useState<TerminalMetadata | null>(null);
+
+  function handleCreateProject(name: string) {
+    if (!projects.collection) return;
+    projects.collection.insert({
+      id: generateId(),
+      name,
+      path: `/projects/${name}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }
 
   function handleNavigateTerminal(terminal: TerminalMetadata) {
     void navigate({
@@ -118,6 +131,7 @@ function RouteComponent() {
         terminals={terminals.data ?? []}
         isLoading={agents.isLoading || terminals.isLoading}
         onSelectProject={handleSelectProject}
+        onAddProject={() => setProjectDialogOpen(true)}
         onEditAgent={setEditingAgent}
         onEditTerminal={setEditingTerminal}
         onDeleteAgent={handleDeleteAgent}
@@ -147,6 +161,11 @@ function RouteComponent() {
         open={commandDialogOpen}
         onOpenChange={setCommandDialogOpen}
         onCreate={handleCreateCommand}
+      />
+      <NewProjectDialog
+        open={projectDialogOpen}
+        onOpenChange={setProjectDialogOpen}
+        onCreate={handleCreateProject}
       />
       <EditAgentDialog
         agent={editingAgent}

@@ -1,8 +1,7 @@
 import * as React from "react";
 import { NavMain, NavSubItem } from "@/components/layout/sidebar/nav-main";
-import { NavProjects } from "@/components/layout/sidebar/nav-projects";
 import { NavUser } from "@/components/layout/sidebar/nav-user";
-import { TeamSwitcher, type TeamSwitcherTeam } from "@/components/layout/sidebar/team-switcher";
+import { ProjectSwitcher } from "@/components/layout/sidebar/project-switcher";
 import {
   Sidebar,
   SidebarContent,
@@ -10,7 +9,7 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { RiCommandLine, RiRobot2Line, RiTerminalBoxLine, RiFolder3Line } from "@remixicon/react";
+import { RiCommandLine, RiRobot2Line, RiTerminalBoxLine } from "@remixicon/react";
 import type { AgentMetadata, ProjectMetadata, TerminalMetadata } from "@pixxl/shared";
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
@@ -19,7 +18,8 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   agents: AgentMetadata[];
   terminals: TerminalMetadata[];
   isLoading: boolean;
-  onSelectProject?: (project: TeamSwitcherTeam) => void;
+  onSelectProject?: (project: { id: string }) => void;
+  onAddProject?: () => void;
   onEditAgent?: (agent: AgentMetadata) => void;
   onEditTerminal?: (terminal: TerminalMetadata) => void;
   onDeleteAgent?: (id: string) => void;
@@ -71,6 +71,7 @@ export function AppSidebar({
   terminals,
   isLoading,
   onSelectProject,
+  onAddProject,
   onEditAgent,
   onEditTerminal,
   onDeleteAgent,
@@ -82,32 +83,6 @@ export function AppSidebar({
   onCreateTerminal,
   ...props
 }: AppSidebarProps) {
-  // Transform projects into teams format for the project switcher
-  const projectSwitcherItems = React.useMemo(
-    () =>
-      projects.map((project) => ({
-        id: project.id,
-        name: project.name,
-        logo: <RiFolder3Line />,
-        plan: project.path,
-      })),
-    [projects],
-  );
-
-  const currentProject = React.useMemo(
-    () => projects.find((p) => p.id === currentProjectId) ?? projects[0],
-    [projects, currentProjectId],
-  );
-
-  const projectList = React.useMemo(
-    () =>
-      projects.map((project) => ({
-        name: project.name,
-        url: "#",
-        icon: <RiFolder3Line />,
-      })),
-    [projects],
-  );
   const navMain = React.useMemo(
     () => [
       {
@@ -191,24 +166,15 @@ export function AppSidebar({
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher
-          teams={projectSwitcherItems}
-          currentTeam={
-            currentProject
-              ? {
-                  id: currentProject.id,
-                  name: currentProject.name,
-                  logo: <RiFolder3Line />,
-                  plan: currentProject.path,
-                }
-              : undefined
-          }
-          onSelectTeam={onSelectProject}
+        <ProjectSwitcher
+          projects={projects}
+          currentProjectId={currentProjectId}
+          onSelectProject={onSelectProject}
+          onAddProject={onAddProject}
         />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMain} />
-        <NavProjects projects={projectList} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={{ name: "shadcn", email: "m@example.com", avatar: "/avatars/shadcn.jpg" }} />

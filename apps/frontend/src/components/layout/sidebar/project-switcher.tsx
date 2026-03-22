@@ -1,5 +1,3 @@
-import * as React from "react";
-
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,29 +14,33 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { RiArrowUpDownLine, RiAddLine } from "@remixicon/react";
+import { RiArrowUpDownLine, RiAddLine, RiFolder3Line } from "@remixicon/react";
+import type { ProjectMetadata } from "@pixxl/shared";
 
-export interface TeamSwitcherTeam {
+export interface ProjectSwitcherProject {
   id: string;
   name: string;
-  logo: React.ReactNode;
   plan: string;
 }
 
-export function TeamSwitcher({
-  teams,
-  currentTeam,
-  onSelectTeam,
+export function ProjectSwitcher({
+  projects,
+  currentProjectId,
+  onSelectProject,
+  onAddProject,
 }: {
-  teams: TeamSwitcherTeam[];
-  currentTeam?: TeamSwitcherTeam;
-  onSelectTeam?: (team: TeamSwitcherTeam) => void;
+  projects: ProjectMetadata[];
+  currentProjectId?: string;
+  onSelectProject?: (project: ProjectSwitcherProject) => void;
+  onAddProject?: () => void;
 }) {
   const { isMobile } = useSidebar();
-  const [activeTeam, setActiveTeam] = React.useState(currentTeam ?? teams[0]);
-  if (!activeTeam) {
+  const currentProject = projects.find((p) => p.id === currentProjectId) ?? projects[0];
+  
+  if (!currentProject) {
     return null;
   }
+  
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -52,11 +54,11 @@ export function TeamSwitcher({
             }
           >
             <div className="flex aspect-square size-8 items-center justify-center bg-sidebar-primary text-sidebar-primary-foreground">
-              {activeTeam.logo}
+              <RiFolder3Line />
             </div>
             <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-medium">{activeTeam.name}</span>
-              <span className="truncate text-xs">{activeTeam.plan}</span>
+              <span className="truncate font-medium">{currentProject.name}</span>
+              <span className="truncate text-xs">{currentProject.path}</span>
             </div>
             <RiArrowUpDownLine className="ml-auto" />
           </DropdownMenuTrigger>
@@ -70,24 +72,25 @@ export function TeamSwitcher({
               <DropdownMenuLabel className="text-xs text-muted-foreground">
                 Projects
               </DropdownMenuLabel>
-              {teams.map((team, index) => (
+              {projects.map((project, index) => (
                 <DropdownMenuItem
-                  key={team.id}
+                  key={project.id}
                   onClick={() => {
-                    setActiveTeam(team);
-                    onSelectTeam?.(team);
+                    onSelectProject?.({ id: project.id, name: project.name, plan: project.path });
                   }}
                   className="gap-2 p-2"
                 >
-                  <div className="flex size-6 items-center justify-center border">{team.logo}</div>
-                  {team.name}
+                  <div className="flex size-6 items-center justify-center border">
+                    <RiFolder3Line />
+                  </div>
+                  {project.name}
                   <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem className="gap-2 p-2">
+              <DropdownMenuItem className="gap-2 p-2" onClick={onAddProject}>
                 <div className="flex size-6 items-center justify-center border bg-transparent">
                   <RiAddLine className="size-4" />
                 </div>
