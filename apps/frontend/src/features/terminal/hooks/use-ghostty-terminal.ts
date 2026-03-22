@@ -82,7 +82,7 @@ export function useGhosttyTerminal(options: GhosttyTerminalOptions): UseGhosttyT
     });
 
     ws.addEventListener("message", (event) => {
-      console.log({ event });
+      console.log("WS MESSAGE", event.data);
       if (typeof event.data === "string") {
         try {
           const message = JSON.parse(event.data);

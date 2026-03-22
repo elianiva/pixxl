@@ -43,7 +43,6 @@ export const terminalMachine = setup({
           rows: 24,
           data(term, data) {
             const output = Buffer.from(data).toString("base64");
-            console.log({ size: context.clients.size });
             context.clients.forEach((client) => {
               if (!client.closed) {
                 client.send(JSON.stringify({ type: "output", data: output }));
@@ -96,7 +95,7 @@ export const terminalMachine = setup({
     resizePty: assign({
       terminal: ({ context, event }) => {
         if (event.type !== "RESIZE" || !context.terminal) return context.terminal;
-        context.terminal.resize({ cols: event.cols, rows: event.rows });
+        context.terminal.resize(event.cols, event.rows);
         return context.terminal;
       },
     }),
@@ -119,6 +118,7 @@ export const terminalMachine = setup({
       on: {
         CLIENT_CONNECT: {
           target: "starting",
+          actions: "addClient",
         },
       },
     },

@@ -36,7 +36,7 @@ Bun.serve<WsData>({
   fetch(req, server) {
     // Extract terminalId from path before upgrade
     const url = new URL(req.url);
-    const terminalId = url.pathname.match(/^\/terminal\/(.+)$/)?.at(0);
+    const terminalId = url.pathname.match(/^\/terminal\/(.+)$/)?.at(1);
 
     if (
       server.upgrade(req, {
