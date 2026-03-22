@@ -1,16 +1,9 @@
-import { createFileRoute, Outlet, redirect, useNavigate, useParams } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/sidebar/app-sidebar";
+import { AppBreadcrumb } from "@/components/layout/app-breadcrumb";
 import { Separator } from "@base-ui/react";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { useListAgents } from "@/features/agent/hooks/use-agent";
 import { useDeleteAgent } from "@/features/agent/hooks/use-agent";
 import { useListTerminals } from "@/features/terminal/hooks/use-terminal";
@@ -82,17 +75,7 @@ function RouteComponent() {
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="#">Build Your Application</BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Data Fetching</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
+            <AppBreadcrumb />
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
