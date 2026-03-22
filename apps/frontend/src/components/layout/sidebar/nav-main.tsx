@@ -16,7 +16,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { RiArrowRightSLine, RiPencilLine, RiDeleteBin2Line, RiMoreLine } from "@remixicon/react";
+import {
+  RiArrowRightSLine,
+  RiPencilLine,
+  RiDeleteBin2Line,
+  RiMoreLine,
+  RiDashboardLine,
+  RiTrelloLine,
+} from "@remixicon/react";
 
 export interface NavSubItem {
   title: string;
@@ -40,6 +47,12 @@ export function NavMain({ items }: { items: NavItem[] }) {
     <SidebarGroup>
       <SidebarGroupLabel>Development</SidebarGroupLabel>
       <SidebarMenu>
+        <SidebarMenuButton tooltip="Dashboard">
+          <RiDashboardLine />
+          <span>Dashboard</span>
+        </SidebarMenuButton>
+      </SidebarMenu>
+      <SidebarMenu>
         {items.map((item) => (
           <Collapsible
             key={item.title}
@@ -62,7 +75,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
                           render={<span />}
                           className={cn(
                             subItem.disabled &&
-                              "text-muted-foreground hover:bg-transparent active:bg-transparent hover:text-muted-foreground active:text-muted-foreground opacity-50",
+                            "text-muted-foreground hover:bg-transparent active:bg-transparent hover:text-muted-foreground active:text-muted-foreground opacity-50",
                           )}
                         >
                           <span>No {item.title.toLowerCase()}</span>
@@ -126,6 +139,12 @@ export function NavMain({ items }: { items: NavItem[] }) {
             </CollapsibleContent>
           </Collapsible>
         ))}
+      </SidebarMenu>
+      <SidebarMenu>
+        <SidebarMenuButton tooltip="Dashboard">
+          <RiTrelloLine />
+          <span>Task Management</span>
+        </SidebarMenuButton>
       </SidebarMenu>
     </SidebarGroup>
   );
