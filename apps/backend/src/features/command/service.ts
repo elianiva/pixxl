@@ -9,12 +9,7 @@ import { CommandError } from "./error";
 import { ProjectService } from "../project/service";
 import { ConfigService } from "../config/service";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
-import { nanoid } from "nanoid";
-
-function generateId(): string {
-  const id = nanoid(8);
-  return id.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-}
+import { generateId } from "@/utils/id";
 
 type CommandServiceShape = {
   readonly createCommand: (

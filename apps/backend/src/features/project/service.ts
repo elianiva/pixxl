@@ -9,13 +9,8 @@ import {
 import { ProjectError } from "./error";
 import { ConfigService } from "../config/service";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
-import { nanoid } from "nanoid";
 import { slugify } from "@/utils/slug";
-
-function generateProjectId(): string {
-  const id = nanoid(8);
-  return id.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-}
+import { generateId } from "@/utils/id";
 
 type ProjectServiceShape = {
   readonly createProject: (
@@ -59,7 +54,7 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
 
         const now = new Date().toISOString();
         const metadata: ProjectMetadata = {
-          id: generateProjectId(),
+          id: generateId(),
           name: input.name,
           path: projectPath,
           createdAt: now,
