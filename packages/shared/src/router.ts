@@ -3,10 +3,11 @@ import {
   createProjectContract,
   deleteProjectContract,
   getProjectDetailContract,
-  listAgentsContract,
   listProjectsContract,
-  listTerminalsContract,
 } from "./contracts/project";
+import { createAgentContract, listAgentsContract } from "./contracts/agent";
+import { createTerminalContract, listTerminalsContract } from "./contracts/terminal";
+import { createCommandContract, listCommandsContract } from "./contracts/command";
 
 export const routerContract = {
   config: {
@@ -18,7 +19,17 @@ export const routerContract = {
     deleteProject: deleteProjectContract,
     listProjects: listProjectsContract,
     getProjectDetail: getProjectDetailContract,
+  },
+  agent: {
+    createAgent: createAgentContract,
     listAgents: listAgentsContract,
+  },
+  terminal: {
+    createTerminal: createTerminalContract,
     listTerminals: listTerminalsContract,
+  },
+  command: {
+    createCommand: createCommandContract,
+    listCommands: listCommandsContract,
   },
 };

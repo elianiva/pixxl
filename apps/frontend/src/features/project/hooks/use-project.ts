@@ -4,15 +4,17 @@ import type {
   CreateProjectInput,
   DeleteProjectInput,
   GetProjectDetailInput,
-  ListAgentsInput,
   ListProjectsInput,
-  ListTerminalsInput,
+  ProjectMetadata,
 } from "@pixxl/shared";
 
 export function useCreateProject() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateProjectInput) => rpc.project.createProject(input),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["projects"] });
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
   });
 }
@@ -25,9 +27,9 @@ export function useDeleteProject() {
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: ["projects"] });
 
-      const previousProjects = queryClient.getQueryData<{ id: string }[]>(["projects", {}]);
+      const previousProjects = queryClient.getQueryData<ProjectMetadata[]>(["projects", {}]);
 
-      queryClient.setQueriesData<{ id: string }[]>({ queryKey: ["projects"] }, (old) =>
+      queryClient.setQueriesData<ProjectMetadata[]>({ queryKey: ["projects"] }, (old) =>
         old?.filter((project) => project.id !== input.id),
       );
 
@@ -53,19 +55,5 @@ export function useGetProjectDetail(input: GetProjectDetailInput) {
   return useQuery({
     queryKey: ["project", input.id],
     queryFn: () => rpc.project.getProjectDetail(input),
-  });
-}
-
-export function useListAgents(input: ListAgentsInput) {
-  return useQuery({
-    queryKey: ["project", input.projectId, "agents"],
-    queryFn: () => rpc.project.listAgents(input),
-  });
-}
-
-export function useListTerminals(input: ListTerminalsInput) {
-  return useQuery({
-    queryKey: ["project", input.projectId, "terminals"],
-    queryFn: () => rpc.project.listTerminals(input),
   });
 }

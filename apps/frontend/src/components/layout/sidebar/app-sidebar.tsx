@@ -21,13 +21,17 @@ import {
   RiRobot2Line,
   RiTerminalBoxLine,
 } from "@remixicon/react";
-import type { Agent, Terminal } from "@pixxl/shared";
+import type { AgentMetadata, TerminalMetadata } from "@pixxl/shared";
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  agents?: Agent[];
-  terminals?: Terminal[];
+  _projectId?: string;
+  agents?: AgentMetadata[];
+  terminals?: TerminalMetadata[];
   isAgentsLoading?: boolean;
   isTerminalsLoading?: boolean;
+  onAddAgent?: () => void;
+  onAddTerminal?: () => void;
+  onAddCommand?: () => void;
 }
 
 // This is sample data.
@@ -76,10 +80,14 @@ const data = {
 const EmptyItem = { title: "", url: "#", disabled: true } as const;
 
 export function AppSidebar({
+  _projectId,
   agents = [],
   terminals = [],
   isAgentsLoading = false,
   isTerminalsLoading = false,
+  onAddAgent,
+  onAddTerminal,
+  onAddCommand,
   ...props
 }: AppSidebarProps) {
   const navMain = React.useMemo(
@@ -94,12 +102,12 @@ export function AppSidebar({
           : agents.length === 0
             ? [EmptyItem, { title: "+ Add Agent", url: "#" }]
             : [
-              ...agents.map((agent) => ({
-                title: agent.name,
-                url: `#`,
-              })),
-              { title: "+ Add Agent", url: "#" },
-            ],
+                ...agents.map((agent) => ({
+                  title: agent.name,
+                  url: `#`,
+                })),
+                { title: "+ Add Agent", url: "#", onClick: onAddAgent },
+              ],
       },
       {
         title: "Terminals",
@@ -110,21 +118,29 @@ export function AppSidebar({
           : terminals.length === 0
             ? [EmptyItem, { title: "+ Add Terminal", url: "#" }]
             : [
-              ...terminals.map((terminal) => ({
-                title: terminal.name,
-                url: `#`,
-              })),
-              { title: "+ Add Terminal", url: "#" },
-            ],
+                ...terminals.map((terminal) => ({
+                  title: terminal.name,
+                  url: `#`,
+                })),
+                { title: "+ Add Terminal", url: "#", onClick: onAddTerminal },
+              ],
       },
       {
         title: "Commands",
         url: "#",
         icon: <RiCommandLine />,
-        items: [EmptyItem, { title: "+ Add Command", url: "#" }],
+        items: [EmptyItem, { title: "+ Add Command", url: "#", onClick: onAddCommand }],
       },
     ],
-    [agents, terminals, isAgentsLoading, isTerminalsLoading],
+    [
+      agents,
+      terminals,
+      isAgentsLoading,
+      isTerminalsLoading,
+      onAddAgent,
+      onAddTerminal,
+      onAddCommand,
+    ],
   );
 
   return (

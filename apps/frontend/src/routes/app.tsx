@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet, useParams } from "@tanstack/react-router";
+import { useState } from "react";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/sidebar/app-sidebar";
 import { Separator } from "@base-ui/react";
@@ -10,8 +11,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useListAgents, useListTerminals } from "@/features/project/hooks/use-project";
-import type { Agent, Terminal } from "@pixxl/shared";
+import { useListAgents } from "@/features/agent/hooks/use-agent";
+import { useListTerminals } from "@/features/terminal/hooks/use-terminal";
+import { NewAgentDialog } from "@/features/agent/components/new-agent-dialog";
+import { NewTerminalDialog } from "@/features/terminal/components/new-terminal-dialog";
+import { NewCommandDialog } from "@/features/command/components/new-command-dialog";
 
 export const Route = createFileRoute("/app")({
   component: RouteComponent,
@@ -22,13 +26,21 @@ function RouteComponent() {
   const agentsQuery = useListAgents({ projectId });
   const terminalsQuery = useListTerminals({ projectId });
 
+  const [agentDialogOpen, setAgentDialogOpen] = useState(false);
+  const [terminalDialogOpen, setTerminalDialogOpen] = useState(false);
+  const [commandDialogOpen, setCommandDialogOpen] = useState(false);
+
   return (
     <SidebarProvider>
       <AppSidebar
-        agents={[...(agentsQuery.data ?? [])] as Agent[]}
-        terminals={[...(terminalsQuery.data ?? [])] as Terminal[]}
+        _projectId={projectId}
+        agents={[...(agentsQuery.data ?? [])]}
+        terminals={[...(terminalsQuery.data ?? [])]}
         isAgentsLoading={agentsQuery.isLoading}
         isTerminalsLoading={terminalsQuery.isLoading}
+        onAddAgent={() => setAgentDialogOpen(true)}
+        onAddTerminal={() => setTerminalDialogOpen(true)}
+        onAddCommand={() => setCommandDialogOpen(true)}
       />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
@@ -54,6 +66,22 @@ function RouteComponent() {
           </div>
         </div>
       </SidebarInset>
+
+      <NewAgentDialog
+        projectId={projectId}
+        open={agentDialogOpen}
+        onOpenChange={setAgentDialogOpen}
+      />
+      <NewTerminalDialog
+        projectId={projectId}
+        open={terminalDialogOpen}
+        onOpenChange={setTerminalDialogOpen}
+      />
+      <NewCommandDialog
+        projectId={projectId}
+        open={commandDialogOpen}
+        onOpenChange={setCommandDialogOpen}
+      />
     </SidebarProvider>
   );
 }

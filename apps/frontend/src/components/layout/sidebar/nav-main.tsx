@@ -12,16 +12,19 @@ import {
 import { cn } from "@/lib/utils";
 import { RiArrowRightSLine } from "@remixicon/react";
 
+interface NavSubItem {
+  title: string;
+  url: string;
+  disabled?: boolean;
+  onClick?: () => void;
+}
+
 interface NavItem {
   title: string;
   url: string;
   icon?: React.ReactNode;
   isActive?: boolean;
-  items?: {
-    title: string;
-    url: string;
-    disabled?: boolean;
-  }[];
+  items?: NavSubItem[];
 }
 
 export function NavMain({ items }: { items: NavItem[] }) {
@@ -50,7 +53,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
                         <SidebarMenuSubButton
                           className={cn(
                             subItem.disabled &&
-                            "text-muted-foreground hover:bg-transparent active:bg-transparent hover:text-muted-foreground active:text-muted-foreground opacity-50",
+                              "text-muted-foreground hover:bg-transparent active:bg-transparent hover:text-muted-foreground active:text-muted-foreground opacity-50",
                           )}
                         >
                           <span>No {item.title.toLowerCase()}</span>
@@ -58,15 +61,24 @@ export function NavMain({ items }: { items: NavItem[] }) {
                       </SidebarMenuSubItem>
                     );
                   }
+                  const isActionItem = subItem.title.startsWith("+ ");
                   return (
                     <SidebarMenuSubItem key={subItem.title}>
-                      <SidebarMenuSubButton render={<a href={subItem.url} />}>
+                      <SidebarMenuSubButton
+                        render={
+                          isActionItem || subItem.onClick ? (
+                            <button
+                              type="button"
+                              onClick={subItem.onClick}
+                              className="w-full text-left"
+                            />
+                          ) : (
+                            <a href={subItem.url} />
+                          )
+                        }
+                      >
                         <span
-                          className={
-                            subItem.title.startsWith("+ ")
-                              ? "text-muted-foreground font-normal"
-                              : undefined
-                          }
+                          className={isActionItem ? "text-muted-foreground font-normal" : undefined}
                         >
                           {subItem.title}
                         </span>
