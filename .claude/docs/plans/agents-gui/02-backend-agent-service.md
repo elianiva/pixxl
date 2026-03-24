@@ -1,117 +1,102 @@
-# Phase 2: Backend Agent Service
+# Phase 2: Backend Agent Session Service ✅
 
 ## Goal
 
-Create the core `AgentManager` Effect service that wraps pi SDK sessions.
+Create the `AgentSessionService` that wraps pi SDK sessions, following existing backend patterns.
 
 ## Architecture
 
 ```
-AgentManager (Effect.Service)
-├── createSession(projectId, name, model?) → AgentSession
-├── getSession(sessionId) → Option<AgentSession>
-├── listSessions(projectId) → AgentSession[]
-├── terminateSession(sessionId) → void
-└── eventBus → Stream<AgentEvent>
+AgentSessionService (extends ServiceMap.Service)
+├── createSession(projectId, projectPath, name, model?, thinkingLevel?) → Effect<AgentSession>
+├── getSession(projectId, sessionId) → Effect<Option<AgentSession>>
+├── listSessions(projectId) → Effect<AgentSession[]>
+└── terminateSession(projectId, sessionId) → Effect<void, SessionNotFoundError | SessionTerminateError>
 
-AgentSession (wraps pi.AgentSession)
+AgentSession (data entity)
 ├── id: string
 ├── projectId: string
 ├── name: string
-├── status: Idle | Streaming | Error
-├── piSession: pi.AgentSession
-├── subscribe() → Stream<AgentEvent>
-├── prompt(text) → Promise<void>
-├── abort() → Promise<void>
-└── dispose() → void
+├── status: "idle" | "streaming" | "error"
+├── piSession: PiAgentSession
+└── createdAt: Date
 ```
 
 ## Implementation
 
-### 1. Create AgentSession entity
+### 1. Session Errors
 
-**File:** `apps/backend/src/services/agent/AgentSession.ts`
+**File:** `apps/backend/src/features/agent/error.ts` ✅
 
-```typescript
-import { AgentSession as PiAgentSession } from "@mariozechner/pi-coding-agent";
-import { Context, Effect, Layer, Stream } from "effect";
-import * as pi from "@mariozechner/pi-coding-agent";
+Added:
+- `SessionNotFoundError` - session lookup failed
+- `SessionTerminateError` - failed to cleanup session
 
-export type AgentStatus = "idle" | "streaming" | "error";
+### 2. Session Types
 
-export interface AgentSession {
-  readonly id: string;
-  readonly projectId: string;
-  readonly name: string;
-  readonly status: AgentStatus;
-  readonly createdAt: Date;
-  readonly piSession: PiAgentSession;
-}
+**File:** `apps/backend/src/features/agent/session/types.ts` ✅
 
-export interface AgentEvent {
-  readonly sessionId: string;
-  readonly type:
-    | "message_delta"
-    | "thinking_delta"
-    | "tool_start"
-    | "tool_update"
-    | "tool_end"
-    | "status_change"
-    | "error";
-  readonly payload: unknown;
-}
-```
+- `AgentSession` - session entity with pi session reference
+- `AgentSessionEvent` - union of event types
+- `StoredSession` - internal storage type
 
-### 2. Create AgentManager service
+### 3. AgentSessionService
 
-**File:** `apps/backend/src/services/agent/AgentManager.ts`
+**File:** `apps/backend/src/features/agent/session/service.ts` ✅
 
-Key methods:
-
-- `createSession` - spawn new pi session via `createAgentSession()`
-- `getSession` - lookup active session
-- `terminateSession` - cleanup and remove
-- `subscribeToEvents` - global event stream for WebSocket broadcast
-
-### 3. pi SDK Configuration
+Key implementation details:
 
 ```typescript
-// Session config per project
-const sessionConfig = {
-  sessionManager: pi.SessionManager.inMemory(), // Start with in-memory
-  model: pi.getModel("anthropic", "claude-sonnet-4"),
-  thinkingLevel: "medium",
-  tools: pi.createCodingTools(projectPath), // Tools resolve paths relative to project
-};
+// WebSocket transport configured via SettingsManager
+const settingsManager = SettingsManager.create(input.projectPath);
+settingsManager.setTransport("websocket");
+
+// Coding tools resolve paths relative to project
+const tools = createCodingTools(input.projectPath);
+
+// Create pi session
+const { session: piSession } = await createAgentSession({
+  cwd: input.projectPath,
+  tools,
+  settingsManager,
+  thinkingLevel: input.thinkingLevel ?? "medium",
+});
 ```
+
+### 4. pi SDK Integration
+
+- **Transport**: WebSocket (via `settingsManager.setTransport("websocket")`)
+- **Session Manager**: Default (`SessionManager.create(cwd)`)
+- **Tools**: `createCodingTools(projectPath)` - provides read, bash, edit, write tools
+- **Thinking Level**: Configurable per session, defaults to "medium"
 
 ## Data Persistence
 
-Session metadata stored in DB (SQLite via Effect SQL):
+Session metadata stored via existing `EntityService` (Phase 4).
 
-- `agent_sessions` table: id, project_id, name, status, created_at, updated_at
-- pi's JSONL session files stored at: `{projectPath}/agents/sessions/{sessionId}.jsonl`
+pi's session files stored at:
+- `{projectPath}/.pi/sessions/{sessionId}.jsonl`
 
-## Files to Create
+## Files Created
 
-- `apps/backend/src/services/agent/AgentSession.ts`
-- `apps/backend/src/services/agent/AgentManager.ts`
-- `apps/backend/src/services/agent/index.ts` (barrel export)
+- `apps/backend/src/features/agent/session/types.ts`
+- `apps/backend/src/features/agent/session/service.ts`
+- `apps/backend/src/features/agent/session/index.ts`
 
-## Files to Modify
+## Files Modified
 
-- `apps/backend/src/services/index.ts` - add AgentManager to service layer
-- `apps/backend/src/AppConfig.ts` - add agent configuration
+- `apps/backend/src/features/agent/error.ts` - added session errors
+- `apps/backend/src/features/agent/rpc.ts` - added TODO stubs
 
-## Testing
+## Next Steps (Phase 3)
 
-- [ ] Create test session via AgentManager
-- [ ] Verify pi SDK spawns without errors
-- [ ] Verify event streaming works
-- [ ] Run `vp test`
+- Add WebSocket server for real-time event streaming
+- Wire up `piSession.subscribe()` to broadcast events to clients
+- Add `prompt()` and `abort()` methods to service
 
 ## Out of Scope
 
-- No WebSocket yet (Phase 3)
-- No RPC routes yet (Phase 8)
+- No WebSocket server yet (Phase 3)
+- No event streaming via WebSocket yet (Phase 3)
+- No RPC routes with full implementation (Phase 8)
 - No frontend integration yet

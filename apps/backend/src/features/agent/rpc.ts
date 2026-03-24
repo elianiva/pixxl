@@ -3,6 +3,15 @@ import { os } from "@/contract";
 import { AgentService } from "./service";
 import { mapToOrpcError } from "@/lib/error";
 
+// Session RPC stubs - full implementation in Phase 8
+// TODO: Add session contracts to packages/shared/src/contracts/agent.ts
+// TODO: Implement:
+//   - createSessionRpc
+//   - getSessionRpc
+//   - listSessionsRpc
+//   - terminateSessionRpc
+//   - subscribeToSessionEventsRpc (WebSocket in Phase 3)
+
 export const createAgentRpc = os.agent.createAgent.handler(({ input }) =>
   Effect.gen(function* () {
     const service = yield* AgentService;
