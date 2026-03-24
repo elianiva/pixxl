@@ -52,13 +52,6 @@ function RouteComponent() {
     });
   }
 
-  function handleNavigateTerminal(terminal: TerminalMetadata) {
-    void navigate({
-      to: "/app/$projectId/terminal/$terminalId",
-      params: { projectId, terminalId: terminal.id },
-    });
-  }
-
   function handleCreateAgent(name: string) {
     if (!agents.collection) return;
     agentsCollection.insert({
@@ -129,6 +122,7 @@ function RouteComponent() {
         currentProjectId={projectId}
         agents={agents.data ?? []}
         terminals={terminals.data ?? []}
+        commands={commands.data ?? []}
         isLoading={agents.isLoading || terminals.isLoading}
         onSelectProject={handleSelectProject}
         onAddProject={() => setProjectDialogOpen(true)}
@@ -138,7 +132,6 @@ function RouteComponent() {
         onDeleteTerminal={handleDeleteTerminal}
         onDeleteCommand={handleDeleteCommand}
         onAddCommand={() => setCommandDialogOpen(true)}
-        onNavigateTerminal={handleNavigateTerminal}
         onCreateAgent={handleCreateAgent}
         onCreateTerminal={handleCreateTerminal}
       />

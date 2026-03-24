@@ -23,19 +23,17 @@ export interface ProjectSwitcherProject {
   plan: string;
 }
 
-export function ProjectSwitcher({
-  projects,
-  currentProjectId,
-  onSelectProject,
-  onAddProject,
-}: {
+export interface ProjectSwitcherProps {
   projects: ProjectMetadata[];
   currentProjectId?: string;
   onSelectProject?: (project: ProjectSwitcherProject) => void;
   onAddProject?: () => void;
-}) {
+}
+
+export function ProjectSwitcher(props: ProjectSwitcherProps) {
   const { isMobile } = useSidebar();
-  const currentProject = projects.find((p) => p.id === currentProjectId) ?? projects[0];
+  const currentProject =
+    props.projects.find((p) => p.id === props.currentProjectId) ?? props.projects[0];
 
   if (!currentProject) {
     return null;
@@ -72,11 +70,15 @@ export function ProjectSwitcher({
               <DropdownMenuLabel className="text-xs text-muted-foreground">
                 Projects
               </DropdownMenuLabel>
-              {projects.map((project, index) => (
+              {props.projects.map((project, index) => (
                 <DropdownMenuItem
                   key={project.id}
                   onClick={() => {
-                    onSelectProject?.({ id: project.id, name: project.name, plan: project.path });
+                    props.onSelectProject?.({
+                      id: project.id,
+                      name: project.name,
+                      plan: project.path,
+                    });
                   }}
                   className="gap-2 p-2"
                 >
@@ -90,7 +92,7 @@ export function ProjectSwitcher({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem className="gap-2 p-2" onClick={onAddProject}>
+              <DropdownMenuItem className="gap-2 p-2" onClick={props.onAddProject}>
                 <div className="flex size-6 items-center justify-center border bg-transparent">
                   <RiAddLine className="size-4" />
                 </div>
