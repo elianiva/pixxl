@@ -10,6 +10,11 @@ import {
   updateAgentContract,
   deleteAgentContract,
   listAgentsContract,
+  createSessionContract,
+  getSessionContract,
+  listSessionsContract,
+  terminateSessionContract,
+  promptContract,
 } from "./contracts/agent";
 import {
   createTerminalContract,
@@ -40,6 +45,11 @@ export const routerContract = {
     updateAgent: updateAgentContract,
     deleteAgent: deleteAgentContract,
     listAgents: listAgentsContract,
+    createSession: createSessionContract,
+    getSession: getSessionContract,
+    listSessions: listSessionsContract,
+    terminateSession: terminateSessionContract,
+    prompt: promptContract,
   },
   terminal: {
     createTerminal: createTerminalContract,

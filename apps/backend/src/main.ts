@@ -59,13 +59,25 @@ const handler = new RPCHandler(router, {
 
 Bun.serve<WsData>({
   fetch(req, server) {
-    // Extract terminalId from path before upgrade
     const url = new URL(req.url);
-    const terminalId = url.pathname.match(/^\/terminal\/(.+)$/)?.at(1);
 
+    // Extract terminalId from path
+    const terminalId = url.pathname.match(/^\/terminal\/(.+)$/)?.at(1);
+    if (terminalId) {
+      if (
+        server.upgrade(req, {
+          data: { type: "terminal", terminalId } as TerminalWsData,
+        })
+      ) {
+        return;
+      }
+      return new Response("Upgrade failed", { status: 500 });
+    }
+
+    // Default: RPC
     if (
       server.upgrade(req, {
-        data: terminalId ? { type: "terminal", terminalId: terminalId } : { type: "rpc" },
+        data: { type: "rpc" } as RpcWsData,
       })
     ) {
       return;
@@ -77,12 +89,13 @@ Bun.serve<WsData>({
     async message(ws, message) {
       const data = ws.data as WsData;
 
-      // terminal connection
+      // Terminal connection
       if (data.type === "terminal" && data.terminalId.length > 0) {
         handleTerminalMessage(ws, message.toString());
         return;
       }
 
+      // RPC connection (includes agent streaming)
       await handler.message(ws, message, {
         context: {},
       });

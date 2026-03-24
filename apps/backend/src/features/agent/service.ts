@@ -35,9 +35,10 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
 
       const agent = yield* agents
         .create({
-          projectPath: projectResult.value.path,
           id: input.id,
+          projectId: input.projectId,
           name: input.name,
+          projectPath: projectResult.value.path,
         })
         .pipe(
           Effect.mapError(
@@ -93,9 +94,10 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
 
       return yield* agents
         .update({
-          projectPath: projectResult.value.path,
           id: input.id,
+          projectId: input.projectId,
           name: input.name,
+          projectPath: projectResult.value.path,
         })
         .pipe(
           Effect.mapError(
@@ -116,7 +118,12 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
       const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
       if (Option.isNone(projectResult)) {
-        return Option.none<boolean>();
+        return yield* Effect.fail(
+          new AgentDeleteError({
+            agentId: input.id,
+            projectId: input.projectId,
+          }),
+        );
       }
 
       return yield* agents
@@ -133,6 +140,7 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
                 cause,
               }),
           ),
+          Effect.map(Option.map(() => true)),
         );
     });
 

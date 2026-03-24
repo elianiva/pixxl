@@ -10,6 +10,10 @@ import {
   SettingsManager,
   type CreateAgentSessionOptions,
 } from "@mariozechner/pi-coding-agent";
+import { EntityService } from "@pixxl/shared";
+import { ProjectService } from "../../project/service";
+import { ConfigService } from "../../config/service";
+import { BunFileSystem, BunPath } from "@effect/platform-bun";
 
 type AgentSessionServiceShape = {
   readonly createSession: (
@@ -162,7 +166,12 @@ export class AgentSessionService extends ServiceMap.Service<
     return { createSession, getSession, listSessions, terminateSession } as const;
   }),
 }) {
-  static layer = Layer.effect(AgentSessionService, AgentSessionService.make);
+  static layer = Layer.effect(AgentSessionService, AgentSessionService.make).pipe(
+    Layer.provideMerge(EntityService.layer),
+    Layer.provideMerge(ProjectService.layer),
+    Layer.provideMerge(ConfigService.layer),
+    Layer.provideMerge(Layer.mergeAll(BunFileSystem.layer, BunPath.layer)),
+  );
 }
 
 /**

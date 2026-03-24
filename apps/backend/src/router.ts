@@ -11,6 +11,11 @@ import {
   updateAgentRpc,
   deleteAgentRpc,
   listAgentsRpc,
+  createSessionRpc,
+  getSessionRpc,
+  listSessionsRpc,
+  terminateSessionRpc,
+  promptRpc,
 } from "./features/agent/rpc";
 import {
   createTerminalRpc,
@@ -37,6 +42,11 @@ export const router = os.router({
     updateAgent: updateAgentRpc,
     deleteAgent: deleteAgentRpc,
     listAgents: listAgentsRpc,
+    createSession: createSessionRpc,
+    getSession: getSessionRpc,
+    listSessions: listSessionsRpc,
+    terminateSession: terminateSessionRpc,
+    prompt: promptRpc,
   },
   terminal: {
     createTerminal: createTerminalRpc,
