@@ -14,6 +14,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppProjectIdIndexRouteImport } from './routes/app/$projectId/index'
 import { Route as AppProjectIdDashboardIndexRouteImport } from './routes/app/$projectId/dashboard.index'
+import { Route as AppProjectIdAgentIndexRouteImport } from './routes/app/$projectId/agent.index'
+import { Route as AppProjectIdAgentSessionIdRouteImport } from './routes/app/$projectId/agent.$sessionId'
 import { Route as AppProjectIdTerminalTerminalIdIndexRouteImport } from './routes/app/$projectId/terminal/$terminalId.index'
 
 const AppRoute = AppRouteImport.update({
@@ -42,6 +44,17 @@ const AppProjectIdDashboardIndexRoute =
     path: '/$projectId/dashboard/',
     getParentRoute: () => AppRoute,
   } as any)
+const AppProjectIdAgentIndexRoute = AppProjectIdAgentIndexRouteImport.update({
+  id: '/$projectId/agent/',
+  path: '/$projectId/agent/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProjectIdAgentSessionIdRoute =
+  AppProjectIdAgentSessionIdRouteImport.update({
+    id: '/$projectId/agent/$sessionId',
+    path: '/$projectId/agent/$sessionId',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppProjectIdTerminalTerminalIdIndexRoute =
   AppProjectIdTerminalTerminalIdIndexRouteImport.update({
     id: '/$projectId/terminal/$terminalId/',
@@ -54,6 +67,8 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRouteWithChildren
   '/app/': typeof AppIndexRoute
   '/app/$projectId/': typeof AppProjectIdIndexRoute
+  '/app/$projectId/agent/$sessionId': typeof AppProjectIdAgentSessionIdRoute
+  '/app/$projectId/agent/': typeof AppProjectIdAgentIndexRoute
   '/app/$projectId/dashboard/': typeof AppProjectIdDashboardIndexRoute
   '/app/$projectId/terminal/$terminalId/': typeof AppProjectIdTerminalTerminalIdIndexRoute
 }
@@ -61,6 +76,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppIndexRoute
   '/app/$projectId': typeof AppProjectIdIndexRoute
+  '/app/$projectId/agent/$sessionId': typeof AppProjectIdAgentSessionIdRoute
+  '/app/$projectId/agent': typeof AppProjectIdAgentIndexRoute
   '/app/$projectId/dashboard': typeof AppProjectIdDashboardIndexRoute
   '/app/$projectId/terminal/$terminalId': typeof AppProjectIdTerminalTerminalIdIndexRoute
 }
@@ -70,6 +87,8 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/app/': typeof AppIndexRoute
   '/app/$projectId/': typeof AppProjectIdIndexRoute
+  '/app/$projectId/agent/$sessionId': typeof AppProjectIdAgentSessionIdRoute
+  '/app/$projectId/agent/': typeof AppProjectIdAgentIndexRoute
   '/app/$projectId/dashboard/': typeof AppProjectIdDashboardIndexRoute
   '/app/$projectId/terminal/$terminalId/': typeof AppProjectIdTerminalTerminalIdIndexRoute
 }
@@ -80,6 +99,8 @@ export interface FileRouteTypes {
     | '/app'
     | '/app/'
     | '/app/$projectId/'
+    | '/app/$projectId/agent/$sessionId'
+    | '/app/$projectId/agent/'
     | '/app/$projectId/dashboard/'
     | '/app/$projectId/terminal/$terminalId/'
   fileRoutesByTo: FileRoutesByTo
@@ -87,6 +108,8 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/app/$projectId'
+    | '/app/$projectId/agent/$sessionId'
+    | '/app/$projectId/agent'
     | '/app/$projectId/dashboard'
     | '/app/$projectId/terminal/$terminalId'
   id:
@@ -95,6 +118,8 @@ export interface FileRouteTypes {
     | '/app'
     | '/app/'
     | '/app/$projectId/'
+    | '/app/$projectId/agent/$sessionId'
+    | '/app/$projectId/agent/'
     | '/app/$projectId/dashboard/'
     | '/app/$projectId/terminal/$terminalId/'
   fileRoutesById: FileRoutesById
@@ -141,6 +166,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProjectIdDashboardIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/$projectId/agent/': {
+      id: '/app/$projectId/agent/'
+      path: '/$projectId/agent'
+      fullPath: '/app/$projectId/agent/'
+      preLoaderRoute: typeof AppProjectIdAgentIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/$projectId/agent/$sessionId': {
+      id: '/app/$projectId/agent/$sessionId'
+      path: '/$projectId/agent/$sessionId'
+      fullPath: '/app/$projectId/agent/$sessionId'
+      preLoaderRoute: typeof AppProjectIdAgentSessionIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/$projectId/terminal/$terminalId/': {
       id: '/app/$projectId/terminal/$terminalId/'
       path: '/$projectId/terminal/$terminalId'
@@ -154,6 +193,8 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppProjectIdIndexRoute: typeof AppProjectIdIndexRoute
+  AppProjectIdAgentSessionIdRoute: typeof AppProjectIdAgentSessionIdRoute
+  AppProjectIdAgentIndexRoute: typeof AppProjectIdAgentIndexRoute
   AppProjectIdDashboardIndexRoute: typeof AppProjectIdDashboardIndexRoute
   AppProjectIdTerminalTerminalIdIndexRoute: typeof AppProjectIdTerminalTerminalIdIndexRoute
 }
@@ -161,6 +202,8 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppProjectIdIndexRoute: AppProjectIdIndexRoute,
+  AppProjectIdAgentSessionIdRoute: AppProjectIdAgentSessionIdRoute,
+  AppProjectIdAgentIndexRoute: AppProjectIdAgentIndexRoute,
   AppProjectIdDashboardIndexRoute: AppProjectIdDashboardIndexRoute,
   AppProjectIdTerminalTerminalIdIndexRoute:
     AppProjectIdTerminalTerminalIdIndexRoute,

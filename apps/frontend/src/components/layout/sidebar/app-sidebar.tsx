@@ -87,7 +87,7 @@ export function AppSidebar({
     () => [
       {
         title: "Agents",
-        url: "#",
+        url: currentProjectId ? `/app/${currentProjectId}/agent` : "#",
         icon: <RiRobot2Line />,
         items: createMenuItems({
           items: agents,
