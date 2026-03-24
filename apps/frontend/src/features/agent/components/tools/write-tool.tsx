@@ -1,4 +1,4 @@
-import { FilePlus } from "@remixicon/react";
+import { RiFileAddLine } from "@remixicon/react";
 import { CodeBlock } from "./code-block";
 
 interface WriteToolProps {
@@ -65,7 +65,7 @@ export function WriteToolDisplay({ path, content, status }: WriteToolProps) {
     <div className="rounded-md border border-green-500/30 overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-green-500/30 bg-green-500/10 px-3 py-2">
-        <FilePlus className="h-4 w-4 text-green-600" />
+        <RiFileAddLine className="h-4 w-4 text-green-600" />
         <span className="text-sm font-medium truncate">{path}</span>
         <span className="text-xs text-green-600 ml-auto">new file</span>
       </div>

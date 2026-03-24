@@ -1,14 +1,14 @@
 import { useEffect } from "react";
-import { Outlet, useParams } from "@tanstack/react-router";
+import { Outlet, createFileRoute } from "@tanstack/react-router";
 import { queryClient } from "@/lib/query-client";
 import { projectStore, type ProjectState } from "@/lib/project-store";
 
-/**
- * Syncs the current projectId from URL params to the store and invalidates
- * TanStack Query caches when switching projects.
- */
-export function CurrentProjectSync() {
-  const projectIdFromParams = useParams({ strict: false, select: (p) => p.projectId });
+export const Route = createFileRoute("/app/$projectId")({
+  component: RouteComponent,
+});
+
+function RouteComponent() {
+  const { projectId: projectIdFromParams } = Route.useParams();
   const currentProjectId = projectStore.state.currentProjectId;
 
   useEffect(() => {

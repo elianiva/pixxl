@@ -1,4 +1,4 @@
-import { Terminal } from "lucide-react";
+import { RiTerminalBoxLine } from "@remixicon/react";
 
 interface BashToolProps {
   command: string;
@@ -12,7 +12,7 @@ export function BashToolDisplay({ command, output, error, status }: BashToolProp
     <div className="rounded-md border bg-black overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
-        <Terminal className="h-4 w-4 text-white/70" />
+        <RiTerminalBoxLine className="h-4 w-4 text-white/70" />
         <code className="text-sm text-white/90 truncate flex-1">$ {command}</code>
         {status === "running" && (
           <span className="text-xs text-yellow-400 animate-pulse">running...</span>

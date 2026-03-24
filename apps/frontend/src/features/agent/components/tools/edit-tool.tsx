@@ -1,4 +1,4 @@
-import { FileEdit } from "@remixicon/react";
+import { RiFileEditLine } from "@remixicon/react";
 import { CodeBlock } from "./code-block";
 
 interface EditToolProps {
@@ -63,7 +63,7 @@ export function EditToolDisplay({ path, oldString, newString, status }: EditTool
     <div className="rounded-md border border-yellow-500/30 overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-yellow-500/30 bg-yellow-500/10 px-3 py-2">
-        <FileEdit className="h-4 w-4 text-yellow-600" />
+        <RiFileEditLine className="h-4 w-4 text-yellow-600" />
         <span className="text-sm font-medium truncate">{path}</span>
         <span className="text-xs text-yellow-600 ml-auto">edited</span>
       </div>

@@ -16,7 +16,6 @@ export const agentsCollection = createCollection(
       const result = await rpc.agent.listAgents({ projectId });
       return [...result];
     },
-    enabled: Boolean(projectStore.state.currentProjectId),
     onInsert: async ({ transaction }) => {
       const projectId = projectStore.state.currentProjectId;
       if (!projectId) return;

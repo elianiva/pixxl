@@ -17,8 +17,6 @@ export const terminalsCollection = createCollection(
       const result = await rpc.terminal.listTerminals({ projectId });
       return [...result];
     },
-    enabled: Boolean(projectStore.state.currentProjectId),
-
     onInsert: async ({ transaction }) => {
       const projectId = projectStore.state.currentProjectId;
       if (!projectId) return;
@@ -34,7 +32,6 @@ export const terminalsCollection = createCollection(
         });
       }
     },
-
     onUpdate: async ({ transaction }) => {
       const projectId = projectStore.state.currentProjectId;
       if (!projectId) return;
@@ -47,7 +44,6 @@ export const terminalsCollection = createCollection(
         });
       }
     },
-
     onDelete: async ({ transaction }) => {
       const projectId = projectStore.state.currentProjectId;
       if (!projectId) return;

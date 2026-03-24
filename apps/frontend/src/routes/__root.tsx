@@ -6,7 +6,6 @@ import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
 import "../styles.css";
 import { TooltipProvider } from "../components/ui/tooltip";
 import { QueryClient } from "@tanstack/react-query";
-import { CurrentProjectSync } from "@/providers/current-project";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: RootComponent,
@@ -15,7 +14,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootComponent() {
   return (
     <>
-      <CurrentProjectSync />
       <TooltipProvider>
         <Outlet />
       </TooltipProvider>

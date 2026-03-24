@@ -1,4 +1,4 @@
-import { FileText } from "lucide-react";
+import { RiFileTextLine } from "@remixicon/react";
 import { CodeBlock } from "./code-block";
 
 interface ReadToolProps {
@@ -66,7 +66,7 @@ export function ReadToolDisplay({ path, content, status }: ReadToolProps) {
     <div className="rounded-md border overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-2 border-b bg-muted/50 px-3 py-2">
-        <FileText className="h-4 w-4 text-muted-foreground" />
+        <RiFileTextLine className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium truncate">{path}</span>
         <span className="text-xs text-muted-foreground ml-auto">read</span>
       </div>
