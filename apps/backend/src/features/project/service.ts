@@ -1,4 +1,4 @@
-import { Effect, FileSystem, Layer, Option, Path, Schema, ServiceMap } from "effect";
+import { Effect, FileSystem, Layer, Option, Path, Schema, ServiceMap, Console } from "effect";
 import {
   CreateProjectInput,
   DeleteProjectInput,

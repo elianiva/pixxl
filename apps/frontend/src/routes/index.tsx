@@ -28,6 +28,9 @@ import { ilike, useLiveQuery } from "@tanstack/react-db";
 import { projectsCollection } from "@/features/project/projects-collection";
 
 export const Route = createFileRoute("/")({
+  loader: async () => {
+    await projectsCollection.preload();
+  },
   component: RouteComponent,
 });
 
@@ -40,11 +43,13 @@ function RouteComponent() {
     null,
   );
 
-  const projects = useLiveQuery((q) =>
-    q
-      .from({ project: projectsCollection })
-      .where(({ project }) => ilike(project.name, searchQuery.toLowerCase())),
-  );
+  const projects = useLiveQuery((q) => {
+    let query = q.from({ project: projectsCollection });
+    if (searchQuery) {
+      query = query.where(({ project }) => ilike(project.name, `%${searchQuery.toLowerCase()}%`));
+    }
+    return query;
+  });
 
   function handleCreateProject(name: string) {
     if (!projects.collection) return;
