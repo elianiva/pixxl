@@ -7,8 +7,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { SelectEntry } from "@/components/ui/select";
-import type { Agent } from "@pixxl/shared/schema/config";
-import { useBlurSubmitSelect } from "../hooks/use-blur-submit";
+import { DEFAULT_CONFIG, type Agent } from "@pixxl/shared/schema/config";
 
 interface AgentSettingsProps {
   agent: Agent;
@@ -60,12 +59,10 @@ const modelsByProvider: Record<string, SelectEntry[]> = {
 };
 
 export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
-  const defaultProviderSelect = useBlurSubmitSelect(agent.defaultProvider ?? "anthropic", (v) =>
-    onUpdate({ defaultProvider: v }),
-  );
-  const thinkingLevelSelect = useBlurSubmitSelect(agent.defaultThinkingLevel ?? "medium", (v) =>
-    onUpdate({ defaultThinkingLevel: v as Agent["defaultThinkingLevel"] }),
-  );
+  const provider = agent.defaultProvider ?? DEFAULT_CONFIG.agent.defaultProvider;
+  const thinkingLevel = agent.defaultThinkingLevel ?? DEFAULT_CONFIG.agent.defaultThinkingLevel;
+  const transport = agent.transport ?? DEFAULT_CONFIG.agent.transport;
+  const steeringMode = agent.steeringMode ?? DEFAULT_CONFIG.agent.steeringMode;
 
   return (
     <div>
@@ -75,10 +72,7 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
       </p>
       <div className="border border-border">
         <SettingRow label="Provider" description="AI provider for model selection">
-          <Select
-            value={agent.defaultProvider ?? "anthropic"}
-            onValueChange={(v) => v && onUpdate({ defaultProvider: v })}
-          >
+          <Select value={provider} onValueChange={(v) => v && onUpdate({ defaultProvider: v })}>
             <SelectTrigger className="w-36">
               <SelectValue />
             </SelectTrigger>
@@ -94,14 +88,14 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
 
         <SettingRow label="Model" description="Default AI model">
           <Select
-            value={agent.defaultModel ?? ""}
+            value={agent.defaultModel ?? DEFAULT_CONFIG.agent.defaultModel}
             onValueChange={(v) => v && onUpdate({ defaultModel: v })}
           >
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Select model" />
             </SelectTrigger>
             <SelectContent>
-              {modelsByProvider[agent.defaultProvider ?? "anthropic"]?.map((m) => (
+              {modelsByProvider[provider]?.map((m) => (
                 <SelectItem key={m.value} value={m.value}>
                   {m.label}
                 </SelectItem>
@@ -112,7 +106,7 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
 
         <SettingRow label="Thinking Level" description="How much reasoning the model does">
           <Select
-            value={agent.defaultThinkingLevel ?? "medium"}
+            value={thinkingLevel}
             onValueChange={(v) =>
               v && onUpdate({ defaultThinkingLevel: v as Agent["defaultThinkingLevel"] })
             }
@@ -132,7 +126,7 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
 
         <SettingRow label="Transport" description="Protocol for streaming responses">
           <Select
-            value={agent.transport ?? "websocket"}
+            value={transport}
             onValueChange={(v) => v && onUpdate({ transport: v as Agent["transport"] })}
           >
             <SelectTrigger className="w-36">
@@ -150,7 +144,7 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
 
         <SettingRow label="Steering Mode" description="How queued messages are handled">
           <Select
-            value={agent.steeringMode ?? "one-at-a-time"}
+            value={steeringMode}
             onValueChange={(v) => v && onUpdate({ steeringMode: v as Agent["steeringMode"] })}
           >
             <SelectTrigger className="w-44">
@@ -168,14 +162,14 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
 
         <SettingRow label="Hide Thinking" description="Hide thinking block from output">
           <SettingRowToggle
-            checked={agent.hideThinkingBlock ?? false}
+            checked={agent.hideThinkingBlock ?? DEFAULT_CONFIG.agent.hideThinkingBlock}
             onCheckedChange={(checked) => onUpdate({ hideThinkingBlock: checked })}
           />
         </SettingRow>
 
         <SettingRow label="Skill Commands" description="Enable /skill:name commands">
           <SettingRowToggle
-            checked={agent.enableSkillCommands ?? true}
+            checked={agent.enableSkillCommands ?? DEFAULT_CONFIG.agent.enableSkillCommands}
             onCheckedChange={(checked) => onUpdate({ enableSkillCommands: checked })}
           />
         </SettingRow>

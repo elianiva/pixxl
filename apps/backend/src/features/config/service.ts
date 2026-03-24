@@ -1,13 +1,6 @@
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
-import {
-  AgentSchema,
-  AppearanceSchema,
-  AppConfig,
-  DEFAULT_CONFIG,
-  TerminalSchema,
-  WorkspaceSchema,
-} from "@pixxl/shared";
-import { Config, Effect, FileSystem, Layer, Path, Schema, ServiceMap, Struct } from "effect";
+import { AppConfig, DEFAULT_CONFIG, PartialAppConfigSchema } from "@pixxl/shared";
+import { Config, Effect, FileSystem, Layer, Path, Schema, ServiceMap } from "effect";
 import {
   ConfigNotFoundError,
   ConfigParseError,
@@ -18,12 +11,6 @@ import {
 const APP_DIR = "pixxl";
 const CONFIG_FILE = "config.json";
 
-const PartialAppConfigSchema = Schema.Struct({
-  workspace: Schema.optionalKey(WorkspaceSchema.mapFields(Struct.map(Schema.optionalKey))),
-  terminal: Schema.optionalKey(TerminalSchema.mapFields(Struct.map(Schema.optionalKey))),
-  agent: Schema.optionalKey(AgentSchema.mapFields(Struct.map(Schema.optionalKey))),
-  appearance: Schema.optionalKey(AppearanceSchema.mapFields(Struct.map(Schema.optionalKey))),
-});
 type PartialAppConfig = typeof PartialAppConfigSchema.Type;
 
 function deepMerge<T extends object>(target: T, source: Partial<T>): T {
@@ -155,7 +142,10 @@ export class ConfigService extends ServiceMap.Service<ConfigService, ConfigServi
       });
 
       const saveConfig = Effect.fn("ConfigService.saveConfig")(function* (config: AppConfig) {
-        const userConfig = deepPartial(DEFAULT_CONFIG, config);
+        const userConfig = deepPartial(
+          DEFAULT_CONFIG,
+          config as Partial<AppConfig>,
+        ) as PartialAppConfig;
         const isEmpty =
           Object.keys(userConfig).length === 0 &&
           Object.values(userConfig).every(

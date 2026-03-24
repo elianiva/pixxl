@@ -29,6 +29,7 @@ AgentSession (data entity)
 **File:** `apps/backend/src/features/agent/error.ts` ✅
 
 Added:
+
 - `SessionNotFoundError` - session lookup failed
 - `SessionTerminateError` - failed to cleanup session
 
@@ -78,27 +79,27 @@ const { session: piSession } = await createAgentSession({
 
 Updated `AgentSchema` to align with pi's settings:
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `defaultProvider` | `string?` | Model provider (e.g., "anthropic") |
-| `defaultModel` | `string?` | Model ID |
-| `defaultThinkingLevel` | `ThinkingLevel?` | "off" \| "minimal" \| "low" \| "medium" \| "high" \| "xhigh" |
-| `transport` | `Transport?` | "sse" \| "websocket" \| "auto" |
-| `steeringMode` | `SteeringMode?` | "all" \| "one-at-a-time" |
-| `followUpMode` | `FollowUpMode?` | "all" \| "one-at-a-time" |
-| `compaction` | `CompactionSettings?` | Context compaction config |
-| `retry` | `RetrySettings?` | Retry on rate limit/overload |
-| `hideThinkingBlock` | `boolean?` | Hide thinking from output |
-| `shellPath` | `string?` | Custom shell path |
-| `packages` | `string[]?` | NPM/git package sources |
-| `extensions` | `string[]?` | Extension paths |
-| `skills` | `string[]?` | Skill paths |
-| `prompts` | `string[]?` | Prompt template paths |
-| `themes` | `string[]?` | Theme paths |
-| `thinkingBudgets` | `ThinkingBudgets?` | Token budgets per level |
-| `terminal` | `TerminalSettings?` | Terminal display settings |
-| `images` | `ImageSettings?` | Image processing settings |
-| `markdown` | `MarkdownSettings?` | Markdown rendering |
+| Field                  | Type                  | Description                                                  |
+| ---------------------- | --------------------- | ------------------------------------------------------------ |
+| `defaultProvider`      | `string?`             | Model provider (e.g., "anthropic")                           |
+| `defaultModel`         | `string?`             | Model ID                                                     |
+| `defaultThinkingLevel` | `ThinkingLevel?`      | "off" \| "minimal" \| "low" \| "medium" \| "high" \| "xhigh" |
+| `transport`            | `Transport?`          | "sse" \| "websocket" \| "auto"                               |
+| `steeringMode`         | `SteeringMode?`       | "all" \| "one-at-a-time"                                     |
+| `followUpMode`         | `FollowUpMode?`       | "all" \| "one-at-a-time"                                     |
+| `compaction`           | `CompactionSettings?` | Context compaction config                                    |
+| `retry`                | `RetrySettings?`      | Retry on rate limit/overload                                 |
+| `hideThinkingBlock`    | `boolean?`            | Hide thinking from output                                    |
+| `shellPath`            | `string?`             | Custom shell path                                            |
+| `packages`             | `string[]?`           | NPM/git package sources                                      |
+| `extensions`           | `string[]?`           | Extension paths                                              |
+| `skills`               | `string[]?`           | Skill paths                                                  |
+| `prompts`              | `string[]?`           | Prompt template paths                                        |
+| `themes`               | `string[]?`           | Theme paths                                                  |
+| `thinkingBudgets`      | `ThinkingBudgets?`    | Token budgets per level                                      |
+| `terminal`             | `TerminalSettings?`   | Terminal display settings                                    |
+| `images`               | `ImageSettings?`      | Image processing settings                                    |
+| `markdown`             | `MarkdownSettings?`   | Markdown rendering                                           |
 
 ### Frontend Settings
 
@@ -131,6 +132,7 @@ Added `useBlurSubmitSelect` hook for controlled select components.
 ## Files Modified
 
 **Backend:**
+
 - `apps/backend/src/features/agent/error.ts` - added session errors
 - `apps/backend/src/features/agent/rpc.ts` - added TODO stubs
 - `packages/shared/src/schema/config.ts` - aligned with pi settings
@@ -138,6 +140,7 @@ Added `useBlurSubmitSelect` hook for controlled select components.
 - `apps/backend/src/features/config/service.ts` - fixed validation
 
 **Frontend:**
+
 - `apps/frontend/src/features/config/components/settings-agent.tsx` - new settings UI
 - `apps/frontend/src/features/config/components/setting-row.tsx` - added toggle
 - `apps/frontend/src/features/config/hooks/use-blur-submit.ts` - added select hook
