@@ -5,7 +5,12 @@ import {
   CreateTerminalInput,
   EntityService,
 } from "@pixxl/shared";
-import { TerminalError } from "./error";
+import {
+  TerminalNotFoundError,
+  TerminalCreateError,
+  TerminalUpdateError,
+  TerminalDeleteError,
+} from "./error";
 import { ProjectService } from "../project/service";
 import { ConfigService } from "../config/service";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
@@ -14,23 +19,23 @@ import { terminalManager } from "./manager";
 type TerminalServiceShape = {
   readonly createTerminal: (
     input: CreateTerminalInput,
-  ) => Effect.Effect<Option.Option<TerminalMetadata>, TerminalError>;
+  ) => Effect.Effect<Option.Option<TerminalMetadata>, TerminalCreateError>;
   readonly getTerminal: (input: {
     projectId: string;
     id: string;
-  }) => Effect.Effect<Option.Option<TerminalMetadata>, TerminalError>;
+  }) => Effect.Effect<Option.Option<TerminalMetadata>, TerminalNotFoundError>;
   readonly updateTerminal: (input: {
     projectId: string;
     id: string;
     name: string;
-  }) => Effect.Effect<Option.Option<TerminalMetadata>, TerminalError>;
+  }) => Effect.Effect<Option.Option<TerminalMetadata>, TerminalUpdateError>;
   readonly deleteTerminal: (input: {
     projectId: string;
     id: string;
-  }) => Effect.Effect<Option.Option<boolean>, TerminalError>;
+  }) => Effect.Effect<Option.Option<boolean>, TerminalDeleteError>;
   readonly listTerminals: (input: {
     projectId: string;
-  }) => Effect.Effect<TerminalMetadata[], TerminalError>;
+  }) => Effect.Effect<TerminalMetadata[], never>;
 };
 
 export class TerminalService extends ServiceMap.Service<TerminalService, TerminalServiceShape>()(
@@ -59,30 +64,37 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
       const createTerminal = Effect.fn("TerminalService.createTerminal")(function* (
         input: CreateTerminalInput,
       ) {
-        const projectResult = yield* project
-          .getProjectDetail({ id: input.projectId })
-          .pipe(TerminalError.mapTo(`Failed to get project`));
+        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
         if (Option.isNone(projectResult)) {
           return Option.none();
         }
 
-        return yield* terminals
+        const terminal = yield* terminals
           .create({
             projectPath: projectResult.value.path,
             id: input.id,
             name: input.name,
           })
-          .pipe(Effect.map(Option.some), Effect.mapError(TerminalError.fromEntity));
+          .pipe(
+            Effect.mapError(
+              (cause) =>
+                new TerminalCreateError({
+                  name: input.name,
+                  projectId: input.projectId,
+                  cause,
+                }),
+            ),
+          );
+
+        return Option.some(terminal);
       });
 
       const getTerminal = Effect.fn("TerminalService.getTerminal")(function* (input: {
         projectId: string;
         id: string;
       }) {
-        const projectResult = yield* project
-          .getProjectDetail({ id: input.projectId })
-          .pipe(TerminalError.mapTo(`Failed to get project`));
+        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
         if (Option.isNone(projectResult)) {
           return Option.none();
@@ -93,7 +105,16 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
             projectPath: projectResult.value.path,
             id: input.id,
           })
-          .pipe(Effect.mapError(TerminalError.fromEntity));
+          .pipe(
+            Effect.mapError(
+              (cause) =>
+                new TerminalNotFoundError({
+                  terminalId: input.id,
+                  projectId: input.projectId,
+                  cause,
+                }),
+            ),
+          );
       });
 
       const updateTerminal = Effect.fn("TerminalService.updateTerminal")(function* (input: {
@@ -101,9 +122,7 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
         id: string;
         name: string;
       }) {
-        const projectResult = yield* project
-          .getProjectDetail({ id: input.projectId })
-          .pipe(TerminalError.mapTo(`Failed to get project`));
+        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
         if (Option.isNone(projectResult)) {
           return Option.none();
@@ -115,7 +134,16 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
             id: input.id,
             name: input.name,
           })
-          .pipe(Effect.mapError(TerminalError.fromEntity));
+          .pipe(
+            Effect.mapError(
+              (cause) =>
+                new TerminalUpdateError({
+                  terminalId: input.id,
+                  projectId: input.projectId,
+                  cause,
+                }),
+            ),
+          );
       });
 
       const deleteTerminal = Effect.fn("TerminalService.deleteTerminal")(function* (input: {
@@ -124,9 +152,7 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
       }) {
         terminalManager.remove(input.id);
 
-        const projectResult = yield* project
-          .getProjectDetail({ id: input.projectId })
-          .pipe(TerminalError.mapTo(`Failed to get project`));
+        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
         if (Option.isNone(projectResult)) {
           return Option.none<boolean>();
@@ -137,25 +163,30 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
             projectPath: projectResult.value.path,
             id: input.id,
           })
-          .pipe(Effect.mapError(TerminalError.fromEntity));
+          .pipe(
+            Effect.mapError(
+              (cause) =>
+                new TerminalDeleteError({
+                  terminalId: input.id,
+                  projectId: input.projectId,
+                  cause,
+                }),
+            ),
+          );
       });
 
       const listTerminals = Effect.fn("TerminalService.listTerminals")(function* (input: {
         projectId: string;
       }) {
-        const projectResult = yield* project
-          .getProjectDetail({ id: input.projectId })
-          .pipe(TerminalError.mapTo(`Failed to get project`));
+        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
         if (Option.isNone(projectResult)) {
           return [];
         }
 
-        return yield* terminals
-          .list({
-            projectPath: projectResult.value.path,
-          })
-          .pipe(Effect.mapError(TerminalError.fromEntity));
+        return yield* terminals.list({
+          projectPath: projectResult.value.path,
+        });
       });
 
       return {

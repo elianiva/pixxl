@@ -1,6 +1,6 @@
 import { Effect, Layer, Option, ServiceMap } from "effect";
 import { AgentMetadata, AgentMetadataSchema, CreateAgentInput, EntityService } from "@pixxl/shared";
-import { AgentError } from "./error";
+import { AgentNotFoundError, AgentCreateError, AgentUpdateError, AgentDeleteError } from "./error";
 import { ProjectService } from "../project/service";
 import { ConfigService } from "../config/service";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
@@ -27,30 +27,37 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
     });
 
     const createAgent = Effect.fn("AgentService.createAgent")(function* (input: CreateAgentInput) {
-      const projectResult = yield* project
-        .getProjectDetail({ id: input.projectId })
-        .pipe(AgentError.mapTo(`Failed to get project`));
+      const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
       if (Option.isNone(projectResult)) {
         return Option.none();
       }
 
-      return yield* agents
+      const agent = yield* agents
         .create({
           projectPath: projectResult.value.path,
           id: input.id,
           name: input.name,
         })
-        .pipe(Effect.map(Option.some), Effect.mapError(AgentError.fromEntity));
+        .pipe(
+          Effect.mapError(
+            (cause) =>
+              new AgentCreateError({
+                name: input.name,
+                projectId: input.projectId,
+                cause,
+              }),
+          ),
+        );
+
+      return Option.some(agent);
     });
 
     const getAgent = Effect.fn("AgentService.getAgent")(function* (input: {
       projectId: string;
       id: string;
     }) {
-      const projectResult = yield* project
-        .getProjectDetail({ id: input.projectId })
-        .pipe(AgentError.mapTo(`Failed to get project`));
+      const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
       if (Option.isNone(projectResult)) {
         return Option.none();
@@ -61,7 +68,16 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
           projectPath: projectResult.value.path,
           id: input.id,
         })
-        .pipe(Effect.mapError(AgentError.fromEntity));
+        .pipe(
+          Effect.mapError(
+            (cause) =>
+              new AgentNotFoundError({
+                agentId: input.id,
+                projectId: input.projectId,
+                cause,
+              }),
+          ),
+        );
     });
 
     const updateAgent = Effect.fn("AgentService.updateAgent")(function* (input: {
@@ -69,9 +85,7 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
       id: string;
       name: string;
     }) {
-      const projectResult = yield* project
-        .getProjectDetail({ id: input.projectId })
-        .pipe(AgentError.mapTo(`Failed to get project`));
+      const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
       if (Option.isNone(projectResult)) {
         return Option.none();
@@ -83,16 +97,23 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
           id: input.id,
           name: input.name,
         })
-        .pipe(Effect.mapError(AgentError.fromEntity));
+        .pipe(
+          Effect.mapError(
+            (cause) =>
+              new AgentUpdateError({
+                agentId: input.id,
+                projectId: input.projectId,
+                cause,
+              }),
+          ),
+        );
     });
 
     const deleteAgent = Effect.fn("AgentService.deleteAgent")(function* (input: {
       projectId: string;
       id: string;
     }) {
-      const projectResult = yield* project
-        .getProjectDetail({ id: input.projectId })
-        .pipe(AgentError.mapTo(`Failed to get project`));
+      const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
       if (Option.isNone(projectResult)) {
         return Option.none<boolean>();
@@ -103,25 +124,30 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
           projectPath: projectResult.value.path,
           id: input.id,
         })
-        .pipe(Effect.mapError(AgentError.fromEntity));
+        .pipe(
+          Effect.mapError(
+            (cause) =>
+              new AgentDeleteError({
+                agentId: input.id,
+                projectId: input.projectId,
+                cause,
+              }),
+          ),
+        );
     });
 
     const listAgents = Effect.fn("AgentService.listAgents")(function* (input: {
       projectId: string;
     }) {
-      const projectResult = yield* project
-        .getProjectDetail({ id: input.projectId })
-        .pipe(AgentError.mapTo(`Failed to get project`));
+      const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
       if (Option.isNone(projectResult)) {
         return [];
       }
 
-      return yield* agents
-        .list({
-          projectPath: projectResult.value.path,
-        })
-        .pipe(Effect.mapError(AgentError.fromEntity));
+      return yield* agents.list({
+        projectPath: projectResult.value.path,
+      });
     });
 
     return { createAgent, getAgent, updateAgent, deleteAgent, listAgents } as const;

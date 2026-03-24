@@ -1,13 +1,70 @@
-import { Effect, Schema } from "effect";
-import { EntityServiceError } from "@pixxl/shared";
+import { Schema } from "effect";
 
-export class AgentError extends Schema.TaggedErrorClass<AgentError>()("AgentError", {
-  message: Schema.String,
-  cause: Schema.optionalKey(Schema.Unknown),
-}) {
-  static mapTo = (message: string) =>
-    Effect.mapError((cause) => new AgentError({ message, cause }));
+/**
+ * Agent not found by ID
+ */
+export class AgentNotFoundError extends Schema.TaggedErrorClass<AgentNotFoundError>()(
+  "AgentNotFoundError",
+  {
+    agentId: Schema.String,
+    projectId: Schema.optionalKey(Schema.String),
+    cause: Schema.optionalKey(Schema.Unknown),
+  },
+) {}
 
-  static fromEntity = (e: EntityServiceError) =>
-    new AgentError({ message: e.message, cause: e.cause });
-}
+/**
+ * Failed to create agent
+ */
+export class AgentCreateError extends Schema.TaggedErrorClass<AgentCreateError>()(
+  "AgentCreateError",
+  {
+    name: Schema.optionalKey(Schema.String),
+    projectId: Schema.optionalKey(Schema.String),
+    cause: Schema.optionalKey(Schema.Unknown),
+  },
+) {}
+
+/**
+ * Failed to update agent
+ */
+export class AgentUpdateError extends Schema.TaggedErrorClass<AgentUpdateError>()(
+  "AgentUpdateError",
+  {
+    agentId: Schema.String,
+    projectId: Schema.optionalKey(Schema.String),
+    cause: Schema.optionalKey(Schema.Unknown),
+  },
+) {}
+
+/**
+ * Failed to delete agent
+ */
+export class AgentDeleteError extends Schema.TaggedErrorClass<AgentDeleteError>()(
+  "AgentDeleteError",
+  {
+    agentId: Schema.String,
+    projectId: Schema.optionalKey(Schema.String),
+    cause: Schema.optionalKey(Schema.Unknown),
+  },
+) {}
+
+/**
+ * Union of all agent errors
+ */
+export type AgentError =
+  | AgentNotFoundError
+  | AgentCreateError
+  | AgentUpdateError
+  | AgentDeleteError;
+
+/**
+ * Type guard for agent errors
+ */
+export const isAgentError = (error: unknown): error is AgentError =>
+  typeof error === "object" &&
+  error !== null &&
+  "_tag" in error &&
+  (error._tag === "AgentNotFoundError" ||
+    error._tag === "AgentCreateError" ||
+    error._tag === "AgentUpdateError" ||
+    error._tag === "AgentDeleteError");

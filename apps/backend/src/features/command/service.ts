@@ -6,7 +6,7 @@ import {
   ListCommandsInput,
   EntityService,
 } from "@pixxl/shared";
-import { CommandError } from "./error";
+import { CommandNotFoundError, CommandCreateError, CommandDeleteError } from "./error";
 import { ProjectService } from "../project/service";
 import { ConfigService } from "../config/service";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
@@ -14,18 +14,18 @@ import { BunFileSystem, BunPath } from "@effect/platform-bun";
 type CommandServiceShape = {
   readonly createCommand: (
     input: CreateCommandInput,
-  ) => Effect.Effect<Option.Option<CommandMetadata>, CommandError>;
+  ) => Effect.Effect<Option.Option<CommandMetadata>, CommandNotFoundError | CommandCreateError>;
   readonly getCommand: (input: {
     projectId: string;
     id: string;
-  }) => Effect.Effect<Option.Option<CommandMetadata>, CommandError>;
+  }) => Effect.Effect<Option.Option<CommandMetadata>, CommandNotFoundError>;
   readonly deleteCommand: (input: {
     projectId: string;
     id: string;
-  }) => Effect.Effect<Option.Option<boolean>, CommandError>;
+  }) => Effect.Effect<Option.Option<boolean>, CommandDeleteError>;
   readonly listCommands: (
     input: ListCommandsInput,
-  ) => Effect.Effect<CommandMetadata[], CommandError>;
+  ) => Effect.Effect<CommandMetadata[], never>;
 };
 
 export class CommandService extends ServiceMap.Service<CommandService, CommandServiceShape>()(
@@ -56,15 +56,13 @@ export class CommandService extends ServiceMap.Service<CommandService, CommandSe
       const createCommand = Effect.fn("CommandService.createCommand")(function* (
         input: CreateCommandInput,
       ) {
-        const projectResult = yield* project
-          .getProjectDetail({ id: input.projectId })
-          .pipe(CommandError.mapTo(`Failed to get project`));
+        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
         if (Option.isNone(projectResult)) {
           return Option.none();
         }
 
-        return yield* commands
+        const command = yield* commands
           .create({
             projectPath: projectResult.value.path,
             id: input.id,
@@ -72,16 +70,25 @@ export class CommandService extends ServiceMap.Service<CommandService, CommandSe
             command: input.command,
             description: input.description,
           })
-          .pipe(Effect.map(Option.some), Effect.mapError(CommandError.fromEntity));
+          .pipe(
+            Effect.mapError(
+              (cause) =>
+                new CommandCreateError({
+                  name: input.name,
+                  projectId: input.projectId,
+                  cause,
+                }),
+            ),
+          );
+
+        return Option.some(command);
       });
 
       const getCommand = Effect.fn("CommandService.getCommand")(function* (input: {
         projectId: string;
         id: string;
       }) {
-        const projectResult = yield* project
-          .getProjectDetail({ id: input.projectId })
-          .pipe(CommandError.mapTo(`Failed to get project`));
+        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
         if (Option.isNone(projectResult)) {
           return Option.none();
@@ -92,16 +99,23 @@ export class CommandService extends ServiceMap.Service<CommandService, CommandSe
             projectPath: projectResult.value.path,
             id: input.id,
           })
-          .pipe(Effect.mapError(CommandError.fromEntity));
+          .pipe(
+            Effect.mapError(
+              (cause) =>
+                new CommandNotFoundError({
+                  commandId: input.id,
+                  projectId: input.projectId,
+                  cause,
+                }),
+            ),
+          );
       });
 
       const deleteCommand = Effect.fn("CommandService.deleteCommand")(function* (input: {
         projectId: string;
         id: string;
       }) {
-        const projectResult = yield* project
-          .getProjectDetail({ id: input.projectId })
-          .pipe(CommandError.mapTo(`Failed to get project`));
+        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
         if (Option.isNone(projectResult)) {
           return Option.none<boolean>();
@@ -112,25 +126,30 @@ export class CommandService extends ServiceMap.Service<CommandService, CommandSe
             projectPath: projectResult.value.path,
             id: input.id,
           })
-          .pipe(Effect.mapError(CommandError.fromEntity));
+          .pipe(
+            Effect.mapError(
+              (cause) =>
+                new CommandDeleteError({
+                  commandId: input.id,
+                  projectId: input.projectId,
+                  cause,
+                }),
+            ),
+          );
       });
 
       const listCommands = Effect.fn("CommandService.listCommands")(function* (
         input: ListCommandsInput,
       ) {
-        const projectResult = yield* project
-          .getProjectDetail({ id: input.projectId })
-          .pipe(CommandError.mapTo(`Failed to get project`));
+        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
         if (Option.isNone(projectResult)) {
           return [];
         }
 
-        return yield* commands
-          .list({
-            projectPath: projectResult.value.path,
-          })
-          .pipe(Effect.mapError(CommandError.fromEntity));
+        return yield* commands.list({
+          projectPath: projectResult.value.path,
+        });
       });
 
       return { createCommand, getCommand, deleteCommand, listCommands } as const;

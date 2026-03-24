@@ -1,140 +1,75 @@
-import { Effect, Schema } from "effect";
+import { Effect, Option } from "effect";
 import { ORPCError } from "@orpc/server";
-import {
-  createErrorResponse,
-  type ErrorCode,
-  type ErrorResponse,
-  EntityServiceError,
-} from "@pixxl/shared";
+import { normalizeError, makeRpcErrorResponse, type RpcErrorResponse } from "@pixxl/shared";
 
 /**
- * Maps feature errors to standard error codes
- */
-const errorCodeMap = new Map<string, ErrorCode>([
-  // Config errors
-  ["AppConfigError", "CONFIG_NOT_FOUND"],
-  ["ConfigParseError", "CONFIG_PARSE_ERROR"],
-  ["ConfigSerializeError", "CONFIG_SERIALIZE_ERROR"],
-
-  // Terminal errors
-  ["TerminalError", "TERMINAL_CREATE_ERROR"],
-
-  // Agent errors
-  ["AgentError", "AGENT_CREATE_ERROR"],
-
-  // Project errors
-  ["ProjectError", "PROJECT_CREATE_ERROR"],
-
-  // Command errors
-  ["CommandError", "COMMAND_CREATE_ERROR"],
-
-  // Entity service errors - map based on message content
-  ["EntityServiceError", "INTERNAL_ERROR"],
-]);
-
-/**
- * Extract error code from error instance
- */
-const getErrorCode = (error: unknown, feature: string): ErrorCode => {
-  if (error instanceof Schema.TaggedErrorClass) {
-    const tag = error._tag;
-    const mapped = errorCodeMap.get(tag);
-    if (mapped) return mapped;
-
-    // Infer from tag name patterns
-    if (tag.includes("NotFound")) return "NOT_FOUND";
-    if (tag.includes("Parse")) return "VALIDATION_ERROR";
-    if (tag.includes("Serialize")) return "VALIDATION_ERROR";
-    if (tag.includes("Unauthorized")) return "UNAUTHORIZED";
-    if (tag.includes("Forbidden")) return "FORBIDDEN";
-  }
-
-  // Check error message for patterns
-  if (error instanceof Error) {
-    const msg = error.message.toLowerCase();
-    if (msg.includes("not found")) return "NOT_FOUND";
-    if (msg.includes("already exists"))
-      return `${feature.toUpperCase()}_ALREADY_EXISTS` as ErrorCode;
-    if (msg.includes("invalid")) return "VALIDATION_ERROR";
-    if (msg.includes("unauthorized")) return "UNAUTHORIZED";
-    if (msg.includes("forbidden")) return "FORBIDDEN";
-  }
-
-  // Feature-specific fallback
-  const featureCode = `${feature.toUpperCase()}_ERROR` as ErrorCode;
-  return featureCode ?? "INTERNAL_ERROR";
-};
-
-/**
- * Extract error message from error instance
- */
-const getErrorMessage = (error: unknown): string => {
-  if (error instanceof Schema.TaggedErrorClass) {
-    return error.message;
-  }
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return String(error);
-};
-
-/**
- * Extract additional details from error instance
- */
-const getErrorDetails = (error: unknown): unknown | undefined => {
-  if (error instanceof Schema.TaggedErrorClass && "cause" in error) {
-    return error.cause;
-  }
-  if (error instanceof Error && error.cause) {
-    return error.cause;
-  }
-  return undefined;
-};
-
-/**
- * Options for mapping errors to ORPCError
+ * Options for mapping errors to ORPCError.
  */
 export interface MapToOrpcErrorOptions {
-  feature: string;
+  readonly feature: string;
 }
 
 /**
- * Maps Effect errors to structured ORPCError responses.
- * Use in a pipe chain: Effect.gen(...).pipe(mapToOrpcError({ feature: "config" }), Effect.runPromise)
+ * Maps ANY Effect error (Data.TaggedError, Schema.TaggedError, Error, primitives, unknown)
+ * to a structured ORPCError response.
+ *
+ * Usage in RPC handlers:
+ * ```ts
+ * Effect.gen(function* () {
+ *   // ... operations that might fail with any error type
+ * }).pipe(
+ *   mapToOrpcError({ feature: "config" }),
+ *   Effect.runPromise,
+ * )
+ * ```
  */
 export const mapToOrpcError = <E>(options: MapToOrpcErrorOptions) =>
-  Effect.mapError<E, ORPCError<{ data: ErrorResponse }>>((error) => {
-    const code = getErrorCode(error, options.feature);
-    const message = getErrorMessage(error);
-    const details = getErrorDetails(error);
+  Effect.mapError<E, ORPCError<{ data: RpcErrorResponse }>>((error) => {
+    // normalizeError handles ANY error type uniformly
+    const { code, message, feature, details } = normalizeError(error, options.feature);
 
-    const errorResponse = createErrorResponse(code, message, options.feature, details);
+    const errorResponse = makeRpcErrorResponse(
+      code,
+      message,
+      feature,
+      Option.getOrUndefined(details),
+    );
 
-    // Return ORPCError with structured data - orpc will serialize this to the frontend
-    return new ORPCError("INTERNAL_SERVER_ERROR", {
+    // ORPCError wraps our structured response
+    return new ORPCError(code, {
       message,
       data: errorResponse,
     });
   });
 
 /**
- * Type guard to check if an error is an ORPCError with our error response
+ * Type guard for ORPCError with our RPC error response structure.
  */
-export const isORPCErrorResponse = (error: unknown): error is ORPCError<{ data: ErrorResponse }> =>
-  error instanceof ORPCError &&
-  typeof error.data === "object" &&
-  error.data !== null &&
-  "data" in error.data;
+export const isRpcErrorInORPCError = (
+  error: unknown,
+): error is ORPCError<{ data: RpcErrorResponse }> => {
+  if (!(error instanceof ORPCError)) return false;
+  const data = (error as ORPCError<unknown>).data;
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    "data" in data &&
+    typeof data.data === "object" &&
+    data.data !== null &&
+    "success" in data.data &&
+    data.data.success === false
+  );
+};
 
 /**
- * Extract error response from ORPCError
+ * Extract RPC error response from an ORPCError.
  */
-export const getErrorResponse = (error: unknown): ErrorResponse | null => {
-  if (isORPCErrorResponse(error)) {
+export const getRpcErrorResponse = (error: unknown): RpcErrorResponse | null => {
+  if (isRpcErrorInORPCError(error)) {
     return error.data.data;
   }
   return null;
 };
 
-// Re-export for convenience
-export { createErrorResponse, EntityServiceError };
+// Re-export convenience functions from shared
+export { normalizeError, makeRpcErrorResponse, type RpcErrorResponse };
