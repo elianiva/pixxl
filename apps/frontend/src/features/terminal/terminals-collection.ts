@@ -1,20 +1,17 @@
 import { createCollection } from "@tanstack/db";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
-import { getDefaultStore } from "jotai/vanilla";
 import { rpc } from "@/lib/rpc";
 import type { TerminalMetadata } from "@pixxl/shared";
 import { queryClient } from "@/lib/query-client";
-import { currentProjectIdAtom } from "@/providers/current-project";
-
-export const store = getDefaultStore();
+import { projectStore } from "@/lib/project-store";
 
 export const terminalsCollection = createCollection(
   queryCollectionOptions({
     queryClient,
-    queryKey: () => ["terminals", store.get(currentProjectIdAtom)],
+    queryKey: () => ["terminals", projectStore.state.currentProjectId],
     getKey: (item: TerminalMetadata) => item.id,
     queryFn: async () => {
-      const projectId = store.get(currentProjectIdAtom);
+      const projectId = projectStore.state.currentProjectId;
       if (!projectId) return [];
 
       const result = await rpc.terminal.listTerminals({ projectId });
@@ -22,7 +19,7 @@ export const terminalsCollection = createCollection(
     },
 
     onInsert: async ({ transaction }) => {
-      const projectId = store.get(currentProjectIdAtom);
+      const projectId = projectStore.state.currentProjectId;
       if (!projectId) return;
 
       for (const mutation of transaction.mutations) {
@@ -34,7 +31,7 @@ export const terminalsCollection = createCollection(
     },
 
     onUpdate: async ({ transaction }) => {
-      const projectId = store.get(currentProjectIdAtom);
+      const projectId = projectStore.state.currentProjectId;
       if (!projectId) return;
 
       for (const mutation of transaction.mutations) {
@@ -47,7 +44,7 @@ export const terminalsCollection = createCollection(
     },
 
     onDelete: async ({ transaction }) => {
-      const projectId = store.get(currentProjectIdAtom);
+      const projectId = projectStore.state.currentProjectId;
       if (!projectId) return;
 
       for (const mutation of transaction.mutations) {

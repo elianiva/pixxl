@@ -1,27 +1,24 @@
 import { createCollection } from "@tanstack/db";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
-import { getDefaultStore } from "jotai/vanilla";
 import { rpc } from "@/lib/rpc";
 import { generateId, type AgentMetadata } from "@pixxl/shared";
 import { queryClient } from "@/lib/query-client";
-import { currentProjectIdAtom } from "@/providers/current-project";
-
-export const store = getDefaultStore();
+import { projectStore } from "@/lib/project-store";
 
 export const agentsCollection = createCollection(
   queryCollectionOptions({
     queryClient,
-    queryKey: () => ["agents", store.get(currentProjectIdAtom)],
+    queryKey: () => ["agents", projectStore.state.currentProjectId],
     getKey: (item: AgentMetadata) => item.id,
     queryFn: async () => {
-      const projectId = store.get(currentProjectIdAtom);
+      const projectId = projectStore.state.currentProjectId;
       if (!projectId) return [];
 
       const result = await rpc.agent.listAgents({ projectId });
       return [...result];
     },
     onInsert: async ({ transaction }) => {
-      const projectId = store.get(currentProjectIdAtom);
+      const projectId = projectStore.state.currentProjectId;
       if (!projectId) return;
 
       for (const mutation of transaction.mutations) {
@@ -36,7 +33,7 @@ export const agentsCollection = createCollection(
       }
     },
     onUpdate: async ({ transaction }) => {
-      const projectId = store.get(currentProjectIdAtom);
+      const projectId = projectStore.state.currentProjectId;
       if (!projectId) return;
 
       for (const mutation of transaction.mutations) {
@@ -48,7 +45,7 @@ export const agentsCollection = createCollection(
       }
     },
     onDelete: async ({ transaction }) => {
-      const projectId = store.get(currentProjectIdAtom);
+      const projectId = projectStore.state.currentProjectId;
       if (!projectId) return;
 
       for (const mutation of transaction.mutations) {

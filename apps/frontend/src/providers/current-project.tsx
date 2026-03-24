@@ -1,28 +1,31 @@
-import { atom, useAtom } from "jotai";
 import { useEffect } from "react";
 import { useParams } from "@tanstack/react-router";
 import { queryClient } from "@/lib/query-client";
+import { projectStore, type ProjectState } from "@/lib/project-store";
 
-export const currentProjectIdAtom = atom<string | null>(null);
+export { projectStore };
 
 /**
- * Syncs the current projectId from URL params to the Jotai atom and invalidates
+ * Syncs the current projectId from URL params to the store and invalidates
  * TanStack Query caches when switching projects.
  */
 export function CurrentProjectSync() {
   const projectIdFromParams = useParams({ strict: false, select: (p) => p.projectId });
-  const [projectId, setProjectId] = useAtom(currentProjectIdAtom);
+  const currentProjectId = projectStore.state.currentProjectId;
 
   useEffect(() => {
-    if (projectIdFromParams && projectIdFromParams !== projectId) {
+    if (projectIdFromParams && projectIdFromParams !== currentProjectId) {
       // Invalidate all project-scoped queries when switching projects
       void queryClient.invalidateQueries({ queryKey: ["terminals"] });
       void queryClient.invalidateQueries({ queryKey: ["agents"] });
       void queryClient.invalidateQueries({ queryKey: ["commands"] });
 
-      setProjectId(projectIdFromParams);
+      projectStore.setState((prev: ProjectState) => ({
+        ...prev,
+        currentProjectId: projectIdFromParams,
+      }));
     }
-  }, [projectIdFromParams, projectId, setProjectId]);
+  }, [projectIdFromParams, currentProjectId]);
 
   return null;
 }

@@ -1,27 +1,24 @@
 import { createCollection } from "@tanstack/db";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
-import { getDefaultStore } from "jotai/vanilla";
 import { rpc } from "@/lib/rpc";
 import { generateId, type CommandMetadata } from "@pixxl/shared";
 import { queryClient } from "@/lib/query-client";
-import { currentProjectIdAtom } from "@/providers/current-project";
-
-export const store = getDefaultStore();
+import { projectStore } from "@/lib/project-store";
 
 export const commandsCollection = createCollection(
   queryCollectionOptions({
     queryClient,
-    queryKey: () => ["commands", store.get(currentProjectIdAtom)],
+    queryKey: () => ["commands", projectStore.state.currentProjectId],
     getKey: (item: CommandMetadata) => item.id,
     queryFn: async () => {
-      const projectId = store.get(currentProjectIdAtom);
+      const projectId = projectStore.state.currentProjectId;
       if (!projectId) return [];
 
       const result = await rpc.command.listCommands({ projectId });
       return [...result];
     },
     onInsert: async ({ transaction }) => {
-      const projectId = store.get(currentProjectIdAtom);
+      const projectId = projectStore.state.currentProjectId;
       if (!projectId) return;
 
       for (const mutation of transaction.mutations) {
@@ -38,7 +35,7 @@ export const commandsCollection = createCollection(
       }
     },
     onDelete: async ({ transaction }) => {
-      const projectId = store.get(currentProjectIdAtom);
+      const projectId = projectStore.state.currentProjectId;
       if (!projectId) return;
 
       for (const mutation of transaction.mutations) {
