@@ -2,6 +2,7 @@ import { createCollection } from "@tanstack/db";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import { rpc } from "@/lib/rpc";
 import type { TerminalMetadata } from "@pixxl/shared";
+import { generateId } from "@/lib/utils";
 import { queryClient } from "@/lib/query-client";
 import { projectStore } from "@/lib/project-store";
 
@@ -13,10 +14,10 @@ export const terminalsCollection = createCollection(
     queryFn: async () => {
       const projectId = projectStore.state.currentProjectId;
       if (!projectId) return [];
-
       const result = await rpc.terminal.listTerminals({ projectId });
       return [...result];
     },
+    enabled: Boolean(projectStore.state.currentProjectId),
 
     onInsert: async ({ transaction }) => {
       const projectId = projectStore.state.currentProjectId;
@@ -26,7 +27,11 @@ export const terminalsCollection = createCollection(
         const modified = mutation.modified;
         if (!modified.name) continue;
 
-        await rpc.terminal.createTerminal({ projectId, name: modified.name });
+        await rpc.terminal.createTerminal({
+          id: generateId(),
+          projectId,
+          name: modified.name,
+        });
       }
     },
 

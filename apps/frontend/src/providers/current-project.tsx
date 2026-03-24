@@ -1,9 +1,7 @@
 import { useEffect } from "react";
-import { useParams } from "@tanstack/react-router";
+import { Outlet, useParams } from "@tanstack/react-router";
 import { queryClient } from "@/lib/query-client";
 import { projectStore, type ProjectState } from "@/lib/project-store";
-
-export { projectStore };
 
 /**
  * Syncs the current projectId from URL params to the store and invalidates
@@ -16,8 +14,8 @@ export function CurrentProjectSync() {
   useEffect(() => {
     if (projectIdFromParams && projectIdFromParams !== currentProjectId) {
       // Invalidate all project-scoped queries when switching projects
-      void queryClient.invalidateQueries({ queryKey: ["terminals"] });
       void queryClient.invalidateQueries({ queryKey: ["agents"] });
+      void queryClient.invalidateQueries({ queryKey: ["terminals"] });
       void queryClient.invalidateQueries({ queryKey: ["commands"] });
 
       projectStore.setState((prev: ProjectState) => ({
@@ -27,5 +25,5 @@ export function CurrentProjectSync() {
     }
   }, [projectIdFromParams, currentProjectId]);
 
-  return null;
+  return <Outlet />;
 }

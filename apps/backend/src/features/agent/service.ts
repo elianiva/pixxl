@@ -149,9 +149,7 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
     }) {
       const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
-      if (Option.isNone(projectResult)) {
-        return [];
-      }
+      if (Option.isNone(projectResult)) return [];
 
       return yield* agents.list({
         projectPath: projectResult.value.path,
