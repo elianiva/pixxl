@@ -21,11 +21,11 @@ Shared enables type-safe RPC communication between frontend and backend.
 
 ## Stack
 
-| Purpose | Technology |
-|---------|------------|
-| Schema Definition | Effect Schema |
-| RPC Contracts | oRPC |
-| Type Inference | TypeScript (from schemas) |
+| Purpose           | Technology                |
+| ----------------- | ------------------------- |
+| Schema Definition | Effect Schema             |
+| RPC Contracts     | oRPC                      |
+| Type Inference    | TypeScript (from schemas) |
 
 ## How It Works
 
@@ -63,6 +63,7 @@ This ensures the contract only accepts data that passes schema validation.
 ## Contracts
 
 Each contract defines:
+
 - **Input schema**: What the client sends
 - **Output schema**: What the server returns
 - **Error schema**: What errors look like
@@ -113,11 +114,11 @@ name: Schema.NonEmptyString.pipe(
   Schema.decodeTo(
     Schema.NonEmptyString,
     SchemaTransformation.transform({
-      decode: projectNameRule,  // Normalize on input
-      encode: (val) => val,     // Pass through on output
-    })
-  )
-)
+      decode: projectNameRule, // Normalize on input
+      encode: (val) => val, // Pass through on output
+    }),
+  ),
+);
 ```
 
 ### Literals for Enums
@@ -159,6 +160,7 @@ export interface EntityService<Entity, CreateInput, UpdateInput> {
 ## Versioning
 
 This package is versioned independently. Breaking changes to contracts require:
+
 1. Major version bump in package.json
 2. Coordinated update to both frontend and backend
 

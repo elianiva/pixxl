@@ -34,11 +34,11 @@ packages/
 
 ## Key Tech
 
-| Layer | Stack |
-|-------|-------|
+| Layer    | Stack                                                      |
+| -------- | ---------------------------------------------------------- |
 | Frontend | TanStack Start, TanStack Query/DB, Ghostty Terminal, Jotai |
-| Backend | Bun, Effect-TS, oRPC, XState |
-| Shared | Effect Schema, oRPC contracts |
+| Backend  | Bun, Effect-TS, oRPC, XState                               |
+| Shared   | Effect Schema, oRPC contracts                              |
 
 ## Module Docs
 

@@ -9,6 +9,7 @@ The backend handles two types of connections:
 **HTTP/WebSocket Handler** — Entry point for all connections
 
 **RPC Handler (oRPC)**
+
 - Receives structured requests from frontend
 - Routes to appropriate procedure
 - Procedures organized by feature:
@@ -19,6 +20,7 @@ The backend handles two types of connections:
   - Command Procedures
 
 **Terminal WebSocket**
+
 - Handles raw terminal I/O connections
 - Routes to Terminal Actor (XState state machine)
 - Terminal Actor manages PTY Process lifecycle
@@ -32,34 +34,38 @@ The backend handles two types of connections:
 
 ## Stack
 
-| Layer | Technology |
-|-------|------------|
-| Runtime | Bun |
-| RPC Framework | oRPC |
-| Schema Validation | Effect Schema |
-| Business Logic | Effect-TS |
-| State Machines | XState |
-| Contracts | `@pixxl/shared` |
+| Layer             | Technology      |
+| ----------------- | --------------- |
+| Runtime           | Bun             |
+| RPC Framework     | oRPC            |
+| Schema Validation | Effect Schema   |
+| Business Logic    | Effect-TS       |
+| State Machines    | XState          |
+| Contracts         | `@pixxl/shared` |
 
 ## Organization
 
 The backend is organized into layers:
 
 **Entry Point**
+
 - WebSocket upgrade handling
 - RPC interceptor for error handling
 - Server startup
 
 **Router**
+
 - Assembles all feature procedures into the oRPC router
 - Both frontend and backend share the same router contract from Shared
 
 **Features**
+
 - Each feature (config, project, agent, terminal, command) follows the same pattern
 - RPC handlers receive requests and delegate to services
 - Effect-TS services contain the actual business logic
 
 **Utilities**
+
 - Error serialization for consistent error responses
 
 ## Feature Structure
@@ -72,6 +78,7 @@ Each feature follows the same pattern:
 - **Types** — Internal type definitions
 
 The terminal feature is more complex:
+
 - WebSocket handler for real-time I/O
 - XState actor for terminal lifecycle management
 - Manager for PTY process management

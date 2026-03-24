@@ -31,11 +31,11 @@ Pixxl is built as a monorepo with three main modules:
 
 ## Modules
 
-| Module | Purpose | Stack |
-|--------|---------|-------|
-| [frontend](../apps/frontend/docs/) | React SPA, file explorer, terminal UI, agent interface | TanStack Start, React Query, Ghostty |
-| [backend](../apps/backend/docs/) | RPC server, WebSocket handler, terminal process manager | Bun, Effect-TS, oRPC, XState |
-| [shared](../packages/shared/docs/) | Contracts, schemas, types shared between frontend and backend | Effect Schema, oRPC |
+| Module                             | Purpose                                                       | Stack                                |
+| ---------------------------------- | ------------------------------------------------------------- | ------------------------------------ |
+| [frontend](../apps/frontend/docs/) | React SPA, file explorer, terminal UI, agent interface        | TanStack Start, React Query, Ghostty |
+| [backend](../apps/backend/docs/)   | RPC server, WebSocket handler, terminal process manager       | Bun, Effect-TS, oRPC, XState         |
+| [shared](../packages/shared/docs/) | Contracts, schemas, types shared between frontend and backend | Effect Schema, oRPC                  |
 
 ## Data Flow
 
@@ -64,17 +64,18 @@ Pixxl manages projects through **metadata**, not by moving your code. Your actua
 
 When you "create" or "link" a project, Pixxl creates a metadata folder at `{workspacePath}/{projectName}/`:
 
-| Directory | Purpose |
-|-----------|---------|
-| `agents/` | Agent configurations, prompts, and message history |
-| `terminals/` | Terminal session state, environment variables, logs |
-| `commands/` | Saved commands, scheduled tasks, command templates |
-| `documents/` | Notes, documentation, context files for agents |
+| Directory      | Purpose                                                         |
+| -------------- | --------------------------------------------------------------- |
+| `agents/`      | Agent configurations, prompts, and message history              |
+| `terminals/`   | Terminal session state, environment variables, logs             |
+| `commands/`    | Saved commands, scheduled tasks, command templates              |
+| `documents/`   | Notes, documentation, context files for agents                  |
 | `project.json` | Project metadata: name, linked path, created/updated timestamps |
 
 The `project.json` contains the **actual path** to your project code (e.g., `~/Development/my-existing-app`). Pixxl never moves, copies, or modifies your source files—it only manages the metadata that powers its IDE features.
 
 **Key implications:**
+
 - **Link Project** → Point Pixxl to an existing folder (anywhere on disk)
 - **New Project** → Create blank metadata and specify which folder to manage
 - Your code stays in place; Pixxl adds IDE capabilities around it
@@ -88,6 +89,7 @@ See [Ubiquitous Language](../docs/ubiquitous-language.md) for more definitions.
 Standard CRUD operations for projects, agents, terminals, and configuration. Uses oRPC with Effect Schema validation.
 
 Operations:
+
 - Create, read, update, delete for all entities
 - Contract-based with typed inputs/outputs
 - Automatic error handling and validation
@@ -102,6 +104,7 @@ Operations:
 **Local-First Data**
 
 TanStack DB provides optimistic UI with local caching:
+
 - UI responds immediately on user actions
 - Background sync with backend for persistence
 - Automatic rollback on errors
@@ -141,6 +144,7 @@ vp run dev:backend
 ```
 
 See individual module docs for detailed setup:
+
 - [Frontend](../apps/frontend/docs/)
 - [Backend](../apps/backend/docs/)
 - [Shared](../packages/shared/docs/)

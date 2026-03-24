@@ -18,7 +18,7 @@ export const projectsCollection = createCollection(
         const modified = mutation.modified;
         if (!modified.name) continue;
 
-        await rpc.project.createProject({ name: modified.name });
+        await rpc.project.createProject({ id: modified.id, name: modified.name });
       }
     },
     onDelete: async ({ transaction }) => {

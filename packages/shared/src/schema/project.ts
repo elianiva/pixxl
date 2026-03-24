@@ -10,6 +10,7 @@ function projectNameRule(name: string): string {
 }
 
 export const CreateProjectInputSchema = Schema.Struct({
+  id: Schema.String,
   name: Schema.NonEmptyString.pipe(
     Schema.decodeTo(
       Schema.NonEmptyString,
