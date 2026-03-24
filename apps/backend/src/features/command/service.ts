@@ -23,9 +23,7 @@ type CommandServiceShape = {
     projectId: string;
     id: string;
   }) => Effect.Effect<Option.Option<boolean>, CommandDeleteError>;
-  readonly listCommands: (
-    input: ListCommandsInput,
-  ) => Effect.Effect<CommandMetadata[], never>;
+  readonly listCommands: (input: ListCommandsInput) => Effect.Effect<CommandMetadata[], never>;
 };
 
 export class CommandService extends ServiceMap.Service<CommandService, CommandServiceShape>()(

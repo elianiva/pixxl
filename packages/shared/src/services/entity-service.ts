@@ -98,22 +98,30 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           input: { readonly id: string } & TCreate,
         ) {
           const directoryPath = entityPath(input.projectPath);
-          const dirExists = yield* fs.exists(directoryPath).pipe(
-            Effect.mapError((e) =>
-              mapFsError(e, (msg) =>
-                new EntityDirectoryError({ directory: directoryPath, operation: "check" }),
-              ),
-            ),
-          );
-
-          if (!dirExists) {
-            yield* fs.makeDirectory(directoryPath, { recursive: true }).pipe(
+          const dirExists = yield* fs
+            .exists(directoryPath)
+            .pipe(
               Effect.mapError((e) =>
-                mapFsError(e, (msg) =>
-                  new EntityDirectoryError({ directory: directoryPath, operation: "create" }),
+                mapFsError(
+                  e,
+                  (msg) =>
+                    new EntityDirectoryError({ directory: directoryPath, operation: "check" }),
                 ),
               ),
             );
+
+          if (!dirExists) {
+            yield* fs
+              .makeDirectory(directoryPath, { recursive: true })
+              .pipe(
+                Effect.mapError((e) =>
+                  mapFsError(
+                    e,
+                    (msg) =>
+                      new EntityDirectoryError({ directory: directoryPath, operation: "create" }),
+                  ),
+                ),
+              );
           }
 
           const now = new Date().toISOString();
@@ -126,11 +134,13 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           const fp = filePath(input.projectPath, entity.id);
           const content = JSON.stringify(entity, null, 2);
 
-          yield* fs.writeFileString(fp, content).pipe(
-            Effect.mapError((e) =>
-              mapFsError(e, (msg) => new EntityFileWriteError({ filePath: fp })),
-            ),
-          );
+          yield* fs
+            .writeFileString(fp, content)
+            .pipe(
+              Effect.mapError((e) =>
+                mapFsError(e, (msg) => new EntityFileWriteError({ filePath: fp })),
+              ),
+            );
 
           return entity;
         });
@@ -140,21 +150,25 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           readonly id: string;
         }) {
           const fp = filePath(input.projectPath, input.id);
-          const fileExists = yield* fs.exists(fp).pipe(
-            Effect.mapError((e) =>
-              mapFsError(e, (msg) => new EntityFileReadError({ filePath: fp })),
-            ),
-          );
+          const fileExists = yield* fs
+            .exists(fp)
+            .pipe(
+              Effect.mapError((e) =>
+                mapFsError(e, (msg) => new EntityFileReadError({ filePath: fp })),
+              ),
+            );
 
           if (!fileExists) {
             return Option.none<TEntity>();
           }
 
-          const content = yield* fs.readFileString(fp).pipe(
-            Effect.mapError((e) =>
-              mapFsError(e, (msg) => new EntityFileReadError({ filePath: fp })),
-            ),
-          );
+          const content = yield* fs
+            .readFileString(fp)
+            .pipe(
+              Effect.mapError((e) =>
+                mapFsError(e, (msg) => new EntityFileReadError({ filePath: fp })),
+              ),
+            );
 
           const entity = yield* decodeEntity(content).pipe(
             Effect.mapError(
@@ -173,21 +187,25 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           input: { readonly id: string } & TUpdate,
         ) {
           const fp = filePath(input.projectPath, input.id);
-          const fileExists = yield* fs.exists(fp).pipe(
-            Effect.mapError((e) =>
-              mapFsError(e, (msg) => new EntityFileReadError({ filePath: fp })),
-            ),
-          );
+          const fileExists = yield* fs
+            .exists(fp)
+            .pipe(
+              Effect.mapError((e) =>
+                mapFsError(e, (msg) => new EntityFileReadError({ filePath: fp })),
+              ),
+            );
 
           if (!fileExists) {
             return Option.none<TEntity>();
           }
 
-          const content = yield* fs.readFileString(fp).pipe(
-            Effect.mapError((e) =>
-              mapFsError(e, (msg) => new EntityFileReadError({ filePath: fp })),
-            ),
-          );
+          const content = yield* fs
+            .readFileString(fp)
+            .pipe(
+              Effect.mapError((e) =>
+                mapFsError(e, (msg) => new EntityFileReadError({ filePath: fp })),
+              ),
+            );
 
           const current = yield* decodeEntity(content).pipe(
             Effect.mapError(
@@ -204,11 +222,13 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
             now: new Date().toISOString(),
           });
 
-          yield* fs.writeFileString(fp, JSON.stringify(entity, null, 2)).pipe(
-            Effect.mapError((e) =>
-              mapFsError(e, (msg) => new EntityFileWriteError({ filePath: fp })),
-            ),
-          );
+          yield* fs
+            .writeFileString(fp, JSON.stringify(entity, null, 2))
+            .pipe(
+              Effect.mapError((e) =>
+                mapFsError(e, (msg) => new EntityFileWriteError({ filePath: fp })),
+              ),
+            );
 
           return Option.some(entity);
         });
@@ -218,21 +238,25 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           readonly id: string;
         }) {
           const fp = filePath(input.projectPath, input.id);
-          const fileExists = yield* fs.exists(fp).pipe(
-            Effect.mapError((e) =>
-              mapFsError(e, (msg) => new EntityFileReadError({ filePath: fp })),
-            ),
-          );
+          const fileExists = yield* fs
+            .exists(fp)
+            .pipe(
+              Effect.mapError((e) =>
+                mapFsError(e, (msg) => new EntityFileReadError({ filePath: fp })),
+              ),
+            );
 
           if (!fileExists) {
             return Option.none<boolean>();
           }
 
-          yield* fs.remove(fp).pipe(
-            Effect.mapError((e) =>
-              mapFsError(e, (msg) => new EntityFileWriteError({ filePath: fp })),
-            ),
-          );
+          yield* fs
+            .remove(fp)
+            .pipe(
+              Effect.mapError((e) =>
+                mapFsError(e, (msg) => new EntityFileWriteError({ filePath: fp })),
+              ),
+            );
 
           return Option.some(true);
         });
@@ -241,23 +265,31 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           readonly projectPath: string;
         }) {
           const directoryPath = entityPath(input.projectPath);
-          const dirExists = yield* fs.exists(directoryPath).pipe(
-            Effect.mapError((e) =>
-              mapFsError(e, (msg) =>
-                new EntityDirectoryError({ directory: directoryPath, operation: "check" }),
+          const dirExists = yield* fs
+            .exists(directoryPath)
+            .pipe(
+              Effect.mapError((e) =>
+                mapFsError(
+                  e,
+                  (msg) =>
+                    new EntityDirectoryError({ directory: directoryPath, operation: "check" }),
+                ),
               ),
-            ),
-          );
+            );
 
           if (!dirExists) return [];
 
-          const entries = yield* fs.readDirectory(directoryPath).pipe(
-            Effect.mapError((e) =>
-              mapFsError(e, (msg) =>
-                new EntityDirectoryError({ directory: directoryPath, operation: "read" }),
+          const entries = yield* fs
+            .readDirectory(directoryPath)
+            .pipe(
+              Effect.mapError((e) =>
+                mapFsError(
+                  e,
+                  (msg) =>
+                    new EntityDirectoryError({ directory: directoryPath, operation: "read" }),
+                ),
               ),
-            ),
-          );
+            );
 
           const files = entries.filter((entry) => entry.endsWith(".json"));
           if (files.length === 0) return [];

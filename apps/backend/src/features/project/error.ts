@@ -82,13 +82,10 @@ export class ProjectWriteError extends Schema.TaggedErrorClass<ProjectWriteError
 /**
  * Workspace configuration error
  */
-export class WorkspaceError extends Schema.TaggedErrorClass<WorkspaceError>()(
-  "WorkspaceError",
-  {
-    directory: Schema.optionalKey(Schema.String),
-    cause: Schema.optionalKey(Schema.Unknown),
-  },
-) {}
+export class WorkspaceError extends Schema.TaggedErrorClass<WorkspaceError>()("WorkspaceError", {
+  directory: Schema.optionalKey(Schema.String),
+  cause: Schema.optionalKey(Schema.Unknown),
+}) {}
 
 /**
  * Union of all project errors

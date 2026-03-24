@@ -1,7 +1,7 @@
 import { RPCHandler } from "@orpc/server/bun-ws";
 import { onError, ORPCError } from "@orpc/server";
 import { router } from "./router";
-import { getErrorResponse } from "./lib/error";
+import { getRpcErrorResponse } from "./lib/error";
 import {
   handleTerminalConnection,
   handleTerminalMessage,
@@ -29,7 +29,7 @@ const handler = new RPCHandler(router, {
   interceptors: [
     onError((error) => {
       // Check if it's our structured error response
-      const errorResponse = getErrorResponse(error);
+      const errorResponse = getRpcErrorResponse(error);
 
       if (errorResponse) {
         // Log structured error with context
