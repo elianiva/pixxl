@@ -58,7 +58,28 @@ Pixxl is built as a monorepo with three main modules:
 
 ## Core Concepts
 
-See [Ubiquitous Language](../docs/ubiquitous-language.md) for definitions of key terms.
+### Projects
+
+Pixxl manages projects through **metadata**, not by moving your code. Your actual project files stay wherever you created them.
+
+When you "create" or "link" a project, Pixxl creates a metadata folder at `{workspacePath}/{projectName}/`:
+
+| Directory | Purpose |
+|-----------|---------|
+| `agents/` | Agent configurations, prompts, and message history |
+| `terminals/` | Terminal session state, environment variables, logs |
+| `commands/` | Saved commands, scheduled tasks, command templates |
+| `documents/` | Notes, documentation, context files for agents |
+| `project.json` | Project metadata: name, linked path, created/updated timestamps |
+
+The `project.json` contains the **actual path** to your project code (e.g., `~/Development/my-existing-app`). Pixxl never moves, copies, or modifies your source files—it only manages the metadata that powers its IDE features.
+
+**Key implications:**
+- **Link Project** → Point Pixxl to an existing folder (anywhere on disk)
+- **New Project** → Create blank metadata and specify which folder to manage
+- Your code stays in place; Pixxl adds IDE capabilities around it
+
+See [Ubiquitous Language](../docs/ubiquitous-language.md) for more definitions.
 
 ## Communication Patterns
 

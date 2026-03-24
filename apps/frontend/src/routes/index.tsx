@@ -9,8 +9,10 @@ import {
   RiSettings4Line,
   RiQuestionLine,
   RiErrorWarningLine,
+  RiAlertLine,
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +28,7 @@ import { NewProjectDialog } from "@/features/project/components/new-project-dial
 import { generateId } from "@/lib/utils";
 import { ilike, useLiveQuery } from "@tanstack/react-db";
 import { projectsCollection } from "@/features/project/projects-collection";
+import { useConfig } from "@/features/config/hooks/use-config";
 
 export const Route = createFileRoute("/")({
   loader: async () => {
@@ -36,12 +39,15 @@ export const Route = createFileRoute("/")({
 
 function RouteComponent() {
   const navigate = useNavigate();
+  const { data: config } = useConfig();
   const [searchQuery, setSearchQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<(typeof projects.data)[number] | null>(
     null,
   );
+
+  const hasWorkspacePath = config?.workspace?.directory && config.workspace.directory.length > 0;
 
   const projects = useLiveQuery((q) => {
     let query = q.from({ project: projectsCollection });
@@ -69,7 +75,7 @@ function RouteComponent() {
 
   return (
     <main className="w-full h-full flex items-center justify-center overflow-y-auto">
-      <div className="w-full max-w-3xl px-6 py-12 flex flex-col gap-10">
+      <div className="w-full max-w-3xl px-6 py-12 flex flex-col gap-6">
         <header className="flex flex-col items-center gap-3 text-center">
           <h1 className="text-7xl font-extralight tracking-tight text-foreground">PIXXL</h1>
           <p className="text-sm text-muted-foreground">Yet another agent management tool</p>
@@ -86,24 +92,43 @@ function RouteComponent() {
           />
         </div>
 
+        {!hasWorkspacePath && (
+          <Alert variant="destructive">
+            <RiAlertLine className="size-4" />
+            <AlertTitle>Workspace not configured</AlertTitle>
+            <AlertDescription>
+              Set a workspace directory in{" "}
+              <button
+                onClick={() => setSettingsOpen(true)}
+                className="underline underline-offset-3 hover:text-foreground"
+              >
+                Settings → Workspace
+              </button>{" "}
+              to create projects.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <section className="flex flex-col gap-3">
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Quick Actions
-          </h2>
-          <div className="grid grid-cols-2 gap-3">
-            <QuickActionCard
-              icon={RiFolderOpenLine}
-              title="Import Project"
-              description="Open an existing folder as a project"
-              href="#"
-            />
-            <QuickActionCard
-              icon={RiAddLine}
-              title="New Project"
-              description="Create a new workspace"
-              onClick={() => setNewProjectOpen(true)}
-            />
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Quick Actions
+            </h2>
           </div>
+          <button
+            onClick={() => hasWorkspacePath && setNewProjectOpen(true)}
+            className={`group flex items-center gap-4 border border-border bg-card transition-all text-left px-4 py-3 w-full ${!hasWorkspacePath ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-muted hover:border-ring/50"}`}
+          >
+            <RiAddLine
+              className={`text-muted-foreground transition-colors size-5 ${!hasWorkspacePath ? "" : "group-hover:text-foreground"}`}
+            />
+            <div>
+              <h3 className="font-medium text-sm">New Project</h3>
+              <p className="text-muted-foreground text-xs">
+                Create a new Pixxl project allowing you to manage everything in one place.
+              </p>
+            </div>
+          </button>
         </section>
 
         <section className="flex flex-col gap-3">
@@ -111,7 +136,7 @@ function RouteComponent() {
             <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Recent Projects
             </h2>
-            <Button variant="ghost" size="sm" className="text-muted-foreground">
+            <Button variant="link" size="sm" className="text-muted-foreground pr-0">
               See All <RiArrowRightSLine className="size-3.5" />
             </Button>
           </div>
@@ -196,35 +221,6 @@ function RouteComponent() {
         </AlertDialogContent>
       </AlertDialog>
     </main>
-  );
-}
-
-function QuickActionCard({
-  icon: Icon,
-  title,
-  description,
-  href,
-  onClick,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  description: string;
-  href?: string;
-  onClick?: () => void;
-}) {
-  const Element = onClick ? "button" : "a";
-  return (
-    <Element
-      href={href}
-      onClick={onClick}
-      className="group flex justify-between gap-2 p-4 border border-border bg-card hover:bg-muted hover:border-ring/50 transition-all cursor-pointer text-left"
-    >
-      <div>
-        <h3 className="font-medium text-sm">{title}</h3>
-        <p className="text-xs text-muted-foreground">{description}</p>
-      </div>
-      <Icon className="size-5 text-muted-foreground group-hover:text-foreground transition-colors" />
-    </Element>
   );
 }
 

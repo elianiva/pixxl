@@ -15,6 +15,7 @@ The frontend is organized in layers from UI down to data:
 **UI Layer (App Route)**
 
 Components arranged in the workspace:
+
 - **File Explorer** — Left sidebar, file tree navigation
 - **Editor Area** — Main content area
 - **Agent Panel** — Right sidebar, chat and actions
@@ -39,17 +40,17 @@ Components arranged in the workspace:
 
 ## Stack
 
-| Layer | Technology |
-|-------|------------|
-| Framework | TanStack Start |
-| Router | TanStack Router (file-based) |
+| Layer      | Technology                   |
+| ---------- | ---------------------------- |
+| Framework  | TanStack Start               |
+| Router     | TanStack Router (file-based) |
 | Query/Data | TanStack Query + TanStack DB |
-| State | Jotai |
-| UI | React 19 + Tailwind CSS |
-| Components | shadcn/ui + Base UI |
-| Terminal | Ghostty Web |
-| RPC Client | oRPC Client |
-| Contracts | `@pixxl/shared` |
+| State      | Jotai                        |
+| UI         | React 19 + Tailwind CSS      |
+| Components | shadcn/ui + Base UI          |
+| Terminal   | Ghostty Web                  |
+| RPC Client | oRPC Client                  |
+| Contracts  | `@pixxl/shared`              |
 
 ## Organization
 
@@ -72,11 +73,11 @@ The frontend is organized around concerns:
 
 ## Routing
 
-| Route | Purpose |
-|-------|---------|
-| `/` | Landing page, create/select project |
-| `/app` | Project list, recent projects |
-| `/app/$projectId` | Main workspace for a project |
+| Route             | Purpose                             |
+| ----------------- | ----------------------------------- |
+| `/`               | Landing page, create/select project |
+| `/app`            | Project list, recent projects       |
+| `/app/$projectId` | Main workspace for a project        |
 
 The `$projectId` route loads the file explorer, terminal panel, and agent panel for the selected project.
 
@@ -90,6 +91,7 @@ Each feature contains:
 - **Types** — TypeScript definitions for the feature
 
 The terminal feature is more complex:
+
 - Handles WebSocket connections in addition to regular data
 - Manages terminal lifecycle separately from React component lifecycle
 - Integrates Ghostty terminal emulator for rendering
@@ -126,12 +128,12 @@ The terminal feature is more complex:
 
 ## State Management
 
-| Layer | Use For | Technology |
-|-------|---------|------------ |
-| Server State | Projects, agents, terminals, commands | TanStack Query + DB |
-| URL State | Current project ID, view modes | TanStack Router |
-| UI State | Dialog open/closed, sidebar collapsed | Jotai atoms |
-| Derived State | Filtered lists, computed values | Jotai selectors |
+| Layer         | Use For                               | Technology          |
+| ------------- | ------------------------------------- | ------------------- |
+| Server State  | Projects, agents, terminals, commands | TanStack Query + DB |
+| URL State     | Current project ID, view modes        | TanStack Router     |
+| UI State      | Dialog open/closed, sidebar collapsed | Jotai atoms         |
+| Derived State | Filtered lists, computed values       | Jotai selectors     |
 
 ## Running
 
