@@ -70,7 +70,9 @@ const { session: piSession } = await createAgentSession({
 - **Tools**: `createCodingTools(projectPath)` - provides read, bash, edit, write tools
 - **Thinking Level**: Configurable per session, defaults to "medium"
 
-## Config Schema Update
+## Config Schema Alignment
+
+### Backend Schema
 
 **File:** `packages/shared/src/schema/config.ts` ✅
 
@@ -94,6 +96,31 @@ Updated `AgentSchema` to align with pi's settings:
 | `prompts` | `string[]?` | Prompt template paths |
 | `themes` | `string[]?` | Theme paths |
 | `thinkingBudgets` | `ThinkingBudgets?` | Token budgets per level |
+| `terminal` | `TerminalSettings?` | Terminal display settings |
+| `images` | `ImageSettings?` | Image processing settings |
+| `markdown` | `MarkdownSettings?` | Markdown rendering |
+
+### Frontend Settings
+
+**File:** `apps/frontend/src/features/config/components/settings-agent.tsx` ✅
+
+Updated to match new schema:
+
+- Provider selector → `defaultProvider`
+- Model selector → `defaultModel`
+- Thinking level selector → `defaultThinkingLevel`
+- Transport selector → `transport`
+- Steering mode selector → `steeringMode`
+- Hide thinking toggle → `hideThinkingBlock`
+- Skill commands toggle → `enableSkillCommands`
+
+**File:** `apps/frontend/src/features/config/components/setting-row.tsx` ✅
+
+Added `SettingRowToggle` component for boolean settings.
+
+**File:** `apps/frontend/src/features/config/hooks/use-blur-submit.ts` ✅
+
+Added `useBlurSubmitSelect` hook for controlled select components.
 
 ## Files Created
 
@@ -103,10 +130,17 @@ Updated `AgentSchema` to align with pi's settings:
 
 ## Files Modified
 
+**Backend:**
 - `apps/backend/src/features/agent/error.ts` - added session errors
 - `apps/backend/src/features/agent/rpc.ts` - added TODO stubs
 - `packages/shared/src/schema/config.ts` - aligned with pi settings
 - `packages/shared/src/contracts/config.ts` - simplified update schema
+- `apps/backend/src/features/config/service.ts` - fixed validation
+
+**Frontend:**
+- `apps/frontend/src/features/config/components/settings-agent.tsx` - new settings UI
+- `apps/frontend/src/features/config/components/setting-row.tsx` - added toggle
+- `apps/frontend/src/features/config/hooks/use-blur-submit.ts` - added select hook
 
 ## Next Steps (Phase 3)
 

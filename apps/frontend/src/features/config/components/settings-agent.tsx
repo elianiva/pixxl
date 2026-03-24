@@ -1,4 +1,4 @@
-import { SettingRow } from "./setting-row";
+import { SettingRow, SettingRowToggle } from "./setting-row";
 import {
   Select,
   SelectContent,
@@ -7,15 +7,39 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { SelectEntry } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
-import { Input } from "@/components/ui/input";
 import type { Agent } from "@pixxl/shared/schema/config";
-import { useBlurSubmitInput, useBlurSubmitSlider } from "../hooks/use-blur-submit";
+import { useBlurSubmitSelect } from "../hooks/use-blur-submit";
 
 interface AgentSettingsProps {
   agent: Agent;
   onUpdate: (agent: Partial<Agent>) => void;
 }
+
+const thinkingLevels: SelectEntry[] = [
+  { value: "off", label: "Off" },
+  { value: "minimal", label: "Minimal" },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "xhigh", label: "Extra High" },
+];
+
+const transports: SelectEntry[] = [
+  { value: "websocket", label: "WebSocket" },
+  { value: "sse", label: "SSE" },
+  { value: "auto", label: "Auto" },
+];
+
+const steeringModes: SelectEntry[] = [
+  { value: "one-at-a-time", label: "One at a Time" },
+  { value: "all", label: "All at Once" },
+];
+
+const providers: SelectEntry[] = [
+  { value: "anthropic", label: "Anthropic" },
+  { value: "openai", label: "OpenAI" },
+  { value: "google", label: "Google" },
+];
 
 const modelsByProvider: Record<string, SelectEntry[]> = {
   anthropic: [
@@ -35,40 +59,26 @@ const modelsByProvider: Record<string, SelectEntry[]> = {
   ],
 };
 
-const providers: SelectEntry[] = [
-  { value: "anthropic", label: "Anthropic" },
-  { value: "openai", label: "OpenAI" },
-  { value: "google", label: "Google" },
-];
-
-const maxTokenOptions: SelectEntry[] = [
-  { value: "4096", label: "4,096" },
-  { value: "8192", label: "8,192" },
-  { value: "16384", label: "16,384" },
-  { value: "32768", label: "32,768" },
-];
-
 export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
-  const nameInput = useBlurSubmitInput(agent.name, (name) => onUpdate({ name }));
-  const temperatureSlider = useBlurSubmitSlider(agent.temperature, (temperature) =>
-    onUpdate({ temperature }),
+  const defaultProviderSelect = useBlurSubmitSelect(agent.defaultProvider ?? "anthropic", (v) =>
+    onUpdate({ defaultProvider: v }),
+  );
+  const thinkingLevelSelect = useBlurSubmitSelect(agent.defaultThinkingLevel ?? "medium", (v) =>
+    onUpdate({ defaultThinkingLevel: v as Agent["defaultThinkingLevel"] }),
   );
 
   return (
     <div>
       <h3 className="text-base font-semibold mb-4">Agent</h3>
+      <p className="text-muted-foreground text-sm mb-4">
+        Global default settings. Configure per-agent in the chat UI via the agent menu.
+      </p>
       <div className="border border-border">
-        <SettingRow label="Agent Name" description="What to call your coding assistant">
-          <Input
-            value={nameInput.localValue}
-            onChange={nameInput.handleChange}
-            onBlur={nameInput.handleBlur}
-            onKeyDown={nameInput.handleKeyDown}
-            placeholder="pi"
-          />
-        </SettingRow>
-        <SettingRow label="Provider" description="AI provider to use for the agent">
-          <Select value={agent.provider} onValueChange={(v) => v && onUpdate({ provider: v })}>
+        <SettingRow label="Provider" description="AI provider for model selection">
+          <Select
+            value={agent.defaultProvider ?? "anthropic"}
+            onValueChange={(v) => v && onUpdate({ defaultProvider: v })}
+          >
             <SelectTrigger className="w-36">
               <SelectValue />
             </SelectTrigger>
@@ -81,13 +91,17 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
             </SelectContent>
           </Select>
         </SettingRow>
-        <SettingRow label="Model" description="AI model to use">
-          <Select value={agent.model} onValueChange={(v) => v && onUpdate({ model: v })}>
+
+        <SettingRow label="Model" description="Default AI model">
+          <Select
+            value={agent.defaultModel ?? ""}
+            onValueChange={(v) => v && onUpdate({ defaultModel: v })}
+          >
             <SelectTrigger className="w-48">
-              <SelectValue />
+              <SelectValue placeholder="Select model" />
             </SelectTrigger>
             <SelectContent>
-              {modelsByProvider[agent.provider]?.map((m) => (
+              {modelsByProvider[agent.defaultProvider ?? "anthropic"]?.map((m) => (
                 <SelectItem key={m.value} value={m.value}>
                   {m.label}
                 </SelectItem>
@@ -95,16 +109,19 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
             </SelectContent>
           </Select>
         </SettingRow>
-        <SettingRow label="Max Tokens" description="Maximum response length">
+
+        <SettingRow label="Thinking Level" description="How much reasoning the model does">
           <Select
-            value={String(agent.maxTokens)}
-            onValueChange={(v) => v && onUpdate({ maxTokens: Number(v) })}
+            value={agent.defaultThinkingLevel ?? "medium"}
+            onValueChange={(v) =>
+              v && onUpdate({ defaultThinkingLevel: v as Agent["defaultThinkingLevel"] })
+            }
           >
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-36">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {maxTokenOptions.map((t) => (
+              {thinkingLevels.map((t) => (
                 <SelectItem key={t.value} value={t.value}>
                   {t.label}
                 </SelectItem>
@@ -112,23 +129,55 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
             </SelectContent>
           </Select>
         </SettingRow>
-        <SettingRow
-          label="Temperature"
-          description="Response creativity (0 = focused, 1 = creative)"
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground w-8">
-              {temperatureSlider.localValue}
-            </span>
-            <Slider
-              value={[temperatureSlider.localValue]}
-              onValueChange={temperatureSlider.handleValueChange}
-              onValueCommitted={temperatureSlider.handleValueCommit}
-              min={0}
-              max={1}
-              step={0.1}
-            />
-          </div>
+
+        <SettingRow label="Transport" description="Protocol for streaming responses">
+          <Select
+            value={agent.transport ?? "websocket"}
+            onValueChange={(v) => v && onUpdate({ transport: v as Agent["transport"] })}
+          >
+            <SelectTrigger className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {transports.map((t) => (
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SettingRow>
+
+        <SettingRow label="Steering Mode" description="How queued messages are handled">
+          <Select
+            value={agent.steeringMode ?? "one-at-a-time"}
+            onValueChange={(v) => v && onUpdate({ steeringMode: v as Agent["steeringMode"] })}
+          >
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {steeringModes.map((m) => (
+                <SelectItem key={m.value} value={m.value}>
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SettingRow>
+
+        <SettingRow label="Hide Thinking" description="Hide thinking block from output">
+          <SettingRowToggle
+            checked={agent.hideThinkingBlock ?? false}
+            onCheckedChange={(checked) => onUpdate({ hideThinkingBlock: checked })}
+          />
+        </SettingRow>
+
+        <SettingRow label="Skill Commands" description="Enable /skill:name commands">
+          <SettingRowToggle
+            checked={agent.enableSkillCommands ?? true}
+            onCheckedChange={(checked) => onUpdate({ enableSkillCommands: checked })}
+          />
         </SettingRow>
       </div>
     </div>
