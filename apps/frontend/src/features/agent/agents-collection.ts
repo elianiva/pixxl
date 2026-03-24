@@ -2,7 +2,7 @@ import { createCollection } from "@tanstack/db";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import { getDefaultStore } from "jotai/vanilla";
 import { rpc } from "@/lib/rpc";
-import type { AgentMetadata } from "@pixxl/shared";
+import { generateId, type AgentMetadata } from "@pixxl/shared";
 import { queryClient } from "@/lib/query-client";
 import { currentProjectIdAtom } from "@/providers/current-project";
 
@@ -20,7 +20,6 @@ export const agentsCollection = createCollection(
       const result = await rpc.agent.listAgents({ projectId });
       return [...result];
     },
-
     onInsert: async ({ transaction }) => {
       const projectId = store.get(currentProjectIdAtom);
       if (!projectId) return;
@@ -29,10 +28,13 @@ export const agentsCollection = createCollection(
         const modified = mutation.modified;
         if (!modified.name) continue;
 
-        await rpc.agent.createAgent({ projectId, name: modified.name });
+        await rpc.agent.createAgent({
+          id: generateId(),
+          projectId,
+          name: modified.name,
+        });
       }
     },
-
     onUpdate: async ({ transaction }) => {
       const projectId = store.get(currentProjectIdAtom);
       if (!projectId) return;
@@ -45,7 +47,6 @@ export const agentsCollection = createCollection(
         });
       }
     },
-
     onDelete: async ({ transaction }) => {
       const projectId = store.get(currentProjectIdAtom);
       if (!projectId) return;

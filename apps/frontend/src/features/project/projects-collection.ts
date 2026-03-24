@@ -13,7 +13,6 @@ export const projectsCollection = createCollection(
       const result = await rpc.project.listProjects({});
       return [...result];
     },
-
     onInsert: async ({ transaction }) => {
       for (const mutation of transaction.mutations) {
         const modified = mutation.modified;
@@ -22,7 +21,6 @@ export const projectsCollection = createCollection(
         await rpc.project.createProject({ name: modified.name });
       }
     },
-
     onDelete: async ({ transaction }) => {
       for (const mutation of transaction.mutations) {
         await rpc.project.deleteProject({ id: mutation.original.id });

@@ -2,7 +2,7 @@ import { createCollection } from "@tanstack/db";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import { getDefaultStore } from "jotai/vanilla";
 import { rpc } from "@/lib/rpc";
-import type { CommandMetadata } from "@pixxl/shared";
+import { generateId, type CommandMetadata } from "@pixxl/shared";
 import { queryClient } from "@/lib/query-client";
 import { currentProjectIdAtom } from "@/providers/current-project";
 
@@ -29,6 +29,7 @@ export const commandsCollection = createCollection(
         if (!modified.name || !modified.command) continue;
 
         await rpc.command.createCommand({
+          id: generateId(),
           projectId,
           name: modified.name,
           command: modified.command,

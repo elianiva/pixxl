@@ -43,7 +43,7 @@ function RouteComponent() {
 
   function handleCreateProject(name: string) {
     if (!projects.collection) return;
-    projects.collection.insert({
+    projectsCollection.insert({
       id: generateId(),
       name,
       path: `/projects/${name}`,
@@ -61,7 +61,7 @@ function RouteComponent() {
 
   function handleCreateAgent(name: string) {
     if (!agents.collection) return;
-    agents.collection.insert({
+    agentsCollection.insert({
       id: generateId(),
       name,
       createdAt: new Date().toISOString(),
@@ -71,7 +71,7 @@ function RouteComponent() {
 
   function handleUpdateAgent(id: string, name: string) {
     if (!agents.collection) return;
-    agents.collection.update(id, (draft) => {
+    agentsCollection.update(id, (draft) => {
       draft.name = name;
       draft.updatedAt = new Date().toISOString();
     });
@@ -79,12 +79,12 @@ function RouteComponent() {
 
   function handleDeleteAgent(id: string) {
     if (!agents.collection) return;
-    agents.collection.delete(id);
+    agentsCollection.delete(id);
   }
 
   function handleCreateTerminal(name: string) {
     if (!terminals.collection) return;
-    terminals.collection.insert({
+    terminalsCollection.insert({
       id: generateId(),
       name,
       createdAt: new Date().toISOString(),
@@ -94,7 +94,7 @@ function RouteComponent() {
 
   function handleUpdateTerminal(id: string, name: string) {
     if (!terminals.collection) return;
-    terminals.collection.update(id, (draft) => {
+    terminalsCollection.update(id, (draft) => {
       draft.name = name;
       draft.updatedAt = new Date().toISOString();
     });
@@ -102,12 +102,12 @@ function RouteComponent() {
 
   function handleDeleteTerminal(id: string) {
     if (!terminals.collection) return;
-    terminals.collection.delete(id);
+    terminalsCollection.delete(id);
   }
 
   function handleCreateCommand(input: { name: string; command: string; description?: string }) {
     if (!commands.collection) return;
-    commands.collection.insert({
+    commandsCollection.insert({
       id: generateId(),
       name: input.name,
       command: input.command,
@@ -119,7 +119,7 @@ function RouteComponent() {
 
   function handleDeleteCommand(id: string) {
     if (!commands.collection) return;
-    commands.collection.delete(id);
+    commandsCollection.delete(id);
   }
 
   return (

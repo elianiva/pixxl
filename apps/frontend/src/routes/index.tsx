@@ -47,7 +47,7 @@ function RouteComponent() {
 
   function handleCreateProject(name: string) {
     if (!projects.collection) return;
-    projects.collection.insert({
+    projectsCollection.insert({
       id: generateId(),
       name,
       path: "", // will be set by server
@@ -58,7 +58,7 @@ function RouteComponent() {
 
   function handleDeleteProject(id: string) {
     if (!projects.collection) return;
-    projects.collection.delete(id);
+    projectsCollection.delete(id);
   }
 
   return (

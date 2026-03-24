@@ -91,7 +91,7 @@ function DashboardPage() {
 
   function handleCreateTerminal() {
     if (!terminalsAll.collection) return;
-    terminalsAll.collection.insert({
+    terminalsCollection.insert({
       id: generateId(),
       name: `Terminal ${(terminalsAll.data?.length ?? 0) + 1}`,
       createdAt: new Date().toISOString(),
@@ -101,7 +101,7 @@ function DashboardPage() {
 
   function handleCreateAgent() {
     if (!agentsAll.collection) return;
-    agentsAll.collection.insert({
+    agentsCollection.insert({
       id: generateId(),
       name: `Agent ${(agentsAll.data?.length ?? 0) + 1}`,
       createdAt: new Date().toISOString(),
