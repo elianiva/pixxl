@@ -6,17 +6,13 @@ import { createSession, selectSession, closeSession } from "../store";
 import { SessionListItem } from "./session-list-item";
 import { Button } from "@/components/ui/button";
 
-interface AgentSidebarProps {
-  projectId: string;
-}
-
-export function AgentSidebar({ projectId: _projectId }: AgentSidebarProps) {
+export function AgentSidebar() {
   const sessions = useAgentSessions();
   const activeSessionId = useActiveSessionId();
 
-  const handleNewSession = useCallback(async () => {
+  const handleNewSession = useCallback(() => {
     const name = `Session ${sessions.length + 1}`;
-    await createSession({
+    void createSession({
       name,
       thinkingLevel: "medium",
     });
@@ -26,8 +22,8 @@ export function AgentSidebar({ projectId: _projectId }: AgentSidebarProps) {
     selectSession(sessionId);
   }, []);
 
-  const handleCloseSession = useCallback(async (sessionId: string) => {
-    await closeSession(sessionId);
+  const handleCloseSession = useCallback((sessionId: string) => {
+    void closeSession(sessionId);
   }, []);
 
   return (

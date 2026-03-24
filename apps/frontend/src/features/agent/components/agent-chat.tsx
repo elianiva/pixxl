@@ -6,30 +6,29 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AgentMessageContent } from "./agent-message-content";
 import { useAgentActions, useMessages, useAgentConnectionStatus } from "../hooks";
-import { agentStore } from "../store";
 
 export function AgentChat() {
   const messages = useMessages();
   const connectionStatus = useAgentConnectionStatus();
-  const { sendPrompt } = useAgentActions();
+  const { sendPrompt, abort } = useAgentActions();
   const [inputText, setInputText] = useState("");
   const [isScrollButtonVisible, setIsScrollButtonVisible] = useState(false);
   const conversationRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const isStreaming = connectionStatus === "streaming";
+  const isStreaming = connectionStatus === "streaming" || connectionStatus === "connecting";
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(() => {
     if (!inputText.trim() || isStreaming) return;
-    await sendPrompt(inputText);
+    void sendPrompt(inputText);
     setInputText("");
     textareaRef.current?.focus();
   }, [inputText, isStreaming, sendPrompt]);
 
   const handleFormSubmit = useCallback(
-    async (e: React.SubmitEvent) => {
+    (e: React.SubmitEvent) => {
       e.preventDefault();
-      await handleSubmit();
+      handleSubmit();
     },
     [handleSubmit],
   );
@@ -38,7 +37,7 @@ export function AgentChat() {
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        handleSubmit();
+        void handleSubmit();
       }
     },
     [handleSubmit],
@@ -173,7 +172,7 @@ export function AgentChat() {
                 type="button"
                 variant="ghost"
                 size="icon-xs"
-                onClick={() => agentStore.state.connectionStatus === "streaming"}
+                onClick={abort}
                 className="text-destructive hover:text-destructive"
               >
                 <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

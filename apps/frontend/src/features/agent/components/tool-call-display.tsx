@@ -1,9 +1,9 @@
 import { memo } from "react";
 import { cn } from "@/lib/utils";
-import { ReadToolDisplay } from "./tools/ReadTool";
-import { WriteToolDisplay } from "./tools/WriteTool";
-import { EditToolDisplay } from "./tools/EditTool";
-import { BashToolDisplay } from "./tools/BashTool";
+import { ReadToolDisplay } from "./tools/read-tool";
+import { WriteToolDisplay } from "./tools/write-tool";
+import { EditToolDisplay } from "./tools/edit-tool";
+import { BashToolDisplay } from "./tools/bash-tool";
 
 interface ToolCallDisplayProps {
   tool: {
@@ -150,7 +150,7 @@ function GenericToolDisplay({ tool }: ToolCallDisplayProps) {
             params
           </span>
           <pre className="mt-1 overflow-x-auto rounded bg-muted/50 p-2">
-            {JSON.stringify(tool.params, null, 2)}
+            {String(JSON.stringify(tool.params, null, 2))}
           </pre>
         </div>
       )}

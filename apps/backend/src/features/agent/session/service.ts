@@ -1,9 +1,8 @@
-import { Effect, Layer, Option, ServiceMap } from "effect";
+import { Effect, Layer, Option, Ref, ServiceMap } from "effect";
 import { nanoid } from "nanoid";
 import { SessionNotFoundError, SessionTerminateError } from "../error";
 import { AgentSession, AgentSessionEvent, StoredSession } from "./types";
 import {
-  AgentSession as PiAgentSession,
   AgentSessionEvent as PiAgentSessionEvent,
   createAgentSession,
   createCodingTools,
@@ -55,8 +54,7 @@ export class AgentSessionService extends ServiceMap.Service<
   AgentSessionServiceShape
 >()("@pixxl/AgentSessionService", {
   make: Effect.gen(function* () {
-    // Internal storage: sessionId → StoredSession
-    const sessions = new Map<string, StoredSession>();
+    const sessionsRef = yield* Ref.make<ReadonlyMap<string, StoredSession>>(new Map());
 
     const createSession = Effect.fn("AgentSessionService.createSession")(function* (
       input: CreateSessionInput,
@@ -64,25 +62,18 @@ export class AgentSessionService extends ServiceMap.Service<
       const sessionId = nanoid();
       const now = new Date();
 
-      // Create settings manager with WebSocket transport
       const settingsManager = SettingsManager.create(input.projectPath);
-      settingsManager.setTransport("websocket");
+      settingsManager.setTransport("auto");
 
-      // Configure session options
       const sessionOptions: CreateAgentSessionOptions = {
         cwd: input.projectPath,
-        // Use default session manager
         sessionManager: undefined,
-        // Tools - coding tools resolve paths relative to projectPath
         tools: createCodingTools(input.projectPath),
-        // Settings manager with WebSocket transport configured
         settingsManager,
-        // Thinking level
         thinkingLevel:
           (input.thinkingLevel as CreateAgentSessionOptions["thinkingLevel"]) ?? "medium",
       };
 
-      // Create pi session
       const { session: piSession } = yield* Effect.tryPromise({
         try: () => createAgentSession(sessionOptions),
         catch: (cause) =>
@@ -93,7 +84,6 @@ export class AgentSessionService extends ServiceMap.Service<
           }),
       });
 
-      // Create our session wrapper
       const session: AgentSession = {
         id: sessionId,
         projectId: input.projectId,
@@ -103,10 +93,9 @@ export class AgentSessionService extends ServiceMap.Service<
         piSession,
       };
 
-      sessions.set(sessionId, {
-        session,
-        piSession,
-      });
+      yield* Ref.update(sessionsRef, (sessions) =>
+        new Map(sessions).set(sessionId, { session, piSession }),
+      );
 
       return session;
     });
@@ -114,6 +103,7 @@ export class AgentSessionService extends ServiceMap.Service<
     const getSession = Effect.fn("AgentSessionService.getSession")(function* (
       input: GetSessionInput,
     ) {
+      const sessions = yield* Ref.get(sessionsRef);
       const stored = sessions.get(input.sessionId);
 
       if (!stored || stored.session.projectId !== input.projectId) {
@@ -126,20 +116,17 @@ export class AgentSessionService extends ServiceMap.Service<
     const listSessions = Effect.fn("AgentSessionService.listSessions")(function* (
       input: ListSessionsInput,
     ) {
-      const result: AgentSession[] = [];
+      const sessions = yield* Ref.get(sessionsRef);
 
-      for (const stored of sessions.values()) {
-        if (stored.session.projectId === input.projectId) {
-          result.push(stored.session);
-        }
-      }
-
-      return result;
+      return Array.from(sessions.values())
+        .filter((stored) => stored.session.projectId === input.projectId)
+        .map((stored) => stored.session);
     });
 
     const terminateSession = Effect.fn("AgentSessionService.terminateSession")(function* (
       input: TerminateSessionInput,
     ) {
+      const sessions = yield* Ref.get(sessionsRef);
       const stored = sessions.get(input.sessionId);
 
       if (!stored || stored.session.projectId !== input.projectId) {
@@ -149,18 +136,22 @@ export class AgentSessionService extends ServiceMap.Service<
         });
       }
 
-      try {
-        // Dispose the pi session
-        stored.piSession.dispose();
-      } catch (cause) {
-        return yield* new SessionTerminateError({
-          sessionId: input.sessionId,
-          projectId: input.projectId,
-          cause,
-        });
-      }
+      yield* Effect.sync(() => stored.piSession.dispose()).pipe(
+        Effect.mapError(
+          (cause) =>
+            new SessionTerminateError({
+              sessionId: input.sessionId,
+              projectId: input.projectId,
+              cause,
+            }),
+        ),
+      );
 
-      sessions.delete(input.sessionId);
+      yield* Ref.update(sessionsRef, (sessions) => {
+        const next = new Map(sessions);
+        next.delete(input.sessionId);
+        return next;
+      });
     });
 
     return { createSession, getSession, listSessions, terminateSession } as const;

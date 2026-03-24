@@ -5,7 +5,7 @@ import { useStore } from "@tanstack/react-store";
 import { useParams } from "@tanstack/react-router";
 import { AgentSidebar } from "../components/agent-sidebar";
 import { AgentChat } from "../components/agent-chat";
-import { ConnectionStatus } from "../components/ConnectionStatus";
+import { ConnectionStatus } from "../components/connection-status";
 import { Button } from "@/components/ui/button";
 import { RiRobot2Line } from "@remixicon/react";
 import { agentStore, selectSession } from "../store";
@@ -72,7 +72,7 @@ export function AgentsPage({ initialSessionId }: AgentsPageProps) {
 
   return (
     <div className="flex h-full">
-      <AgentSidebar projectId={projectId} />
+      <AgentSidebar />
       <div className="flex flex-1 flex-col min-w-0">
         <AgentHeader sessionName={activeSession?.name} connectionStatus={connectionStatus} />
         <div className="flex-1 overflow-hidden">

@@ -204,7 +204,7 @@ export async function createSession(input: {
     }));
 
     // Invalidate sessions list query
-    queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
+    void queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
 
     return sessionState;
   } catch (error) {
@@ -251,7 +251,7 @@ export async function closeSession(sessionId: string): Promise<void> {
     });
 
     // Invalidate sessions list query
-    queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
+    void queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
   } catch (error) {
     console.error("[AgentStore] Failed to close session:", error);
     agentStore.setState((state) => ({
