@@ -1,4 +1,4 @@
-import { Schema, Struct } from "effect";
+import { Schema } from "effect";
 import { oc } from "@orpc/contract";
 import {
   AgentSchema,
@@ -12,11 +12,12 @@ export const getConfigContract = oc
   .input(Schema.toStandardSchemaV1(Schema.Void))
   .output(Schema.toStandardSchemaV1(AppConfigSchema));
 
-const UpdateConfigInputSchema = Schema.Struct({
-  workspace: Schema.optionalKey(WorkspaceSchema.mapFields(Struct.map(Schema.optionalKey))),
-  terminal: Schema.optionalKey(TerminalSchema.mapFields(Struct.map(Schema.optionalKey))),
-  agent: Schema.optionalKey(AgentSchema.mapFields(Struct.map(Schema.optionalKey))),
-  appearance: Schema.optionalKey(AppearanceSchema.mapFields(Struct.map(Schema.optionalKey))),
+// For updates, we accept partial JSON object
+export const UpdateConfigInputSchema = Schema.Struct({
+  workspace: Schema.optionalKey(WorkspaceSchema),
+  terminal: Schema.optionalKey(TerminalSchema),
+  agent: Schema.optionalKey(AgentSchema),
+  appearance: Schema.optionalKey(AppearanceSchema),
 });
 export type UpdateConfigInput = typeof UpdateConfigInputSchema.Type;
 

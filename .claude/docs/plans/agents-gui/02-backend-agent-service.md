@@ -70,12 +70,30 @@ const { session: piSession } = await createAgentSession({
 - **Tools**: `createCodingTools(projectPath)` - provides read, bash, edit, write tools
 - **Thinking Level**: Configurable per session, defaults to "medium"
 
-## Data Persistence
+## Config Schema Update
 
-Session metadata stored via existing `EntityService` (Phase 4).
+**File:** `packages/shared/src/schema/config.ts` ✅
 
-pi's session files stored at:
-- `{projectPath}/.pi/sessions/{sessionId}.jsonl`
+Updated `AgentSchema` to align with pi's settings:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `defaultProvider` | `string?` | Model provider (e.g., "anthropic") |
+| `defaultModel` | `string?` | Model ID |
+| `defaultThinkingLevel` | `ThinkingLevel?` | "off" \| "minimal" \| "low" \| "medium" \| "high" \| "xhigh" |
+| `transport` | `Transport?` | "sse" \| "websocket" \| "auto" |
+| `steeringMode` | `SteeringMode?` | "all" \| "one-at-a-time" |
+| `followUpMode` | `FollowUpMode?` | "all" \| "one-at-a-time" |
+| `compaction` | `CompactionSettings?` | Context compaction config |
+| `retry` | `RetrySettings?` | Retry on rate limit/overload |
+| `hideThinkingBlock` | `boolean?` | Hide thinking from output |
+| `shellPath` | `string?` | Custom shell path |
+| `packages` | `string[]?` | NPM/git package sources |
+| `extensions` | `string[]?` | Extension paths |
+| `skills` | `string[]?` | Skill paths |
+| `prompts` | `string[]?` | Prompt template paths |
+| `themes` | `string[]?` | Theme paths |
+| `thinkingBudgets` | `ThinkingBudgets?` | Token budgets per level |
 
 ## Files Created
 
@@ -87,6 +105,8 @@ pi's session files stored at:
 
 - `apps/backend/src/features/agent/error.ts` - added session errors
 - `apps/backend/src/features/agent/rpc.ts` - added TODO stubs
+- `packages/shared/src/schema/config.ts` - aligned with pi settings
+- `packages/shared/src/contracts/config.ts` - simplified update schema
 
 ## Next Steps (Phase 3)
 

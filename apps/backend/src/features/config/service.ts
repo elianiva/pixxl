@@ -151,16 +151,6 @@ export class ConfigService extends ServiceMap.Service<ConfigService, ConfigServi
 
         const merged = deepMerge(DEFAULT_CONFIG as PartialAppConfig, userConfig) as AppConfig;
 
-        // Validate merged config
-        const validation = Schema.decodeUnknown(Schema.typeSchema(PartialAppConfigSchema))(merged);
-        if (validation._tag === "Left") {
-          return yield* new ConfigValidationError({
-            field: "config",
-            value: merged,
-            issue: String(validation.left),
-          });
-        }
-
         return merged;
       });
 
