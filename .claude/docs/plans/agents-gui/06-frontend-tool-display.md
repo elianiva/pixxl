@@ -1,16 +1,17 @@
 # Phase 6: Frontend Tool Display
 
 ## Goal
+
 Display tool calls inline (bash output, file reads, edit diffs) using AI Elements code/terminal components.
 
 ## Tool Types to Support
 
-| Tool | UI Component | Display |
-|------|-------------|---------|
-| `read` | CodeBlock | File content with path header |
-| `write` | CodeBlock + diff highlight | New file content |
-| `edit` | CodeBlock with unified diff | Before/after |
-| `bash` | Terminal | Live streaming output |
+| Tool    | UI Component                | Display                       |
+| ------- | --------------------------- | ----------------------------- |
+| `read`  | CodeBlock                   | File content with path header |
+| `write` | CodeBlock + diff highlight  | New file content              |
+| `edit`  | CodeBlock with unified diff | Before/after                  |
+| `bash`  | Terminal                    | Live streaming output         |
 
 ## Components
 
@@ -189,6 +190,7 @@ function formatDiff(diff: DiffLine[]): string {
 ```
 
 ## Files to Create
+
 - `apps/frontend/src/features/agents/components/ToolCallDisplay.tsx`
 - `apps/frontend/src/features/agents/components/tools/ReadTool.tsx`
 - `apps/frontend/src/features/agents/components/tools/WriteTool.tsx`
@@ -197,9 +199,11 @@ function formatDiff(diff: DiffLine[]): string {
 - `apps/frontend/src/features/agents/components/tools/index.ts`
 
 ## Files to Modify
+
 - `apps/frontend/src/features/agents/components/AgentMessageContent.tsx` - integrate tools display
 
 ## Testing
+
 - [ ] Read tool shows file content with syntax highlighting
 - [ ] Bash tool streams output in real-time
 - [ ] Edit tool shows unified diff
@@ -207,10 +211,12 @@ function formatDiff(diff: DiffLine[]): string {
 - [ ] Status indicators (running/complete/error) work correctly
 
 ## Dependencies on Phase 5
+
 - Uses AgentMessageContent from Phase 5
 - Uses message.toolCall from store (Phase 4)
 
 ## Out of Scope
+
 - No file tree integration (future phase)
 - No inline file edits (future phase)
 - No diff expansion (show full file vs just changed block)

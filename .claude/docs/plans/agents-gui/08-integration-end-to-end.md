@@ -1,6 +1,7 @@
 # Phase 8: Integration and End-to-End
 
 ## Goal
+
 Wire everything together: connect frontend to backend, test full flow, polish UX.
 
 ## Integration Tasks
@@ -18,33 +19,33 @@ const MAX_RECONNECT = 5;
 
 export function connectToAgents(projectId: string): void {
   const wsUrl = `${getWsUrl()}/agents`;
-  
+
   ws = new WebSocket(wsUrl);
-  
+
   ws.onopen = () => {
     agentStore.setState((s) => ({ ...s, connectionStatus: "connected" }));
     reconnectAttempt = 0;
-    
+
     // Send initial project subscription
     ws?.send(JSON.stringify({ type: "subscribe_project", projectId }));
   };
-  
+
   ws.onmessage = (event) => {
     const serverEvent = JSON.parse(event.data);
     handleServerEvent(serverEvent);
   };
-  
+
   ws.onclose = () => {
     agentStore.setState((s) => ({ ...s, connectionStatus: "disconnected" }));
     maybeReconnect(projectId);
   };
-  
+
   ws.onerror = (error) => {
     console.error("WebSocket error:", error);
-    agentStore.setState((s) => ({ 
-      ...s, 
+    agentStore.setState((s) => ({
+      ...s,
       connectionStatus: "disconnected",
-      error: "Connection failed"
+      error: "Connection failed",
     }));
   };
 }
@@ -135,9 +136,9 @@ if (path.startsWith("/agents")) {
     ws.close(4000, "Missing projectId");
     return;
   }
-  
+
   // Verify project exists, authenticate, etc.
-  const handler = yield* AgentWebSocketHandler;
+  const handler = yield * AgentWebSocketHandler;
   handler.handleConnection(ws, projectId);
 }
 ```
@@ -147,6 +148,7 @@ if (path.startsWith("/agents")) {
 ### Test Scenarios
 
 **Scenario 1: Happy Path**
+
 1. Navigate to `/agents`
 2. Create new session
 3. Type message, send
@@ -157,6 +159,7 @@ if (path.startsWith("/agents")) {
    - AI response accumulates in UI
 
 **Scenario 2: Tool Execution**
+
 1. Prompt: "List files in src directory"
 2. Verify:
    - `tool_start` received (bash/ls)
@@ -166,6 +169,7 @@ if (path.startsWith("/agents")) {
    - Agent responds with results
 
 **Scenario 3: Multiple Sessions**
+
 1. Create session A
 2. Send message, wait for response
 3. Create session B
@@ -174,6 +178,7 @@ if (path.startsWith("/agents")) {
 6. Verify each session maintains its own messages
 
 **Scenario 4: Reconnection**
+
 1. Kill backend
 2. Frontend should show "Reconnecting..."
 3. Restart backend
@@ -219,8 +224,9 @@ function ErrorFallback({ error }: { error: Error }) {
 ```typescript
 const MemoizedMessage = memo(Message, (prev, next) => {
   // Only re-render if streaming state changes or content differs
-  return prev.message.id === next.message.id && 
-         prev.message.isStreaming === next.message.isStreaming;
+  return (
+    prev.message.id === next.message.id && prev.message.isStreaming === next.message.isStreaming
+  );
 });
 ```
 

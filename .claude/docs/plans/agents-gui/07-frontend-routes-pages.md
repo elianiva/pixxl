@@ -1,6 +1,7 @@
 # Phase 7: Frontend Routes and Pages
 
 ## Goal
+
 Set up TanStack Router routes for agents feature and create the main agents page.
 
 ## Routes
@@ -72,9 +73,9 @@ export function AgentsPage({ initialSessionId }: AgentsPageProps) {
   // Connect to WebSocket on mount
   useEffect(() => {
     if (!projectId) return;
-    
+
     connectToAgentServer(projectId);
-    
+
     return () => {
       // Disconnect on unmount
       disconnectFromAgentServer();
@@ -191,6 +192,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 ```
 
 ## Files to Create
+
 - `apps/frontend/src/routes/agents/index.tsx` - route definition
 - `apps/frontend/src/routes/agents/$sessionId.tsx` - route with param
 - `apps/frontend/src/features/agents/pages/AgentsPage.tsx` - main page
@@ -198,10 +200,12 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 - `apps/frontend/src/features/agents/components/ConnectionStatus.tsx`
 
 ## Files to Modify
+
 - `apps/frontend/src/routeTree.gen.ts` - auto-generated, verify routes appear
 - Navigation component - add agents link
 
 ## Testing
+
 - [ ] Route `/agents` loads without errors
 - [ ] Route `/agents/:sessionId` selects correct session
 - [ ] Navigation from project to agents works
@@ -210,11 +214,13 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 - [ ] Creating session from empty state works
 
 ## Dependencies on Phase 5-6
+
 - Uses AgentSidebar from Phase 5
 - Uses AgentChat from Phase 5
 - Uses ToolCallDisplay from Phase 6
 
 ## Out of Scope
+
 - No URL-based session sharing (can be added later)
 - No deep linking beyond session selection
 - No browser history for chat navigation

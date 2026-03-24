@@ -1,6 +1,7 @@
 # Phase 4: Frontend Agent Store
 
 ## Goal
+
 Create TanStack Store for agent session state and WebSocket management.
 
 ## Architecture
@@ -128,11 +129,13 @@ function handleServerEvent(event: ServerEvent) {
 export const agentActions = {
   createSession: (projectId: string, name: string) => {
     const ws = getWebSocket(); // get current ws connection
-    ws?.send(JSON.stringify({
-      type: "new_session",
-      projectId,
-      name,
-    }));
+    ws?.send(
+      JSON.stringify({
+        type: "new_session",
+        projectId,
+        name,
+      }),
+    );
   },
 
   sendPrompt: (text: string) => {
@@ -154,11 +157,13 @@ export const agentActions = {
       },
     }));
 
-    getWebSocket()?.send(JSON.stringify({
-      type: "prompt",
-      sessionId: activeSessionId,
-      text,
-    }));
+    getWebSocket()?.send(
+      JSON.stringify({
+        type: "prompt",
+        sessionId: activeSessionId,
+        text,
+      }),
+    );
   },
 
   // ... etc
@@ -175,8 +180,8 @@ export function useAgentSessions() {
 }
 
 export function useActiveSession() {
-  return useStore(agentStore, (state) => 
-    state.activeSessionId ? state.sessions[state.activeSessionId] : null
+  return useStore(agentStore, (state) =>
+    state.activeSessionId ? state.sessions[state.activeSessionId] : null,
   );
 }
 
@@ -192,15 +197,18 @@ export function useAgentConnection() {
 ```
 
 ## Files to Create
+
 - `apps/frontend/src/features/agents/store.ts` - TanStack Store instance
 - `apps/frontend/src/features/agents/hooks.ts` - React hooks
 - `apps/frontend/src/features/agents/types.ts` - TypeScript interfaces
 
 ## Files to Modify
+
 - `apps/frontend/src/features/index.ts` - export agent features
 - `apps/shared/src/types.ts` - add agent event types
 
 ## Testing
+
 - [ ] Store state updates correctly on events
 - [ ] WebSocket connects/disconnects properly
 - [ ] Optimistic updates work for user messages
@@ -208,6 +216,7 @@ export function useAgentConnection() {
 - [ ] Tool call states update properly
 
 ## Out of Scope
+
 - No UI components yet (Phase 5-7)
 - No backend integration (already done in Phase 3)
 - No route/page setup yet

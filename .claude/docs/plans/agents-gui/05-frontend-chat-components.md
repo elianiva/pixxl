@@ -1,6 +1,7 @@
 # Phase 5: Frontend Chat Components
 
 ## Goal
+
 Build chat UI using AI Elements components with streaming markdown support.
 
 ## Components to Implement
@@ -181,6 +182,7 @@ AI Elements uses shadcn/ui conventions - components accept standard className:
 ```
 
 ## Files to Create
+
 - `apps/frontend/src/features/agents/components/AgentChat.tsx`
 - `apps/frontend/src/features/agents/components/AgentMessageContent.tsx`
 - `apps/frontend/src/features/agents/components/AgentSidebar.tsx`
@@ -188,10 +190,12 @@ AI Elements uses shadcn/ui conventions - components accept standard className:
 - `apps/frontend/src/features/agents/components/index.ts` (barrel export)
 
 ## Files to Modify
+
 - `apps/frontend/src/features/agents/index.ts` - export components
 - `apps/frontend/src/styles.css` - ensure prose styles available
 
 ## Testing
+
 - [ ] Conversation renders with Message components
 - [ ] PromptInput submit triggers action
 - [ ] Streaming content updates in real-time
@@ -199,10 +203,12 @@ AI Elements uses shadcn/ui conventions - components accept standard className:
 - [ ] Session switching works correctly
 
 ## Dependencies on Phase 4
+
 - Uses store from Phase 4
 - Uses hooks from Phase 4
 
 ## Out of Scope
+
 - No tool call display yet (Phase 6)
 - No page/route setup yet (Phase 7)
 - No reasoning visualization yet (Phase 6)
