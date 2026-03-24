@@ -1,5 +1,9 @@
 import { memo } from "react";
 import { cn } from "@/lib/utils";
+import { ReadToolDisplay } from "./tools/ReadTool";
+import { WriteToolDisplay } from "./tools/WriteTool";
+import { EditToolDisplay } from "./tools/EditTool";
+import { BashToolDisplay } from "./tools/BashTool";
 
 interface ToolCallDisplayProps {
   tool: {
@@ -13,6 +17,61 @@ interface ToolCallDisplayProps {
 }
 
 export const ToolCallDisplay = memo(function ToolCallDisplay({ tool }: ToolCallDisplayProps) {
+  return (
+    <div className="my-2">
+      <ToolContent tool={tool} />
+    </div>
+  );
+});
+
+function ToolContent({ tool }: ToolCallDisplayProps) {
+  const params = tool.params as Record<string, unknown> | undefined;
+
+  switch (tool.name) {
+    case "read":
+      return (
+        <ReadToolDisplay
+          path={(params?.path as string) ?? "unknown"}
+          content={tool.output}
+          status={tool.status}
+        />
+      );
+
+    case "write":
+      return (
+        <WriteToolDisplay
+          path={(params?.path as string) ?? "unknown"}
+          content={tool.output}
+          status={tool.status}
+        />
+      );
+
+    case "edit":
+      return (
+        <EditToolDisplay
+          path={(params?.path as string) ?? "unknown"}
+          oldString={params?.old_string as string}
+          newString={params?.new_string as string}
+          status={tool.status}
+        />
+      );
+
+    case "bash":
+      return (
+        <BashToolDisplay
+          command={(params?.command as string) ?? (params?.cmd as string) ?? ""}
+          output={tool.output}
+          error={tool.error}
+          status={tool.status}
+        />
+      );
+
+    default:
+      return <GenericToolDisplay tool={tool} />;
+  }
+}
+
+function GenericToolDisplay({ tool }: ToolCallDisplayProps) {
   const statusColors = {
     running: "border-primary/50 bg-primary/5",
     complete: "border-green-500/50 bg-green-500/5",
@@ -21,7 +80,7 @@ export const ToolCallDisplay = memo(function ToolCallDisplay({ tool }: ToolCallD
 
   return (
     <div
-      className={cn("rounded-md border p-2 text-xs transition-colors", statusColors[tool.status])}
+      className={cn("rounded-md border p-3 text-xs transition-colors", statusColors[tool.status])}
     >
       <div className="flex items-center gap-2 font-medium">
         {/* Status indicator */}
@@ -86,11 +145,11 @@ export const ToolCallDisplay = memo(function ToolCallDisplay({ tool }: ToolCallD
 
       {/* Tool params */}
       {tool.params && Object.keys(tool.params as object).length > 0 && (
-        <div className="mt-1.5 text-muted-foreground">
+        <div className="mt-2 text-muted-foreground">
           <span className="text-[10px] uppercase tracking-wide text-muted-foreground/50">
             params
           </span>
-          <pre className="mt-0.5 overflow-x-auto rounded bg-muted/50 p-1">
+          <pre className="mt-1 overflow-x-auto rounded bg-muted/50 p-2">
             {JSON.stringify(tool.params, null, 2)}
           </pre>
         </div>
@@ -98,23 +157,25 @@ export const ToolCallDisplay = memo(function ToolCallDisplay({ tool }: ToolCallD
 
       {/* Tool output */}
       {tool.output && (
-        <div className="mt-1.5 text-muted-foreground">
+        <div className="mt-2 text-muted-foreground">
           <span className="text-[10px] uppercase tracking-wide text-muted-foreground/50">
             output
           </span>
-          <pre className="mt-0.5 overflow-x-auto rounded bg-muted/50 p-1">
-            {tool.output.length > 500 ? `${tool.output.slice(0, 500)}...` : tool.output}
+          <pre className="mt-1 overflow-x-auto rounded bg-muted/50 p-2">
+            {tool.output.length > 1000
+              ? `${tool.output.slice(0, 1000)}...\n\n[Output truncated]`
+              : tool.output}
           </pre>
         </div>
       )}
 
       {/* Tool error */}
       {tool.error && (
-        <div className="mt-1.5 text-destructive">
+        <div className="mt-2 text-destructive">
           <span className="text-[10px] uppercase tracking-wide text-destructive/50">error</span>
-          <pre className="mt-0.5 overflow-x-auto rounded bg-destructive/10 p-1">{tool.error}</pre>
+          <pre className="mt-1 overflow-x-auto rounded bg-destructive/10 p-2">{tool.error}</pre>
         </div>
       )}
     </div>
   );
-});
+}
