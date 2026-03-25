@@ -1,9 +1,20 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useStore } from "@tanstack/react-store";
 import { useLiveQuery } from "@tanstack/react-db";
 import { projectStore } from "@/lib/project-store";
-import { getInteractionsCollection, sendAgentMessage } from "./interactions-collection";
+import { rpc } from "@/lib/rpc";
+import { queryClient } from "@/lib/query-client";
+import { getInteractionsCollection } from "./interactions-collection";
 import { agentStore, selectAgent } from "./store";
+import {
+  applyAgentEvent,
+  beginAgentStream,
+  failAgentStream,
+  finishAgentStream,
+  getStreamStateForAgent,
+  streamStore,
+  type StreamMessage,
+} from "./stream-store";
 
 function messageTextFromContent(content: unknown): string {
   if (typeof content === "string") return content;
@@ -22,69 +33,157 @@ export function useActiveAgentId(): string | null {
   return useStore(agentStore, (state) => state.activeAgentId);
 }
 
-export function useMessages(
-  agentId?: string,
-): Array<{ id: string; role: "user" | "assistant"; content: string }> {
+export type Message = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  reasoning?: string;
+  isStreaming?: boolean;
+  toolCalls?: Array<{
+    id: string;
+    name: string;
+    params: unknown;
+    status: "running" | "complete" | "error";
+    output?: string;
+    error?: string;
+  }>;
+};
+
+function toMessage(message: StreamMessage): Message {
+  return {
+    id: message.id,
+    role: message.role,
+    content: message.content,
+    reasoning: message.reasoning,
+    isStreaming: message.isStreaming,
+    toolCalls: message.toolCalls,
+  };
+}
+
+export function useMessages(agentId?: string): Message[] {
   const activeAgentId = useActiveAgentId();
   const targetAgentId = agentId ?? activeAgentId;
   const projectId = useStore(projectStore, (state) => state.currentProjectId);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const interactions = useLiveQuery(
-    projectId && targetAgentId
-      ? getInteractionsCollection(projectId, targetAgentId)
-      : (null as any),
+  const streamState = useStore(streamStore, (state) =>
+    targetAgentId ? getStreamStateForAgent(state, targetAgentId) : null,
   );
 
-  return (interactions.data ?? []).reduce<
-    Array<{ id: string; role: "user" | "assistant"; content: string }>
-  >((acc, item) => {
-    if (item.entry.type !== "message") return acc;
+  const { data: historyMessages = [] } = useLiveQuery(
+    getInteractionsCollection(projectId as string, targetAgentId as string),
+  );
 
-    const message = item.entry.message as {
-      role?: "user" | "assistant";
-      content?: unknown;
-    };
+  return useMemo(() => {
+    const persisted = historyMessages
+      .toSorted((a, b) => a.order - b.order)
+      .reduce<Message[]>((acc, item) => {
+        if (item.entry.type !== "message") return acc;
 
-    const role: "user" | "assistant" = message.role === "assistant" ? "assistant" : "user";
+        const message = item.entry.message as {
+          role?: "user" | "assistant";
+          content?: unknown;
+          thinking?: string;
+        };
 
-    acc.push({
-      id: item.entry.id,
-      role,
-      content: messageTextFromContent(message.content),
-    });
+        acc.push({
+          id: item.entry.id,
+          role: message.role === "assistant" ? "assistant" : "user",
+          content: messageTextFromContent(message.content),
+          reasoning: message.thinking,
+        });
 
-    return acc;
-  }, []);
+        return acc;
+      }, []);
+
+    if (!streamState) return persisted;
+
+    const optimistic: Message[] = [];
+    if (streamState.optimisticUserMessage)
+      optimistic.push(toMessage(streamState.optimisticUserMessage));
+    if (streamState.draftAssistantMessage)
+      optimistic.push(toMessage(streamState.draftAssistantMessage));
+
+    return [...persisted, ...optimistic];
+  }, [historyMessages, streamState]);
 }
 
-export function useAgentActions(projectId: string) {
+export function useIsStreaming(agentId?: string) {
   const activeAgentId = useActiveAgentId();
+  const targetAgentId = agentId ?? activeAgentId;
 
-  const select = useCallback((agentId: string | null) => {
-    selectAgent(agentId);
+  return useStore(streamStore, (state) =>
+    targetAgentId ? getStreamStateForAgent(state, targetAgentId).isStreaming : false,
+  );
+}
+
+export function useAgentActions(projectId: string, agentId?: string) {
+  const activeAgentId = useActiveAgentId();
+  const targetAgentId = agentId ?? activeAgentId;
+
+  const select = useCallback((nextAgentId: string | null) => {
+    selectAgent(nextAgentId);
   }, []);
 
-  const sendPrompt = useCallback(
+  const sendMessage = useCallback(
     async (text: string, mode: "immediate" | "steer" | "followUp" = "immediate") => {
-      const agentId = activeAgentId;
-      if (!agentId) return;
+      const resolvedAgentId = targetAgentId;
+      if (!resolvedAgentId) return;
 
-      // Send message - backend handles persistence and streaming
-      const stream = await sendAgentMessage(projectId, agentId, text, mode);
+      if (mode !== "immediate") {
+        const stream = await rpc.agent.promptAgent({
+          projectId,
+          agentId: resolvedAgentId,
+          text,
+          mode,
+        });
 
-      for await (const event of stream) {
-        // Events are used for UI feedback (thinking, tools, etc.)
-        // The collection will refetch after stream completes
-        console.debug("Agent event:", event);
+        for await (const _ of stream) {
+        }
+
+        await queryClient.invalidateQueries({
+          queryKey: ["agent-runtime", projectId, resolvedAgentId],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["agent-interactions", projectId, resolvedAgentId],
+        });
+        return;
+      }
+
+      const requestId = beginAgentStream(resolvedAgentId, text);
+
+      try {
+        const stream = await rpc.agent.promptAgent({
+          projectId,
+          agentId: resolvedAgentId,
+          text,
+          mode,
+        });
+
+        for await (const event of stream) {
+          applyAgentEvent(resolvedAgentId, requestId, event);
+        }
+
+        finishAgentStream(resolvedAgentId, requestId);
+      } catch (error) {
+        failAgentStream(
+          resolvedAgentId,
+          requestId,
+          error instanceof Error ? error.message : "Prompt failed",
+        );
+      } finally {
+        await queryClient.invalidateQueries({
+          queryKey: ["agent-runtime", projectId, resolvedAgentId],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["agent-interactions", projectId, resolvedAgentId],
+        });
       }
     },
-    [activeAgentId, projectId],
+    [projectId, targetAgentId],
   );
 
   return {
     selectAgent: select,
-    sendPrompt,
-    activeAgentId,
+    sendMessage,
+    activeAgentId: targetAgentId,
   };
 }

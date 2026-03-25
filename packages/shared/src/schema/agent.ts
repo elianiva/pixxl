@@ -1,4 +1,6 @@
 import { Schema } from "effect";
+import type { SessionEntry, SessionInfo } from "@mariozechner/pi-coding-agent";
+import { PiSessionEntrySchema, PiSessionInfoSchema } from "./pi";
 
 export const CreateAgentInputSchema = Schema.Struct({
   id: Schema.String,
@@ -78,19 +80,11 @@ export const GetAgentHistoryInputSchema = Schema.Struct({
   agentId: Schema.String,
 });
 
-// Pi session info schema (for listing attachable sessions)
-export const PiSessionInfoSchema = Schema.Struct({
-  path: Schema.String,
-  id: Schema.String,
-  cwd: Schema.String,
-  name: Schema.optionalKey(Schema.String),
-  parentSessionPath: Schema.optionalKey(Schema.String),
-  created: Schema.Date,
-  modified: Schema.Date,
-  messageCount: Schema.Number,
-  firstMessage: Schema.String,
-});
+// Re-export Pi types (unprefixed - the actual types from Pi packages)
+export type PiSessionInfo = SessionInfo;
+export type PiSessionEntry = SessionEntry;
 
+// List schemas using Pi schemas
 export const PiSessionInfoListSchema = Schema.Array(PiSessionInfoSchema);
 
 // Agent runtime state schema
@@ -103,103 +97,6 @@ export const AgentRuntimeStateSchema = Schema.Struct({
   currentSessionFile: Schema.String,
 });
 
-const PiMessageEntrySchema = Schema.Struct({
-  type: Schema.Literal("message"),
-  id: Schema.String,
-  parentId: Schema.NullOr(Schema.String),
-  timestamp: Schema.String,
-  message: Schema.Unknown,
-});
-
-const PiModelChangeEntrySchema = Schema.Struct({
-  type: Schema.Literal("model_change"),
-  id: Schema.String,
-  parentId: Schema.NullOr(Schema.String),
-  timestamp: Schema.String,
-  provider: Schema.String,
-  modelId: Schema.String,
-});
-
-const PiThinkingLevelChangeEntrySchema = Schema.Struct({
-  type: Schema.Literal("thinking_level_change"),
-  id: Schema.String,
-  parentId: Schema.NullOr(Schema.String),
-  timestamp: Schema.String,
-  thinkingLevel: Schema.String,
-});
-
-const PiCompactionEntrySchema = Schema.Struct({
-  type: Schema.Literal("compaction"),
-  id: Schema.String,
-  parentId: Schema.NullOr(Schema.String),
-  timestamp: Schema.String,
-  summary: Schema.String,
-  firstKeptEntryId: Schema.String,
-  tokensBefore: Schema.Number,
-  details: Schema.optionalKey(Schema.Unknown),
-  fromHook: Schema.optionalKey(Schema.Boolean),
-});
-
-const PiBranchSummaryEntrySchema = Schema.Struct({
-  type: Schema.Literal("branch_summary"),
-  id: Schema.String,
-  parentId: Schema.NullOr(Schema.String),
-  timestamp: Schema.String,
-  fromId: Schema.String,
-  summary: Schema.String,
-  details: Schema.optionalKey(Schema.Unknown),
-  fromHook: Schema.optionalKey(Schema.Boolean),
-});
-
-const PiCustomEntrySchema = Schema.Struct({
-  type: Schema.Literal("custom"),
-  id: Schema.String,
-  parentId: Schema.NullOr(Schema.String),
-  timestamp: Schema.String,
-  customType: Schema.String,
-  data: Schema.optionalKey(Schema.Unknown),
-});
-
-const PiCustomMessageEntrySchema = Schema.Struct({
-  type: Schema.Literal("custom_message"),
-  id: Schema.String,
-  parentId: Schema.NullOr(Schema.String),
-  timestamp: Schema.String,
-  customType: Schema.String,
-  content: Schema.Unknown,
-  details: Schema.optionalKey(Schema.Unknown),
-  display: Schema.Boolean,
-});
-
-const PiLabelEntrySchema = Schema.Struct({
-  type: Schema.Literal("label"),
-  id: Schema.String,
-  parentId: Schema.NullOr(Schema.String),
-  timestamp: Schema.String,
-  targetId: Schema.String,
-  label: Schema.optionalKey(Schema.String),
-});
-
-const PiSessionInfoEntrySchema = Schema.Struct({
-  type: Schema.Literal("session_info"),
-  id: Schema.String,
-  parentId: Schema.NullOr(Schema.String),
-  timestamp: Schema.String,
-  name: Schema.optionalKey(Schema.String),
-});
-
-export const PiSessionEntrySchema = Schema.Union([
-  PiMessageEntrySchema,
-  PiModelChangeEntrySchema,
-  PiThinkingLevelChangeEntrySchema,
-  PiCompactionEntrySchema,
-  PiBranchSummaryEntrySchema,
-  PiCustomEntrySchema,
-  PiCustomMessageEntrySchema,
-  PiLabelEntrySchema,
-  PiSessionInfoEntrySchema,
-]);
-
 export const AgentHistorySchema = Schema.Struct({
   agentId: Schema.String,
   projectId: Schema.String,
@@ -211,7 +108,7 @@ export const AgentHistorySchema = Schema.Struct({
   entries: Schema.Array(PiSessionEntrySchema),
 });
 
-// Streaming event schemas
+// Streaming event schemas for the web UI (local to our app, not from Pi)
 const MessageDeltaEventSchema = Schema.Struct({
   type: Schema.Literal("message_delta"),
   sessionId: Schema.String,
@@ -293,9 +190,7 @@ export type PromptMode = typeof PromptModeSchema.Type;
 export type PromptAgentInput = typeof PromptAgentInputSchema.Type;
 export type GetAgentRuntimeInput = typeof GetAgentRuntimeInputSchema.Type;
 export type GetAgentHistoryInput = typeof GetAgentHistoryInputSchema.Type;
-export type PiSessionInfo = typeof PiSessionInfoSchema.Type;
 export type PiSessionInfoList = typeof PiSessionInfoListSchema.Type;
 export type AgentRuntimeState = typeof AgentRuntimeStateSchema.Type;
-export type PiSessionEntry = typeof PiSessionEntrySchema.Type;
 export type AgentHistory = typeof AgentHistorySchema.Type;
 export type AgentEvent = typeof AgentEventSchema.Type;

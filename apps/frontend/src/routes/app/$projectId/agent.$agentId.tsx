@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { RiRobot2Line } from "@remixicon/react";
 import { getAgentsCollection } from "@/features/agent/agents-collection";
 import { agentStore, selectAgent } from "@/features/agent/store";
+import type { AgentMetadata } from "@pixxl/shared";
 
 export const Route = createFileRoute("/app/$projectId/agent/$agentId")({
   component: AgentRoute,
@@ -18,7 +19,8 @@ function AgentRoute() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const agents = useLiveQuery(projectId ? getAgentsCollection(projectId) : (null as any));
-  const activeAgent = (agents.data ?? []).find((agent) => agent.id === agentId) ?? null;
+  const activeAgent =
+    ((agents.data as AgentMetadata[]) ?? []).find((agent) => agent.id === agentId) ?? null;
   const connectionStatus = useStore(agentStore, (state) => state.connectionStatus);
 
   useEffect(() => {

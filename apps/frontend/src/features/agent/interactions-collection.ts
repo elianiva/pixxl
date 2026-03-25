@@ -1,34 +1,20 @@
 import { createCollection } from "@tanstack/db";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import { rpc } from "@/lib/rpc";
-import { type PiSessionEntry } from "@pixxl/shared";
+import type { AgentHistory } from "@pixxl/shared";
 import { queryClient } from "@/lib/query-client";
 
-// Maps backend PiSessionEntry to frontend AgentInteraction
+type HistoryEntry = AgentHistory["entries"][number];
+
 export interface AgentInteraction {
   id: string;
   projectId: string;
   agentId: string;
-  entry: PiSessionEntry;
+  entry: HistoryEntry;
   order: number;
 }
 
-function toInteraction(
-  projectId: string,
-  agentId: string,
-  entry: PiSessionEntry,
-  order: number,
-): AgentInteraction {
-  return {
-    id: `${projectId}:${agentId}:${entry.id}`,
-    projectId,
-    agentId,
-    entry,
-    order,
-  };
-}
-
-function getInteractionsCollectionInternal(projectId: string, agentId: string) {
+function createInteractionsCollection(projectId: string, agentId: string) {
   return createCollection(
     queryCollectionOptions({
       queryClient,
@@ -38,24 +24,29 @@ function getInteractionsCollectionInternal(projectId: string, agentId: string) {
         const history = await rpc.agent.getAgentHistory({ projectId, agentId });
         if (!history) return [];
 
-        return history.entries.map((entry, order) =>
-          toInteraction(projectId, agentId, entry, order),
+        return history.entries.map(
+          (entry, order) =>
+            ({
+              id: `${projectId}:${agentId}:${entry.id}`,
+              projectId,
+              agentId,
+              entry,
+              order,
+            }) satisfies AgentInteraction,
         );
       },
     }),
   );
 }
 
-type InteractionsCollection = ReturnType<typeof getInteractionsCollectionInternal>;
-
-const cache = new Map<string, InteractionsCollection>();
+const cache = new Map<string, ReturnType<typeof createInteractionsCollection>>();
 
 export function getInteractionsCollection(projectId: string, agentId: string) {
   const key = `${projectId}:${agentId}`;
   const existing = cache.get(key);
   if (existing) return existing;
 
-  const collection = getInteractionsCollectionInternal(projectId, agentId);
+  const collection = createInteractionsCollection(projectId, agentId);
 
   collection.on("status:change", ({ status }) => {
     if (status === "cleaned-up") {
@@ -65,20 +56,4 @@ export function getInteractionsCollection(projectId: string, agentId: string) {
 
   cache.set(key, collection);
   return collection;
-}
-
-// Send message and stream response
-// Backend handles persistence (appending to pi session file)
-export async function sendAgentMessage(
-  projectId: string,
-  agentId: string,
-  text: string,
-  mode: "immediate" | "steer" | "followUp" = "immediate",
-) {
-  return rpc.agent.promptAgent({
-    projectId,
-    agentId,
-    text,
-    mode,
-  });
 }

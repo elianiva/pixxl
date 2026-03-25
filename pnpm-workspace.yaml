@@ -4,8 +4,10 @@ packages:
 
 allowBuilds:
   esbuild: true
+  koffi: true
   msgpackr-extract: true
   msw: true
+  protobufjs: true
 
 catalog:
   "@orpc/contract": "^1.13.11"
