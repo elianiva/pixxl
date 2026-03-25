@@ -79,7 +79,7 @@ const extractErrorDetails = (error: unknown): Option.Option<unknown> => {
     return Option.some({ stack: error.stack });
   }
   if (typeof error === "object" && error !== null && !(error instanceof Error)) {
-    const { _tag, message, ...rest } = error as Record<string, unknown>;
+    const { _tag, message: _message, ...rest } = error as Record<string, unknown>;
     if (Object.keys(rest).length > 0) {
       return Option.some(rest);
     }

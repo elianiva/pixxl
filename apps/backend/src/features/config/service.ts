@@ -157,7 +157,7 @@ export class ConfigService extends ServiceMap.Service<ConfigService, ConfigServi
 
         const json = yield* encodeConfig(userConfig).pipe(
           Effect.mapError(
-            (e) =>
+            () =>
               new ConfigSerializeError({
                 configPath,
                 data: userConfig,

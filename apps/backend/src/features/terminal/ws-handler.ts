@@ -12,7 +12,7 @@ interface TerminalWsData {
 }
 
 export function handleTerminalConnection(terminalId: string, ws: Bun.ServerWebSocket<unknown>) {
-  Effect.runPromise(
+  void Effect.runPromise(
     Effect.gen(function* () {
       const service = yield* ConfigService;
       return yield* service.loadConfig();
