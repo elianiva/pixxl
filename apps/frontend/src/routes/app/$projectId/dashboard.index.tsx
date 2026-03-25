@@ -17,9 +17,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLiveQuery } from "@tanstack/react-db";
-import { agentsCollection } from "@/features/agent/agents-collection";
-import { terminalsCollection } from "@/features/terminal/terminals-collection";
-import { commandsCollection } from "@/features/command/commands-collection";
+import { getAgentsCollection } from "@/features/agent/agents-collection";
+import { getTerminalsCollection } from "@/features/terminal/terminals-collection";
+import { getCommandsCollection } from "@/features/command/commands-collection";
 import { generateId } from "@/lib/utils";
 import type { TerminalMetadata } from "@pixxl/shared";
 
@@ -55,7 +55,10 @@ function DashboardPage() {
   const { projectId } = useParams({ from: "/app/$projectId/dashboard/" });
   const navigate = useNavigate();
 
-  // Get counts for stats
+  const agentsCollection = getAgentsCollection(projectId);
+  const terminalsCollection = getTerminalsCollection(projectId);
+  const commandsCollection = getCommandsCollection(projectId);
+
   const terminalsAll = useLiveQuery(terminalsCollection);
   const agentsAll = useLiveQuery(agentsCollection);
   const commandsAll = useLiveQuery(commandsCollection);
@@ -90,7 +93,6 @@ function DashboardPage() {
     (commandsAll.data?.length ?? 0);
 
   function handleCreateTerminal() {
-    if (!terminalsAll.collection) return;
     terminalsCollection.insert({
       id: generateId(),
       name: `Terminal ${(terminalsAll.data?.length ?? 0) + 1}`,
@@ -100,7 +102,6 @@ function DashboardPage() {
   }
 
   function handleCreateAgent() {
-    if (!agentsAll.collection) return;
     agentsCollection.insert({
       id: generateId(),
       name: `Agent ${(agentsAll.data?.length ?? 0) + 1}`,

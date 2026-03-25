@@ -5,15 +5,15 @@ import { AppSidebar } from "@/components/layout/sidebar/app-sidebar";
 import { AppBreadcrumb } from "@/components/layout/app-breadcrumb";
 import { Separator } from "@base-ui/react";
 import { useLiveQuery } from "@tanstack/react-db";
-import { agentsCollection } from "@/features/agent/agents-collection";
-import { terminalsCollection } from "@/features/terminal/terminals-collection";
-import { commandsCollection } from "@/features/command/commands-collection";
+import { getAgentsCollection } from "@/features/agent/agents-collection";
+import { getTerminalsCollection } from "@/features/terminal/terminals-collection";
+import { getCommandsCollection } from "@/features/command/commands-collection";
 import { projectsCollection } from "@/features/project/projects-collection";
 import { NewCommandDialog } from "@/features/command/components/new-command-dialog";
 import { NewProjectDialog } from "@/features/project/components/new-project-dialog";
 import { EditAgentDialog } from "@/features/agent/components/edit-agent-dialog";
 import { EditTerminalDialog } from "@/features/terminal/components/edit-terminal-dialog";
-import type { AgentMetadata, TerminalMetadata } from "@pixxl/shared";
+import type { AgentMetadata, TerminalMetadata, CommandMetadata } from "@pixxl/shared";
 import { generateId } from "@/lib/utils";
 
 export const Route = createFileRoute("/app")({
@@ -25,9 +25,11 @@ function RouteComponent() {
   const navigate = useNavigate();
 
   const projects = useLiveQuery(projectsCollection);
-  const agents = useLiveQuery(agentsCollection);
-  const terminals = useLiveQuery(terminalsCollection);
-  const commands = useLiveQuery(commandsCollection);
+
+  // Get project-scoped collections dynamically based on projectId
+  const agents = useLiveQuery(projectId ? getAgentsCollection(projectId) : null);
+  const terminals = useLiveQuery(projectId ? getTerminalsCollection(projectId) : null);
+  const commands = useLiveQuery(projectId ? getCommandsCollection(projectId) : null);
 
   function handleSelectProject(project: { id: string }) {
     void navigate({
@@ -53,8 +55,8 @@ function RouteComponent() {
   }
 
   function handleCreateAgent(name: string) {
-    if (!agents.collection) return;
-    agentsCollection.insert({
+    if (!projectId) return;
+    getAgentsCollection(projectId).insert({
       id: generateId(),
       name,
       createdAt: new Date().toISOString(),
@@ -63,21 +65,23 @@ function RouteComponent() {
   }
 
   function handleUpdateAgent(id: string, name: string) {
-    if (!agents.collection) return;
-    agentsCollection.update(id, (draft) => {
+    if (!projectId) return;
+    // Draft is mutable proxy, don't type it with readonly schema
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getAgentsCollection(projectId).update(id, (draft: any) => {
       draft.name = name;
       draft.updatedAt = new Date().toISOString();
     });
   }
 
   function handleDeleteAgent(id: string) {
-    if (!agents.collection) return;
-    agentsCollection.delete(id);
+    if (!projectId) return;
+    getAgentsCollection(projectId).delete(id);
   }
 
   function handleCreateTerminal(name: string) {
-    if (!terminals.collection) return;
-    terminalsCollection.insert({
+    if (!projectId) return;
+    getTerminalsCollection(projectId).insert({
       id: generateId(),
       name,
       createdAt: new Date().toISOString(),
@@ -86,21 +90,23 @@ function RouteComponent() {
   }
 
   function handleUpdateTerminal(id: string, name: string) {
-    if (!terminals.collection) return;
-    terminalsCollection.update(id, (draft) => {
+    if (!projectId) return;
+    // Draft is mutable proxy, don't type it with readonly schema
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getTerminalsCollection(projectId).update(id, (draft: any) => {
       draft.name = name;
       draft.updatedAt = new Date().toISOString();
     });
   }
 
   function handleDeleteTerminal(id: string) {
-    if (!terminals.collection) return;
-    terminalsCollection.delete(id);
+    if (!projectId) return;
+    getTerminalsCollection(projectId).delete(id);
   }
 
   function handleCreateCommand(input: { name: string; command: string; description?: string }) {
-    if (!commands.collection) return;
-    commandsCollection.insert({
+    if (!projectId) return;
+    getCommandsCollection(projectId).insert({
       id: generateId(),
       name: input.name,
       command: input.command,
@@ -111,8 +117,8 @@ function RouteComponent() {
   }
 
   function handleDeleteCommand(id: string) {
-    if (!commands.collection) return;
-    commandsCollection.delete(id);
+    if (!projectId) return;
+    getCommandsCollection(projectId).delete(id);
   }
 
   return (
@@ -120,9 +126,9 @@ function RouteComponent() {
       <AppSidebar
         projects={projects.data ?? []}
         currentProjectId={projectId}
-        agents={agents.data ?? []}
-        terminals={terminals.data ?? []}
-        commands={commands.data ?? []}
+        agents={(agents.data ?? []) as AgentMetadata[]}
+        terminals={(terminals.data ?? []) as TerminalMetadata[]}
+        commands={(commands.data ?? []) as CommandMetadata[]}
         isLoading={agents.isLoading || terminals.isLoading}
         onSelectProject={handleSelectProject}
         onAddProject={() => setProjectDialogOpen(true)}

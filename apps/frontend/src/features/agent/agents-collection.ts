@@ -3,56 +3,68 @@ import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import { rpc } from "@/lib/rpc";
 import { generateId, type AgentMetadata } from "@pixxl/shared";
 import { queryClient } from "@/lib/query-client";
-import { projectStore } from "@/lib/project-store";
 
-export const agentsCollection = createCollection(
-  queryCollectionOptions({
-    queryClient,
-    queryKey: () => ["agents", projectStore.state.currentProjectId],
-    getKey: (item: AgentMetadata) => item.id,
-    queryFn: async () => {
-      const projectId = projectStore.state.currentProjectId;
-      if (!projectId) return [];
-      const result = await rpc.agent.listAgents({ projectId });
-      return [...result];
-    },
-    onInsert: async ({ transaction }) => {
-      const projectId = projectStore.state.currentProjectId;
-      if (!projectId) return;
+// we're wrapping createCollection here first so that we can get the return type of createCollection
+// for the cached version later on
+function getAgentsCollectionInternal(projectId: string) {
+  return createCollection(
+    queryCollectionOptions({
+      queryClient,
+      queryKey: ["agents", projectId],
+      getKey: (item: AgentMetadata) => item.id,
+      queryFn: async () => {
+        const result = await rpc.agent.listAgents({ projectId });
+        return [...result];
+      },
+      onInsert: async ({ transaction }) => {
+        for (const mutation of transaction.mutations) {
+          const modified = mutation.modified;
+          if (!modified.name) continue;
 
-      for (const mutation of transaction.mutations) {
-        const modified = mutation.modified;
-        if (!modified.name) continue;
+          await rpc.agent.createAgent({
+            id: generateId(),
+            projectId,
+            name: modified.name,
+          });
+        }
+      },
+      onUpdate: async ({ transaction }) => {
+        for (const mutation of transaction.mutations) {
+          await rpc.agent.updateAgent({
+            projectId,
+            id: mutation.original.id,
+            name: mutation.modified.name,
+          });
+        }
+      },
+      onDelete: async ({ transaction }) => {
+        for (const mutation of transaction.mutations) {
+          await rpc.agent.deleteAgent({
+            projectId,
+            id: mutation.original.id,
+          });
+        }
+      },
+    }),
+  );
+}
 
-        await rpc.agent.createAgent({
-          id: generateId(),
-          projectId,
-          name: modified.name,
-        });
-      }
-    },
-    onUpdate: async ({ transaction }) => {
-      const projectId = projectStore.state.currentProjectId;
-      if (!projectId) return;
+type AgentsCollection = ReturnType<typeof getAgentsCollectionInternal>;
 
-      for (const mutation of transaction.mutations) {
-        await rpc.agent.updateAgent({
-          projectId,
-          id: mutation.original.id,
-          name: mutation.modified.name,
-        });
-      }
-    },
-    onDelete: async ({ transaction }) => {
-      const projectId = projectStore.state.currentProjectId;
-      if (!projectId) return;
+const cache = new Map<string, AgentsCollection>();
 
-      for (const mutation of transaction.mutations) {
-        await rpc.agent.deleteAgent({
-          projectId,
-          id: mutation.original.id,
-        });
-      }
-    },
-  }),
-);
+export function getAgentsCollection(projectId: string) {
+  const existing = cache.get(projectId);
+  if (existing) return existing;
+
+  const collection = getAgentsCollectionInternal(projectId);
+
+  collection.on("status:change", ({ status }) => {
+    if (status === "cleaned-up") {
+      cache.delete(projectId);
+    }
+  });
+
+  cache.set(projectId, collection);
+  return collection;
+}
