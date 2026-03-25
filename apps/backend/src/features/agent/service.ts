@@ -114,7 +114,7 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceA
 
         const projectPath = projectResult.value.path;
 
-        const { sessionFile } = yield* createPiSession(projectPath);
+        const { sessionFile, sessionManager } = yield* createPiSession(projectPath);
 
         const metadataResult = yield* Effect.option(
           agents.create({
@@ -136,9 +136,8 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceA
           });
         }
 
-        // Success - create and cache the actor
+        // Success - create and cache the actor with existing sessionManager
         const metadata = metadataResult.value;
-        const sessionManager = yield* openPiSession(sessionFile, projectPath);
 
         agentManager.getOrCreate({
           agentId: metadata.id,

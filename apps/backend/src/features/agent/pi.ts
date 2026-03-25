@@ -8,6 +8,17 @@ import { AgentAttachError, PiSessionCreateError, PiSessionValidationError } from
  */
 export const createPiSession = Effect.fn("createPiSession")(function* (projectPath: string) {
   const sessionManager = SessionManager.create(projectPath);
+
+  // Initialize the session - this writes the header to disk
+  const sessionId = sessionManager.newSession();
+
+  if (!sessionId) {
+    return yield* new PiSessionCreateError({
+      projectPath,
+      cause: "Failed to initialize new session",
+    });
+  }
+
   const sessionFile = sessionManager.getSessionFile();
 
   if (!sessionFile) {
