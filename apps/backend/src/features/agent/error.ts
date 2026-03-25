@@ -85,6 +85,41 @@ export class SessionTerminateError extends Schema.TaggedErrorClass<SessionTermin
 ) {}
 
 /**
+ * Failed to create Pi session file
+ */
+export class PiSessionCreateError extends Schema.TaggedErrorClass<PiSessionCreateError>()(
+  "PiSessionCreateError",
+  {
+    sessionId: Schema.optionalKey(Schema.String),
+    projectPath: Schema.optionalKey(Schema.String),
+    cause: Schema.optionalKey(Schema.Unknown),
+  },
+) {}
+
+/**
+ * Pi session file validation failed
+ */
+export class PiSessionValidationError extends Schema.TaggedErrorClass<PiSessionValidationError>()(
+  "PiSessionValidationError",
+  {
+    sessionFile: Schema.String,
+    cause: Schema.optionalKey(Schema.Unknown),
+  },
+) {}
+
+/**
+ * Agent session attachment failed
+ */
+export class AgentAttachError extends Schema.TaggedErrorClass<AgentAttachError>()(
+  "AgentAttachError",
+  {
+    agentId: Schema.String,
+    projectId: Schema.String,
+    cause: Schema.optionalKey(Schema.Unknown),
+  },
+) {}
+
+/**
  * Union of all agent errors
  */
 export type AgentError =
@@ -94,7 +129,10 @@ export type AgentError =
   | AgentDeleteError
   | SessionNotFoundError
   | SessionCreateError
-  | SessionTerminateError;
+  | SessionTerminateError
+  | PiSessionCreateError
+  | PiSessionValidationError
+  | AgentAttachError;
 
 /**
  * Type guard for agent errors
@@ -109,4 +147,7 @@ export const isAgentError = (error: unknown): error is AgentError =>
     error._tag === "AgentDeleteError" ||
     error._tag === "SessionNotFoundError" ||
     error._tag === "SessionCreateError" ||
-    error._tag === "SessionTerminateError");
+    error._tag === "SessionTerminateError" ||
+    error._tag === "PiSessionCreateError" ||
+    error._tag === "PiSessionValidationError" ||
+    error._tag === "AgentAttachError");
