@@ -104,7 +104,7 @@ export function AppSidebar({
           onAdd: actions.agents.create
             ? () => actions.agents.create!(`Agent ${agents.length + 1}`)
             : undefined,
-          getUrl: (agent) => `/app/${agent.id}`,
+          getUrl: (agent) => `/app/${currentProjectId}/agent/${agent.id}`,
           onEdit: actions.agents.edit,
           onDelete: actions.agents.delete,
           isLoading,
@@ -120,7 +120,7 @@ export function AppSidebar({
           onAdd: actions.terminals.create
             ? () => actions.terminals.create!(`Terminal ${terminals.length + 1}`)
             : undefined,
-          getUrl: (terminal) => `/terminal/${terminal.id}`,
+          getUrl: (terminal) => `/app/${currentProjectId}/terminal/${terminal.id}`,
           onEdit: actions.terminals.edit,
           onDelete: actions.terminals.delete,
           isLoading,

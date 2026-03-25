@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useStore } from "@tanstack/react-store";
 import { createFileRoute } from "@tanstack/react-router";
-import { AgentSidebar } from "@/features/agent/components/agent-sidebar";
 import { AgentChat } from "@/features/agent/components/agent-chat";
 import { ConnectionStatus } from "@/features/agent/components/connection-status";
 import { Button } from "@/components/ui/button";
@@ -71,7 +70,6 @@ function AgentSessionRoute() {
 
   return (
     <div className="flex h-full">
-      <AgentSidebar />
       <div className="flex flex-1 flex-col min-w-0">
         <AgentHeader sessionName={activeSession?.name} connectionStatus={connectionStatus} />
         <div className="flex-1 overflow-hidden">
