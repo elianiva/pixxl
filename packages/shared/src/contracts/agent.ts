@@ -7,6 +7,16 @@ import {
   ListAgentsInputSchema,
   AgentMetadataSchema,
   AgentMetadataListSchema,
+  AttachSessionInputSchema,
+  SwitchSessionInputSchema,
+  ListAttachableSessionsInputSchema,
+  PromptAgentInputSchema,
+  QueueSteerInputSchema,
+  QueueFollowUpInputSchema,
+  GetAgentRuntimeInputSchema,
+  AgentRuntimeStateSchema,
+  PiSessionInfoListSchema,
+  // Legacy schemas
   CreateSessionInputSchema,
   GetSessionInputSchema,
   ListSessionsInputSchema,
@@ -34,7 +44,38 @@ export const listAgentsContract = oc
   .input(Schema.toStandardSchemaV1(ListAgentsInputSchema))
   .output(Schema.toStandardSchemaV1(AgentMetadataListSchema));
 
-// Session contracts
+// New agent session attachment contracts
+export const attachSessionContract = oc
+  .input(Schema.toStandardSchemaV1(AttachSessionInputSchema))
+  .output(Schema.toStandardSchemaV1(Schema.NullOr(AgentMetadataSchema)));
+
+export const switchSessionContract = oc
+  .input(Schema.toStandardSchemaV1(SwitchSessionInputSchema))
+  .output(Schema.toStandardSchemaV1(Schema.NullOr(AgentMetadataSchema)));
+
+export const listAttachableSessionsContract = oc
+  .input(Schema.toStandardSchemaV1(ListAttachableSessionsInputSchema))
+  .output(Schema.toStandardSchemaV1(PiSessionInfoListSchema));
+
+// Agent runtime contracts
+export const getAgentRuntimeContract = oc
+  .input(Schema.toStandardSchemaV1(GetAgentRuntimeInputSchema))
+  .output(Schema.toStandardSchemaV1(Schema.NullOr(AgentRuntimeStateSchema)));
+
+// Prompt and queue contracts - agent-centric
+export const promptAgentContract = oc
+  .input(Schema.toStandardSchemaV1(PromptAgentInputSchema))
+  .output(eventIterator(Schema.toStandardSchemaV1(AgentEventSchema)));
+
+export const queueSteerContract = oc
+  .input(Schema.toStandardSchemaV1(QueueSteerInputSchema))
+  .output(Schema.toStandardSchemaV1(Schema.Boolean));
+
+export const queueFollowUpContract = oc
+  .input(Schema.toStandardSchemaV1(QueueFollowUpInputSchema))
+  .output(Schema.toStandardSchemaV1(Schema.Boolean));
+
+// Legacy session contracts - deprecated
 export const createSessionContract = oc
   .input(Schema.toStandardSchemaV1(CreateSessionInputSchema))
   .output(Schema.toStandardSchemaV1(AgentSessionSchema));
@@ -51,7 +92,6 @@ export const terminateSessionContract = oc
   .input(Schema.toStandardSchemaV1(TerminateSessionInputSchema))
   .output(Schema.toStandardSchemaV1(Schema.Boolean));
 
-// Streaming prompt contract using eventIterator
 export const promptContract = oc
   .input(Schema.toStandardSchemaV1(PromptInputSchema))
   .output(eventIterator(Schema.toStandardSchemaV1(AgentEventSchema)));

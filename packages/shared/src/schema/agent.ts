@@ -17,11 +17,16 @@ export const DeleteAgentInputSchema = Schema.Struct({
   id: Schema.String,
 });
 
+export const PiMetadataSchema = Schema.Struct({
+  sessionFile: Schema.String,
+});
+
 export const AgentMetadataSchema = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   createdAt: Schema.String,
   updatedAt: Schema.String,
+  pi: PiMetadataSchema,
 });
 
 export const ListAgentsInputSchema = Schema.Struct({
@@ -30,7 +35,63 @@ export const ListAgentsInputSchema = Schema.Struct({
 
 export const AgentMetadataListSchema = Schema.Array(AgentMetadataSchema);
 
-// Session schemas
+// Agent session attachment schemas
+export const AttachSessionInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+  sessionFile: Schema.String,
+});
+
+export const SwitchSessionInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+  sessionFile: Schema.String,
+});
+
+export const ListAttachableSessionsInputSchema = Schema.Struct({
+  projectId: Schema.String,
+});
+
+// Prompt and queue schemas - agent-centric
+export const PromptAgentInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+  text: Schema.String,
+});
+
+export const QueueSteerInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+  text: Schema.String,
+});
+
+export const QueueFollowUpInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+  text: Schema.String,
+});
+
+export const GetAgentRuntimeInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+});
+
+// Pi session info schema (for listing attachable sessions)
+export const PiSessionInfoSchema = Schema.Struct({
+  path: Schema.String,
+  id: Schema.String,
+  cwd: Schema.String,
+  name: Schema.optionalKey(Schema.String),
+  parentSessionPath: Schema.optionalKey(Schema.String),
+  created: Schema.Date,
+  modified: Schema.Date,
+  messageCount: Schema.Number,
+  firstMessage: Schema.String,
+});
+
+export const PiSessionInfoListSchema = Schema.Array(PiSessionInfoSchema);
+
+// Legacy session schemas - deprecated, will be removed
 export const CreateSessionInputSchema = Schema.Struct({
   projectId: Schema.String,
   name: Schema.NonEmptyString,
@@ -60,6 +121,17 @@ export const PromptInputSchema = Schema.Struct({
   text: Schema.String,
 });
 
+// Agent runtime state schema
+export const AgentRuntimeStateSchema = Schema.Struct({
+  agentId: Schema.String,
+  projectId: Schema.String,
+  status: Schema.Literals(["idle", "streaming", "switchingSession", "error"]),
+  queuedSteering: Schema.Array(Schema.String),
+  queuedFollowUp: Schema.Array(Schema.String),
+  currentSessionFile: Schema.String,
+});
+
+// Legacy schemas - keeping for backward compatibility during transition
 export const AgentSessionSchema = Schema.Struct({
   id: Schema.String,
   projectId: Schema.String,
@@ -144,6 +216,17 @@ export type DeleteAgentInput = typeof DeleteAgentInputSchema.Type;
 export type AgentMetadata = typeof AgentMetadataSchema.Type;
 export type AgentMetadataList = typeof AgentMetadataListSchema.Type;
 export type ListAgentsInput = typeof ListAgentsInputSchema.Type;
+export type AttachSessionInput = typeof AttachSessionInputSchema.Type;
+export type SwitchSessionInput = typeof SwitchSessionInputSchema.Type;
+export type ListAttachableSessionsInput = typeof ListAttachableSessionsInputSchema.Type;
+export type PromptAgentInput = typeof PromptAgentInputSchema.Type;
+export type QueueSteerInput = typeof QueueSteerInputSchema.Type;
+export type QueueFollowUpInput = typeof QueueFollowUpInputSchema.Type;
+export type GetAgentRuntimeInput = typeof GetAgentRuntimeInputSchema.Type;
+export type PiSessionInfo = typeof PiSessionInfoSchema.Type;
+export type PiSessionInfoList = typeof PiSessionInfoListSchema.Type;
+export type AgentRuntimeState = typeof AgentRuntimeStateSchema.Type;
+// Legacy types
 export type CreateSessionInput = typeof CreateSessionInputSchema.Type;
 export type GetSessionInput = typeof GetSessionInputSchema.Type;
 export type ListSessionsInput = typeof ListSessionsInputSchema.Type;
