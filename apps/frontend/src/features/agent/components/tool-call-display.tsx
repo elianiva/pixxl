@@ -144,16 +144,20 @@ function GenericToolDisplay({ tool }: ToolCallDisplayProps) {
       </div>
 
       {/* Tool params */}
-      {tool.params && Object.keys(tool.params as object).length > 0 && (
-        <div className="mt-2 text-muted-foreground">
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground/50">
-            params
-          </span>
-          <pre className="mt-1 overflow-x-auto rounded bg-muted/50 p-2">
-            {String(JSON.stringify(tool.params, null, 2))}
-          </pre>
-        </div>
-      )}
+      {(() => {
+        const params = tool.params as Record<string, unknown> | undefined;
+        if (!params || Object.keys(params).length === 0) return null;
+        return (
+          <div className="mt-2 text-muted-foreground">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground/50">
+              params
+            </span>
+            <pre className="mt-1 overflow-x-auto rounded bg-muted/50 p-2">
+              {JSON.stringify(params, null, 2)}
+            </pre>
+          </div>
+        );
+      })()}
 
       {/* Tool output */}
       {tool.output && (

@@ -7,10 +7,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { AgentMessageContent } from "./agent-message-content";
 import { useAgentActions, useMessages, useAgentConnectionStatus } from "../hooks";
 
-export function AgentChat() {
+interface AgentChatProps {
+  projectId: string;
+}
+
+export function AgentChat({ projectId }: AgentChatProps) {
   const messages = useMessages();
   const connectionStatus = useAgentConnectionStatus();
-  const { sendPrompt, abort } = useAgentActions();
+  const { sendPrompt, abort } = useAgentActions(projectId);
   const [inputText, setInputText] = useState("");
   const [isScrollButtonVisible, setIsScrollButtonVisible] = useState(false);
   const conversationRef = useRef<HTMLDivElement>(null);

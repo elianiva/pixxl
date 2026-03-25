@@ -27,9 +27,12 @@ function RouteComponent() {
   const projects = useLiveQuery(projectsCollection);
 
   // Get project-scoped collections dynamically based on projectId
-  const agents = useLiveQuery(projectId ? getAgentsCollection(projectId) : null);
-  const terminals = useLiveQuery(projectId ? getTerminalsCollection(projectId) : null);
-  const commands = useLiveQuery(projectId ? getCommandsCollection(projectId) : null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const agents = useLiveQuery(projectId ? getAgentsCollection(projectId) : (null as any));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const terminals = useLiveQuery(projectId ? getTerminalsCollection(projectId) : (null as any));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const commands = useLiveQuery(projectId ? getCommandsCollection(projectId) : (null as any));
 
   function handleSelectProject(project: { id: string }) {
     void navigate({
@@ -59,6 +62,7 @@ function RouteComponent() {
     getAgentsCollection(projectId).insert({
       id: generateId(),
       name,
+      pi: { sessionFile: "" },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });

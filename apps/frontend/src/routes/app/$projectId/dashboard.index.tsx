@@ -105,6 +105,7 @@ function DashboardPage() {
     agentsCollection.insert({
       id: generateId(),
       name: `Agent ${(agentsAll.data?.length ?? 0) + 1}`,
+      pi: { sessionFile: "" },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });

@@ -58,7 +58,9 @@ function AgentRoute() {
     <div className="flex h-full">
       <div className="flex flex-1 flex-col min-w-0">
         <AgentHeader agentName={activeAgent?.name} connectionStatus={connectionStatus} />
-        <div className="flex-1 overflow-hidden">{activeAgent ? <AgentChat /> : <EmptyState />}</div>
+        <div className="flex-1 overflow-hidden">
+          {activeAgent ? <AgentChat projectId={projectId} /> : <EmptyState />}
+        </div>
       </div>
     </div>
   );

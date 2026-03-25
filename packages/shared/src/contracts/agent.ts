@@ -2,6 +2,7 @@ import { Schema } from "effect";
 import { oc, eventIterator } from "@orpc/contract";
 import {
   CreateAgentInputSchema,
+  GetAgentInputSchema,
   UpdateAgentInputSchema,
   DeleteAgentInputSchema,
   ListAgentsInputSchema,
