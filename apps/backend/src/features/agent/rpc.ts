@@ -1,4 +1,5 @@
 import { Effect, Option } from "effect";
+import type { AgentEvent } from "@pixxl/shared";
 import { os } from "@/contract";
 import { AgentService } from "./service";
 import { mapToOrpcError } from "@/lib/error";
@@ -151,8 +152,7 @@ export const promptAgentRpc = os.agent.promptAgent.handler(async function* ({ in
   let done = false;
 
   // Subscribe to actor events
-  const unsubscribe = actor.subscribe((actorState) => {
-    // Forward state changes as events
+  const subscription = actor.subscribe((actorState) => {
     if (actorState.matches("streaming")) {
       events.push({ type: "status_change", sessionId: input.agentId, status: "streaming" });
     } else if (actorState.matches("ready")) {
@@ -162,7 +162,7 @@ export const promptAgentRpc = os.agent.promptAgent.handler(async function* ({ in
       events.push({
         type: "error",
         sessionId: input.agentId,
-        message: actorState.context.error || "Unknown error",
+        message: (actorState as { context: { error?: string } }).context.error || "Unknown error",
       });
       done = true;
     }
@@ -175,13 +175,14 @@ export const promptAgentRpc = os.agent.promptAgent.handler(async function* ({ in
     // Yield events as they arrive
     while (!done || events.length > 0) {
       if (events.length > 0) {
-        yield events.shift()!;
+        const event = events.shift()!;
+        yield event;
       } else {
         await new Promise((resolve) => setTimeout(resolve, 10));
       }
     }
   } finally {
-    unsubscribe();
+    subscription.unsubscribe();
   }
 });
 
@@ -202,121 +203,4 @@ export const queueFollowUpRpc = os.agent.queueFollowUp.handler(({ input }) => {
   }
   actor.send({ type: "QUEUE_FOLLOW_UP", text: input.text });
   return Promise.resolve(true);
-});
-
-// Legacy session handlers - deprecated, redirect to new handlers
-export const createSessionRpc = os.agent.createSession.handler(({ input }) =>
-  Effect.gen(function* () {
-    // Create agent instead of session
-    const service = yield* AgentService;
-    const agent = yield* service.createAgent({
-      id: input.projectId, // Generate from project as fallback
-      projectId: input.projectId,
-      name: input.name,
-    });
-    // Return legacy format
-    return Option.match(agent, {
-      onSome: (a) => ({
-        id: a.id,
-        projectId: input.projectId,
-        name: a.name,
-        status: "idle" as const,
-        createdAt: new Date(a.createdAt),
-      }),
-      onNone: () => null,
-    });
-  }).pipe(
-    Effect.provide(AgentService.layer),
-    mapToOrpcError({ feature: "agent" }),
-    Effect.runPromise,
-  ),
-);
-
-export const getSessionRpc = os.agent.getSession.handler(({ input }) =>
-  Effect.gen(function* () {
-    const service = yield* AgentService;
-    const agent = yield* service.getAgent({
-      projectId: input.projectId,
-      id: input.sessionId, // Legacy uses sessionId as agentId
-    });
-    return Option.match(agent, {
-      onSome: (a) => ({
-        id: a.id,
-        projectId: input.projectId,
-        name: a.name,
-        status: "idle" as const,
-        createdAt: new Date(a.createdAt),
-      }),
-      onNone: () => null,
-    });
-  }).pipe(
-    Effect.provide(AgentService.layer),
-    mapToOrpcError({ feature: "agent" }),
-    Effect.runPromise,
-  ),
-);
-
-export const listSessionsRpc = os.agent.listSessions.handler(({ input }) =>
-  Effect.gen(function* () {
-    const service = yield* AgentService;
-    const agents = yield* service.listAgents(input);
-    // Return as legacy session format
-    return agents.map((a) => ({
-      id: a.id,
-      projectId: input.projectId,
-      name: a.name,
-      status: "idle" as const,
-      createdAt: new Date(a.createdAt),
-    }));
-  }).pipe(
-    Effect.provide(AgentService.layer),
-    mapToOrpcError({ feature: "agent" }),
-    Effect.runPromise,
-  ),
-);
-
-export const terminateSessionRpc = os.agent.terminateSession.handler(({ input }) =>
-  Effect.gen(function* () {
-    const service = yield* AgentService;
-    yield* service.deleteAgent({
-      projectId: input.projectId,
-      id: input.sessionId, // Legacy uses sessionId as agentId
-    });
-    return true;
-  }).pipe(
-    Effect.provide(AgentService.layer),
-    mapToOrpcError({ feature: "agent" }),
-    Effect.runPromise,
-  ),
-);
-
-// Legacy prompt handler - simplified for compatibility
-export const promptRpc = os.agent.prompt.handler(async function* ({ input }) {
-  // Forward to actor with agentId = sessionId
-  const actor = agentManager.get(input.sessionId);
-
-  if (!actor) {
-    yield { type: "error" as const, sessionId: input.sessionId, message: "Agent actor not found" };
-    return;
-  }
-
-  // Send prompt
-  actor.send({ type: "PROMPT", text: input.text });
-
-  // Yield streaming status
-  yield {
-    type: "status_change" as const,
-    sessionId: input.sessionId,
-    status: "streaming",
-  };
-
-  // Simulate streaming completion after a delay
-  await new Promise((resolve) => setTimeout(resolve, 100));
-
-  // Yield idle status
-  yield {
-    type: "status_change" as const,
-    sessionId: input.sessionId,
-    status: "idle",
-  };
 });

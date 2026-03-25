@@ -3,6 +3,7 @@ import { Schema } from "effect";
 export const CreateAgentInputSchema = Schema.Struct({
   id: Schema.String,
   projectId: Schema.String,
+  projectPath: Schema.String,
   name: Schema.NonEmptyString,
 });
 
@@ -96,36 +97,6 @@ export const PiSessionInfoSchema = Schema.Struct({
 
 export const PiSessionInfoListSchema = Schema.Array(PiSessionInfoSchema);
 
-// Legacy session schemas - deprecated, will be removed
-export const CreateSessionInputSchema = Schema.Struct({
-  projectId: Schema.String,
-  name: Schema.NonEmptyString,
-  model: Schema.optionalKey(Schema.String),
-  thinkingLevel: Schema.optionalKey(
-    Schema.Literals(["off", "minimal", "low", "medium", "high", "xhigh"]),
-  ),
-});
-
-export const GetSessionInputSchema = Schema.Struct({
-  projectId: Schema.String,
-  sessionId: Schema.String,
-});
-
-export const ListSessionsInputSchema = Schema.Struct({
-  projectId: Schema.String,
-});
-
-export const TerminateSessionInputSchema = Schema.Struct({
-  projectId: Schema.String,
-  sessionId: Schema.String,
-});
-
-export const PromptInputSchema = Schema.Struct({
-  projectId: Schema.String,
-  sessionId: Schema.String,
-  text: Schema.String,
-});
-
 // Agent runtime state schema
 export const AgentRuntimeStateSchema = Schema.Struct({
   agentId: Schema.String,
@@ -135,17 +106,6 @@ export const AgentRuntimeStateSchema = Schema.Struct({
   queuedFollowUp: Schema.Array(Schema.String),
   currentSessionFile: Schema.String,
 });
-
-// Legacy schemas - keeping for backward compatibility during transition
-export const AgentSessionSchema = Schema.Struct({
-  id: Schema.String,
-  projectId: Schema.String,
-  name: Schema.String,
-  status: Schema.Literals(["idle", "streaming", "error"]),
-  createdAt: Schema.Date,
-});
-
-export const AgentSessionListSchema = Schema.Array(AgentSessionSchema);
 
 // Streaming event schemas
 const MessageDeltaEventSchema = Schema.Struct({
@@ -232,12 +192,4 @@ export type GetAgentRuntimeInput = typeof GetAgentRuntimeInputSchema.Type;
 export type PiSessionInfo = typeof PiSessionInfoSchema.Type;
 export type PiSessionInfoList = typeof PiSessionInfoListSchema.Type;
 export type AgentRuntimeState = typeof AgentRuntimeStateSchema.Type;
-// Legacy types
-export type CreateSessionInput = typeof CreateSessionInputSchema.Type;
-export type GetSessionInput = typeof GetSessionInputSchema.Type;
-export type ListSessionsInput = typeof ListSessionsInputSchema.Type;
-export type TerminateSessionInput = typeof TerminateSessionInputSchema.Type;
-export type PromptInput = typeof PromptInputSchema.Type;
-export type AgentSession = typeof AgentSessionSchema.Type;
-export type AgentSessionList = typeof AgentSessionListSchema.Type;
 export type AgentEvent = typeof AgentEventSchema.Type;

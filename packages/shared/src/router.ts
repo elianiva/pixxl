@@ -18,12 +18,6 @@ import {
   promptAgentContract,
   queueSteerContract,
   queueFollowUpContract,
-  // Legacy contracts
-  createSessionContract,
-  getSessionContract,
-  listSessionsContract,
-  terminateSessionContract,
-  promptContract,
 } from "./contracts/agent";
 import {
   createTerminalContract,
@@ -55,21 +49,13 @@ export const routerContract = {
     updateAgent: updateAgentContract,
     deleteAgent: deleteAgentContract,
     listAgents: listAgentsContract,
-    // New agent session attachment contracts
     attachSession: attachSessionContract,
     switchSession: switchSessionContract,
     listAttachableSessions: listAttachableSessionsContract,
     getAgentRuntime: getAgentRuntimeContract,
-    // Prompt and queue contracts
     promptAgent: promptAgentContract,
     queueSteer: queueSteerContract,
     queueFollowUp: queueFollowUpContract,
-    // Legacy contracts - deprecated
-    createSession: createSessionContract,
-    getSession: getSessionContract,
-    listSessions: listSessionsContract,
-    terminateSession: terminateSessionContract,
-    prompt: promptContract,
   },
   terminal: {
     createTerminal: createTerminalContract,

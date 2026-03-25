@@ -21,7 +21,8 @@ export const createCommandRpc = os.command.createCommand.handler(({ input }) =>
 export const deleteCommandRpc = os.command.deleteCommand.handler(({ input }) =>
   Effect.gen(function* () {
     const service = yield* CommandService;
-    return yield* service.deleteCommand(input);
+    const result = yield* service.deleteCommand(input);
+    return Option.getOrElse(result, () => false);
   }).pipe(
     Effect.provide(CommandService.layer),
     mapToOrpcError({ feature: "command" }),

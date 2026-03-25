@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { terminalManager } from "./manager";
 import { ConfigService } from "../config/service";
 import type { TerminalActor, Client } from "./actor";
-import type { TerminalClientMessage } from "@pixxl/shared/types";
+import type { TerminalClientMessage } from "@pixxl/shared";
 
 interface TerminalWsData {
   type: "terminal";

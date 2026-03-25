@@ -17,14 +17,6 @@ import {
   GetAgentRuntimeInputSchema,
   AgentRuntimeStateSchema,
   PiSessionInfoListSchema,
-  // Legacy schemas
-  CreateSessionInputSchema,
-  GetSessionInputSchema,
-  ListSessionsInputSchema,
-  TerminateSessionInputSchema,
-  PromptInputSchema,
-  AgentSessionSchema,
-  AgentSessionListSchema,
   AgentEventSchema,
 } from "../schema/agent";
 
@@ -79,24 +71,3 @@ export const queueSteerContract = oc
 export const queueFollowUpContract = oc
   .input(Schema.toStandardSchemaV1(QueueFollowUpInputSchema))
   .output(Schema.toStandardSchemaV1(Schema.Boolean));
-
-// Legacy session contracts - deprecated
-export const createSessionContract = oc
-  .input(Schema.toStandardSchemaV1(CreateSessionInputSchema))
-  .output(Schema.toStandardSchemaV1(AgentSessionSchema));
-
-export const getSessionContract = oc
-  .input(Schema.toStandardSchemaV1(GetSessionInputSchema))
-  .output(Schema.toStandardSchemaV1(Schema.NullOr(AgentSessionSchema)));
-
-export const listSessionsContract = oc
-  .input(Schema.toStandardSchemaV1(ListSessionsInputSchema))
-  .output(Schema.toStandardSchemaV1(AgentSessionListSchema));
-
-export const terminateSessionContract = oc
-  .input(Schema.toStandardSchemaV1(TerminateSessionInputSchema))
-  .output(Schema.toStandardSchemaV1(Schema.Boolean));
-
-export const promptContract = oc
-  .input(Schema.toStandardSchemaV1(PromptInputSchema))
-  .output(eventIterator(Schema.toStandardSchemaV1(AgentEventSchema)));

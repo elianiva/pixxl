@@ -24,12 +24,3 @@ export {
   type AgentError,
   isAgentError,
 } from "./error";
-
-// Legacy exports for backward compatibility during transition
-export {
-  createSessionRpc,
-  getSessionRpc,
-  listSessionsRpc,
-  terminateSessionRpc,
-  promptRpc,
-} from "./rpc";

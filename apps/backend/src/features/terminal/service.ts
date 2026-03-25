@@ -75,6 +75,7 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
             projectPath: projectResult.value.path,
             id: input.id,
             name: input.name,
+            projectId: input.projectId,
           })
           .pipe(
             Effect.mapError(
@@ -133,6 +134,7 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
             projectPath: projectResult.value.path,
             id: input.id,
             name: input.name,
+            projectId: input.projectId,
           })
           .pipe(
             Effect.mapError(
@@ -195,13 +197,13 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
         updateTerminal,
         deleteTerminal,
         listTerminals,
-      } as const;
+      } as unknown as TerminalServiceShape;
     }),
   },
 ) {
   static layer = Layer.effect(TerminalService, TerminalService.make).pipe(
     Layer.provideMerge(EntityService.layer),
-    Layer.provideMerge(ProjectService.layer),
+    Layer.provideMerge(ProjectService.live),
     Layer.provideMerge(ConfigService.layer),
     Layer.provideMerge(Layer.mergeAll(BunFileSystem.layer, BunPath.layer)),
   );

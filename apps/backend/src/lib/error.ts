@@ -7,7 +7,7 @@ export interface MapToOrpcErrorOptions {
 }
 
 export const mapToOrpcError = <E>(options: MapToOrpcErrorOptions) =>
-  Effect.mapError<E, ORPCError<{ data: RpcErrorResponse }>>((error) => {
+  Effect.mapError<E, ORPCError<string, { data: RpcErrorResponse }>>((error) => {
     const { code, message, feature, details } = normalizeError(error, options.feature);
     const errorResponse = makeRpcErrorResponse(
       code,
@@ -15,14 +15,14 @@ export const mapToOrpcError = <E>(options: MapToOrpcErrorOptions) =>
       feature,
       Option.getOrUndefined(details),
     );
-    return new ORPCError(code, { message, data: errorResponse });
+    return new ORPCError(code, { message, data: { data: errorResponse } });
   });
 
 export const isRpcErrorInORPCError = (
   error: unknown,
-): error is ORPCError<{ data: RpcErrorResponse }> => {
+): error is ORPCError<string, { data: RpcErrorResponse }> => {
   if (!(error instanceof ORPCError)) return false;
-  const data = (error as ORPCError<unknown>).data;
+  const data = (error as ORPCError<string, unknown>).data;
   return (
     typeof data === "object" &&
     data !== null &&

@@ -38,7 +38,8 @@ export const updateTerminalRpc = os.terminal.updateTerminal.handler(({ input }) 
 export const deleteTerminalRpc = os.terminal.deleteTerminal.handler(({ input }) =>
   Effect.gen(function* () {
     const service = yield* TerminalService;
-    return yield* service.deleteTerminal(input);
+    const result = yield* service.deleteTerminal(input);
+    return Option.getOrElse(result, () => false);
   }).pipe(
     Effect.provide(TerminalService.layer),
     mapToOrpcError({ feature: "terminal" }),

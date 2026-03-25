@@ -1,6 +1,6 @@
 import { assign, createActor, setup } from "xstate";
 import type { AgentMetadata, AgentEvent } from "@pixxl/shared";
-import type { ReadonlySessionManager } from "@mariozechner/pi-coding-agent";
+import type { SessionManager } from "@mariozechner/pi-coding-agent";
 
 // Actor input
 export interface AgentActorInput {
@@ -8,7 +8,7 @@ export interface AgentActorInput {
   projectId: string;
   projectPath: string;
   metadata: AgentMetadata;
-  sessionManager: ReadonlySessionManager;
+  sessionManager: SessionManager;
 }
 
 // Client subscription for streaming events
@@ -24,7 +24,7 @@ export interface AgentActorContext {
   projectId: string;
   projectPath: string;
   metadata: AgentMetadata;
-  sessionManager: ReadonlySessionManager;
+  sessionManager: SessionManager;
   clients: Set<AgentClient>;
   queuedSteering: string[];
   queuedFollowUp: string[];
@@ -38,10 +38,10 @@ export type AgentActorEvents =
   | { type: "PROMPT"; text: string }
   | { type: "QUEUE_STEER"; text: string }
   | { type: "QUEUE_FOLLOW_UP"; text: string }
-  | { type: "ATTACH_SESSION"; sessionManager: ReadonlySessionManager }
+  | { type: "ATTACH_SESSION"; sessionManager: SessionManager }
   | { type: "ABORT" }
   | { type: "DELETE_METADATA" }
-  | { type: "HYDRATE"; metadata: AgentMetadata; sessionManager: ReadonlySessionManager }
+  | { type: "HYDRATE"; metadata: AgentMetadata; sessionManager: SessionManager }
   | { type: "STREAM_START" }
   | { type: "STREAM_END" }
   | { type: "STREAM_ERROR"; error: string };

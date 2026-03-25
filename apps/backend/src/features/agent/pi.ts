@@ -1,9 +1,5 @@
-import { Effect, Either } from "effect";
-import {
-  SessionManager,
-  type SessionInfo,
-  type ReadonlySessionManager,
-} from "@mariozechner/pi-coding-agent";
+import { Effect, Option } from "effect";
+import { SessionManager, type SessionInfo } from "@mariozechner/pi-coding-agent";
 import { AgentAttachError, PiSessionCreateError, PiSessionValidationError } from "./error";
 
 /**
@@ -35,12 +31,14 @@ export const openPiSession = Effect.fn("openPiSession")(function* (
   // First validate the session file matches expected project
   const validation = yield* validateSessionFile(sessionFile, expectedCwd);
 
-  if (Either.isLeft(validation)) {
-    return yield* validation.left;
+  if (Option.isNone(validation)) {
+    return yield* new PiSessionValidationError({
+      sessionFile,
+      cause: "Session file validation failed",
+    });
   }
 
-  const sessionManager = SessionManager.open(sessionFile);
-  return sessionManager;
+  return validation.value;
 });
 
 /**
@@ -68,42 +66,40 @@ export const listPiSessions = Effect.fn("listPiSessions")(function* (projectPath
 export const validateSessionFile = Effect.fn("validateSessionFile")(function* (
   sessionFile: string,
   expectedCwd: string,
-): Effect.Effect<Either.Either<ReadonlySessionManager, PiSessionValidationError>, never> {
-  const result = yield* Effect.either(
-    Effect.gen(function* () {
-      // Try to open the session to validate it
-      const sessionManager = SessionManager.open(sessionFile);
+) {
+  const inner = Effect.gen(function* () {
+    // Try to open the session to validate it
+    const sessionManager = SessionManager.open(sessionFile);
 
-      // Check header cwd matches expected project
-      const header = sessionManager.getHeader();
-      if (!header) {
-        return yield* new PiSessionValidationError({
+    // Check header cwd matches expected project
+    const header = sessionManager.getHeader();
+    if (!header) {
+      return yield* new PiSessionValidationError({
+        sessionFile,
+        cause: "Session file has no valid header",
+      });
+    }
+
+    if (header.cwd !== expectedCwd) {
+      return yield* new AgentAttachError({
+        agentId: "",
+        projectId: "",
+        cause: `Session cwd "${header.cwd}" does not match project path "${expectedCwd}". Cross-project session attachment is not allowed.`,
+      });
+    }
+
+    return sessionManager;
+  }).pipe(
+    Effect.mapError(
+      (cause) =>
+        new PiSessionValidationError({
           sessionFile,
-          cause: "Session file has no valid header",
-        });
-      }
-
-      if (header.cwd !== expectedCwd) {
-        return yield* new AgentAttachError({
-          agentId: "",
-          projectId: "",
-          cause: `Session cwd "${header.cwd}" does not match project path "${expectedCwd}". Cross-project session attachment is not allowed.`,
-        });
-      }
-
-      return sessionManager;
-    }).pipe(
-      Effect.mapError(
-        (cause) =>
-          new PiSessionValidationError({
-            sessionFile,
-            cause: cause instanceof Error ? cause.message : String(cause),
-          }),
-      ),
+          cause: cause instanceof Error ? cause.message : String(cause),
+        }),
     ),
   );
 
-  return result;
+  return yield* inner.pipe(Effect.option);
 });
 
 /**
