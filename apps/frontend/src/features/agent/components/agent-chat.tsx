@@ -1,10 +1,8 @@
-"use client";
-
 import { useCallback, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { AgentMessageContent } from "./agent-message-content";
+import { ChatInput } from "./chat-input";
 import { useAgentActions, useMessages, useAgentConnectionStatus } from "../hooks";
 
 interface AgentChatProps {
@@ -15,36 +13,17 @@ export function AgentChat({ projectId }: AgentChatProps) {
   const messages = useMessages();
   const connectionStatus = useAgentConnectionStatus();
   const { sendPrompt, abort } = useAgentActions(projectId);
-  const [inputText, setInputText] = useState("");
   const [isScrollButtonVisible, setIsScrollButtonVisible] = useState(false);
   const conversationRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isStreaming = connectionStatus === "streaming" || connectionStatus === "connecting";
 
-  const handleSubmit = useCallback(() => {
-    if (!inputText.trim() || isStreaming) return;
-    void sendPrompt(inputText);
-    setInputText("");
-    textareaRef.current?.focus();
-  }, [inputText, isStreaming, sendPrompt]);
-
-  const handleFormSubmit = useCallback(
-    (e: React.SubmitEvent) => {
-      e.preventDefault();
-      handleSubmit();
+  const handleSubmit = useCallback(
+    (text: string) => {
+      if (isStreaming) return;
+      void sendPrompt(text);
     },
-    [handleSubmit],
-  );
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSubmit();
-      }
-    },
-    [handleSubmit],
+    [isStreaming, sendPrompt],
   );
 
   const handleScroll = useCallback(() => {
@@ -157,78 +136,12 @@ export function AgentChat({ projectId }: AgentChatProps) {
       )}
 
       {/* Prompt input */}
-      <div className="border-t bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <form onSubmit={handleFormSubmit} className="relative">
-          <Textarea
-            ref={textareaRef}
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask the agent..."
-            className="min-h-[56px] max-h-[200px] resize-none pr-12"
-            rows={1}
-            disabled={isStreaming}
-          />
-          <div className="absolute bottom-2 right-2 flex items-center gap-1">
-            {/* Abort button */}
-            {isStreaming && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                onClick={abort}
-                className="text-destructive hover:text-destructive"
-              >
-                <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    d="M6 18L18 6M6 6l12 12"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
-              </Button>
-            )}
-            {/* Submit button */}
-            <Button
-              type="submit"
-              size="icon-xs"
-              disabled={!inputText.trim() || isStreaming}
-              className="size-7"
-            >
-              {isStreaming ? (
-                <svg className="size-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-              ) : (
-                <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    d="M12 19V5M5 12l7-7 7 7"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
-              )}
-            </Button>
-          </div>
-        </form>
-        <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-          Press Enter to send, Shift+Enter for new line
-        </p>
-      </div>
+      <ChatInput
+        onSubmit={handleSubmit}
+        onAbort={abort}
+        isStreaming={isStreaming}
+        placeholder="Ask anything..."
+      />
     </div>
   );
 }
