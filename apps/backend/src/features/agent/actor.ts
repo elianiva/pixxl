@@ -305,9 +305,7 @@ export function getActorState(actor: AgentActor) {
 }
 
 // Helper to get runtime state from actor
-export function getActorRuntimeState(
-  actor: AgentActor,
-): {
+export function getActorRuntimeState(actor: AgentActor): {
   status: "idle" | "streaming" | "switchingSession" | "error";
   queuedSteering: string[];
   queuedFollowUp: string[];

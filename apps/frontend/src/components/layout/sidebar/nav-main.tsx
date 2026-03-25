@@ -86,7 +86,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
                           render={<span />}
                           className={cn(
                             subItem.disabled &&
-                            "text-muted-foreground hover:bg-transparent active:bg-transparent hover:text-muted-foreground active:text-muted-foreground opacity-50",
+                              "text-muted-foreground hover:bg-transparent active:bg-transparent hover:text-muted-foreground active:text-muted-foreground opacity-50",
                           )}
                         >
                           <span>No {item.title.toLowerCase()}</span>

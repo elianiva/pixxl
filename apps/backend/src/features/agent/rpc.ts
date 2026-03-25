@@ -1,14 +1,8 @@
 import { Effect, Option } from "effect";
 import { os } from "@/contract";
 import { AgentService } from "./service";
-import { AgentSessionService } from "./session";
-import { ProjectService } from "../project/service";
 import { mapToOrpcError } from "@/lib/error";
-import type { AgentSessionEvent } from "@mariozechner/pi-coding-agent";
-import type { AgentEvent } from "@pixxl/shared";
-
-// Session handlers use AgentSessionService.layer (already includes all dependencies)
-const sessionLayer = AgentSessionService.layer;
+import { agentManager } from "./manager";
 
 // Agent metadata handlers
 export const createAgentRpc = os.agent.createAgent.handler(({ input }) =>
@@ -64,144 +58,103 @@ export const listAgentsRpc = os.agent.listAgents.handler(({ input }) =>
   ),
 );
 
-// Session management handlers
-export const createSessionRpc = os.agent.createSession.handler(({ input }) =>
+// New agent session attachment handlers
+export const attachSessionRpc = os.agent.attachSession.handler(({ input }) =>
   Effect.gen(function* () {
-    const projectService = yield* ProjectService;
-    const projectResult = yield* projectService.getProjectDetail({ id: input.projectId });
-
-    if (Option.isNone(projectResult)) {
-      return yield* Effect.fail(new Error("Project not found"));
-    }
-
-    const service = yield* AgentSessionService;
-    const session = yield* service.createSession({
-      projectId: input.projectId,
-      projectPath: projectResult.value.path,
-      name: input.name,
-      model: input.model,
-      thinkingLevel: input.thinkingLevel,
-    });
-
-    return session;
-  }).pipe(Effect.provide(sessionLayer), mapToOrpcError({ feature: "session" }), Effect.runPromise),
-);
-
-export const getSessionRpc = os.agent.getSession.handler(({ input }) =>
-  Effect.gen(function* () {
-    const service = yield* AgentSessionService;
-    const session = yield* service.getSession({
-      projectId: input.projectId,
-      sessionId: input.sessionId,
-    });
-    return Option.match(session, {
-      onSome: (s) => s,
+    const service = yield* AgentService;
+    const agent = yield* service.attachSession(input);
+    return Option.match(agent, {
+      onSome: (agent) => agent,
       onNone: () => null,
     });
-  }).pipe(Effect.provide(sessionLayer), mapToOrpcError({ feature: "session" }), Effect.runPromise),
+  }).pipe(
+    Effect.provide(AgentService.layer),
+    mapToOrpcError({ feature: "agent" }),
+    Effect.runPromise,
+  ),
 );
 
-export const listSessionsRpc = os.agent.listSessions.handler(({ input }) =>
+export const switchSessionRpc = os.agent.switchSession.handler(({ input }) =>
   Effect.gen(function* () {
-    const service = yield* AgentSessionService;
-    return yield* service.listSessions({ projectId: input.projectId });
-  }).pipe(Effect.provide(sessionLayer), mapToOrpcError({ feature: "session" }), Effect.runPromise),
-);
-
-export const terminateSessionRpc = os.agent.terminateSession.handler(({ input }) =>
-  Effect.gen(function* () {
-    const service = yield* AgentSessionService;
-    yield* service.terminateSession({
-      projectId: input.projectId,
-      sessionId: input.sessionId,
+    const service = yield* AgentService;
+    const agent = yield* service.switchSession(input);
+    return Option.match(agent, {
+      onSome: (agent) => agent,
+      onNone: () => null,
     });
-    return true;
-  }).pipe(Effect.provide(sessionLayer), mapToOrpcError({ feature: "session" }), Effect.runPromise),
+  }).pipe(
+    Effect.provide(AgentService.layer),
+    mapToOrpcError({ feature: "agent" }),
+    Effect.runPromise,
+  ),
 );
 
-// Convert pi SDK event to server event
-function convertPiToServerEvent(event: AgentSessionEvent, sessionId: string): AgentEvent {
-  switch (event.type) {
-    case "message_start":
-    case "message_update":
-    case "message_end":
-      return { type: "message_delta", sessionId, delta: "" };
+export const listAttachableSessionsRpc = os.agent.listAttachableSessions.handler(({ input }) =>
+  Effect.gen(function* () {
+    const service = yield* AgentService;
+    return yield* service.listAttachableSessions(input);
+  }).pipe(
+    Effect.provide(AgentService.layer),
+    mapToOrpcError({ feature: "agent" }),
+    Effect.runPromise,
+  ),
+);
 
-    case "tool_execution_start":
-      return {
-        type: "tool_start",
-        sessionId,
-        toolName: event.toolName,
-        params: event.args ?? {},
-      };
+export const getAgentRuntimeRpc = os.agent.getAgentRuntime.handler(({ input }) =>
+  Effect.gen(function* () {
+    const service = yield* AgentService;
+    const state = yield* service.getAgentRuntime(input);
+    return Option.match(state, {
+      onSome: (state) => state,
+      onNone: () => null,
+    });
+  }).pipe(
+    Effect.provide(AgentService.layer),
+    mapToOrpcError({ feature: "agent" }),
+    Effect.runPromise,
+  ),
+);
 
-    case "tool_execution_update": {
-      const partialResult = event.partialResult;
-      return {
-        type: "tool_update",
-        sessionId,
-        output:
-          typeof partialResult === "string" ? partialResult : JSON.stringify(partialResult ?? ""),
-      };
-    }
+// Prompt handler - agent-centric, goes through actor
+export const promptAgentRpc = os.agent.promptAgent.handler(async function* ({ input }) {
+  // Get or create the actor for this agent
+  const actor = agentManager.get(input.agentId);
 
-    case "tool_execution_end":
-      return {
-        type: "tool_end",
-        sessionId,
-        result: event.result ?? {},
-      };
-
-    case "agent_start":
-    case "turn_start":
-      return { type: "status_change", sessionId, status: "streaming" };
-
-    case "agent_end":
-    case "turn_end":
-      return { type: "status_change", sessionId, status: "idle" };
-
-    default:
-      return {
-        type: "error",
-        sessionId,
-        message: `Unknown event type: ${event.type}`,
-      };
-  }
-}
-
-// Streaming prompt handler - simple async generator
-export const promptRpc = os.agent.prompt.handler(async function* ({ input }) {
-  const sessionResult = await Effect.runPromise(
-    Effect.gen(function* () {
-      const service = yield* AgentSessionService;
-      return yield* service.getSession({
-        projectId: input.projectId,
-        sessionId: input.sessionId,
-      });
-    }).pipe(Effect.provide(sessionLayer)),
-  );
-
-  if (Option.isNone(sessionResult)) {
-    yield { type: "error" as const, sessionId: input.sessionId, message: "Session not found" };
+  if (!actor) {
+    yield { type: "error" as const, sessionId: input.agentId, message: "Agent actor not found" };
     return;
   }
 
-  const session = sessionResult.value;
+  const state = actor.getSnapshot();
+  if (state.matches("deleted") || state.matches("deleting")) {
+    yield { type: "error" as const, sessionId: input.agentId, message: "Agent is being deleted" };
+    return;
+  }
 
-  // Collect events from subscription
+  // Connect to actor's event stream
   const events: AgentEvent[] = [];
-
   let done = false;
 
-  const unsubscribe = session.piSession.subscribe((event: AgentSessionEvent) => {
-    const serverEvent = convertPiToServerEvent(event, input.sessionId);
-    events.push(serverEvent);
+  // Subscribe to actor events
+  const unsubscribe = actor.subscribe((actorState) => {
+    // Forward state changes as events
+    if (actorState.matches("streaming")) {
+      events.push({ type: "status_change", sessionId: input.agentId, status: "streaming" });
+    } else if (actorState.matches("ready")) {
+      events.push({ type: "status_change", sessionId: input.agentId, status: "idle" });
+      done = true;
+    } else if (actorState.matches("error")) {
+      events.push({
+        type: "error",
+        sessionId: input.agentId,
+        message: actorState.context.error || "Unknown error",
+      });
+      done = true;
+    }
   });
 
-  // Send the prompt
-  session.piSession.prompt(input.text).then(() => {
-    done = true;
-  });
+  // Send prompt to actor
+  actor.send({ type: "PROMPT", text: input.text });
 
   try {
     // Yield events as they arrive
@@ -215,4 +168,140 @@ export const promptRpc = os.agent.prompt.handler(async function* ({ input }) {
   } finally {
     unsubscribe();
   }
+});
+
+// Queue handlers
+export const queueSteerRpc = os.agent.queueSteer.handler(({ input }) => {
+  const actor = agentManager.get(input.agentId);
+  if (!actor) {
+    return Promise.resolve(false);
+  }
+  actor.send({ type: "QUEUE_STEER", text: input.text });
+  return Promise.resolve(true);
+});
+
+export const queueFollowUpRpc = os.agent.queueFollowUp.handler(({ input }) => {
+  const actor = agentManager.get(input.agentId);
+  if (!actor) {
+    return Promise.resolve(false);
+  }
+  actor.send({ type: "QUEUE_FOLLOW_UP", text: input.text });
+  return Promise.resolve(true);
+});
+
+// Legacy session handlers - deprecated, redirect to new handlers
+export const createSessionRpc = os.agent.createSession.handler(({ input }) =>
+  Effect.gen(function* () {
+    // Create agent instead of session
+    const service = yield* AgentService;
+    const agent = yield* service.createAgent({
+      id: input.projectId, // Generate from project as fallback
+      projectId: input.projectId,
+      name: input.name,
+    });
+    // Return legacy format
+    return Option.match(agent, {
+      onSome: (a) => ({
+        id: a.id,
+        projectId: input.projectId,
+        name: a.name,
+        status: "idle" as const,
+        createdAt: new Date(a.createdAt),
+      }),
+      onNone: () => null,
+    });
+  }).pipe(
+    Effect.provide(AgentService.layer),
+    mapToOrpcError({ feature: "agent" }),
+    Effect.runPromise,
+  ),
+);
+
+export const getSessionRpc = os.agent.getSession.handler(({ input }) =>
+  Effect.gen(function* () {
+    const service = yield* AgentService;
+    const agent = yield* service.getAgent({
+      projectId: input.projectId,
+      id: input.sessionId, // Legacy uses sessionId as agentId
+    });
+    return Option.match(agent, {
+      onSome: (a) => ({
+        id: a.id,
+        projectId: input.projectId,
+        name: a.name,
+        status: "idle" as const,
+        createdAt: new Date(a.createdAt),
+      }),
+      onNone: () => null,
+    });
+  }).pipe(
+    Effect.provide(AgentService.layer),
+    mapToOrpcError({ feature: "agent" }),
+    Effect.runPromise,
+  ),
+);
+
+export const listSessionsRpc = os.agent.listSessions.handler(({ input }) =>
+  Effect.gen(function* () {
+    const service = yield* AgentService;
+    const agents = yield* service.listAgents(input);
+    // Return as legacy session format
+    return agents.map((a) => ({
+      id: a.id,
+      projectId: input.projectId,
+      name: a.name,
+      status: "idle" as const,
+      createdAt: new Date(a.createdAt),
+    }));
+  }).pipe(
+    Effect.provide(AgentService.layer),
+    mapToOrpcError({ feature: "agent" }),
+    Effect.runPromise,
+  ),
+);
+
+export const terminateSessionRpc = os.agent.terminateSession.handler(({ input }) =>
+  Effect.gen(function* () {
+    const service = yield* AgentService;
+    yield* service.deleteAgent({
+      projectId: input.projectId,
+      id: input.sessionId, // Legacy uses sessionId as agentId
+    });
+    return true;
+  }).pipe(
+    Effect.provide(AgentService.layer),
+    mapToOrpcError({ feature: "agent" }),
+    Effect.runPromise,
+  ),
+);
+
+// Legacy prompt handler - simplified for compatibility
+export const promptRpc = os.agent.prompt.handler(async function* ({ input }) {
+  // Forward to actor with agentId = sessionId
+  const actor = agentManager.get(input.sessionId);
+
+  if (!actor) {
+    yield { type: "error" as const, sessionId: input.sessionId, message: "Agent actor not found" };
+    return;
+  }
+
+  // Send prompt
+  actor.send({ type: "PROMPT", text: input.text });
+
+  // Yield streaming status
+  yield {
+    type: "status_change" as const,
+    sessionId: input.sessionId,
+    status: "streaming",
+  };
+
+  // Simulate streaming completion after a delay
+  await new Promise((resolve) => setTimeout(resolve, 100));
+
+  // Yield idle status
+  yield {
+    type: "status_change" as const,
+    sessionId: input.sessionId,
+    status: "idle",
+  };
 });
