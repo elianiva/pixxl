@@ -32,6 +32,10 @@ export const createAgentContract = oc
   .input(Schema.toStandardSchemaV1(CreateAgentInputSchema))
   .output(Schema.toStandardSchemaV1(Schema.NullOr(AgentMetadataSchema)));
 
+export const getAgentContract = oc
+  .input(Schema.toStandardSchemaV1(GetAgentInputSchema))
+  .output(Schema.toStandardSchemaV1(Schema.NullOr(AgentMetadataSchema)));
+
 export const updateAgentContract = oc
   .input(Schema.toStandardSchemaV1(UpdateAgentInputSchema))
   .output(Schema.toStandardSchemaV1(Schema.NullOr(AgentMetadataSchema)));

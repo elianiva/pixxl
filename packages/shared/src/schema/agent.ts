@@ -17,6 +17,11 @@ export const DeleteAgentInputSchema = Schema.Struct({
   id: Schema.String,
 });
 
+export const GetAgentInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  id: Schema.String,
+});
+
 export const PiMetadataSchema = Schema.Struct({
   sessionFile: Schema.String,
 });
@@ -211,6 +216,7 @@ export const AgentEventSchema = Schema.Union([
 ]);
 
 export type CreateAgentInput = typeof CreateAgentInputSchema.Type;
+export type GetAgentInput = typeof GetAgentInputSchema.Type;
 export type UpdateAgentInput = typeof UpdateAgentInputSchema.Type;
 export type DeleteAgentInput = typeof DeleteAgentInputSchema.Type;
 export type AgentMetadata = typeof AgentMetadataSchema.Type;

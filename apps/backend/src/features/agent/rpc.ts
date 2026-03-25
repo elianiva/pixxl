@@ -5,6 +5,21 @@ import { mapToOrpcError } from "@/lib/error";
 import { agentManager } from "./manager";
 
 // Agent metadata handlers
+export const getAgentRpc = os.agent.getAgent.handler(({ input }) =>
+  Effect.gen(function* () {
+    const service = yield* AgentService;
+    const agent = yield* service.getAgent(input);
+    return Option.match(agent, {
+      onSome: (agent) => agent,
+      onNone: () => null,
+    });
+  }).pipe(
+    Effect.provide(AgentService.layer),
+    mapToOrpcError({ feature: "agent" }),
+    Effect.runPromise,
+  ),
+);
+
 export const createAgentRpc = os.agent.createAgent.handler(({ input }) =>
   Effect.gen(function* () {
     const service = yield* AgentService;

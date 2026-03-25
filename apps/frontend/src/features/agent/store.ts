@@ -1,5 +1,5 @@
 import { Store } from "@tanstack/react-store";
-import type { AgentSession, AgentEvent } from "@pixxl/shared";
+import type { AgentMetadata, AgentEvent } from "@pixxl/shared";
 import { rpc } from "@/lib/rpc";
 import { projectStore } from "@/lib/project-store";
 import { queryClient } from "@/lib/query-client";
@@ -28,43 +28,41 @@ export interface ToolCall {
 }
 
 /**
- * Runtime session state (messages, tools, streaming status)
+ * Combined agent state - metadata + runtime
  */
-export interface SessionState {
+export interface AgentStateItem extends AgentMetadata {
+  runtimeStatus?: "idle" | "streaming" | "switchingSession" | "error";
   messages: Message[];
   isStreaming: boolean;
   currentToolCall?: ToolCall;
   toolCalls: ToolCall[];
+  queuedSteering: string[];
+  queuedFollowUp: string[];
 }
-
-/**
- * Full session including metadata and runtime state
- */
-export interface AgentSessionState extends AgentSession, SessionState {}
 
 /**
  * Agent store state
  */
-export interface AgentState {
-  sessions: Record<string, AgentSessionState>;
-  activeSessionId: string | null;
+export interface AgentStoreState {
+  agents: Record<string, AgentStateItem>;
+  activeAgentId: string | null;
   connectionStatus: "idle" | "connecting" | "streaming" | "error";
   error: string | null;
 }
 
-const initialState: AgentState = {
-  sessions: {},
-  activeSessionId: null,
+const initialState: AgentStoreState = {
+  agents: {},
+  activeAgentId: null,
   connectionStatus: "idle",
   error: null,
 };
 
-export const agentStore = new Store<AgentState>(initialState);
+export const agentStore = new Store<AgentStoreState>(initialState);
 
 /**
  * Convert AgentEvent to session state update
  */
-function handleAgentEvent(sessionId: string, event: AgentEvent): Partial<SessionState> | null {
+function handleAgentEvent(agentId: string, event: AgentEvent): Partial<AgentStateItem> | null {
   switch (event.type) {
     case "message_delta":
       return {
@@ -87,37 +85,37 @@ function handleAgentEvent(sessionId: string, event: AgentEvent): Partial<Session
       };
       return {
         currentToolCall: toolCall,
-        toolCalls: [...(agentStore.state.sessions[sessionId]?.toolCalls ?? []), toolCall],
+        toolCalls: [...(agentStore.state.agents[agentId]?.toolCalls ?? []), toolCall],
       };
     }
 
     case "tool_update": {
-      const session = agentStore.state.sessions[sessionId];
-      if (!session?.currentToolCall) return null;
+      const agent = agentStore.state.agents[agentId];
+      if (!agent?.currentToolCall) return null;
 
       const updatedToolCall: ToolCall = {
-        ...session.currentToolCall,
-        output: (session.currentToolCall.output ?? "") + event.output,
+        ...agent.currentToolCall,
+        output: (agent.currentToolCall.output ?? "") + event.output,
       };
       return {
         currentToolCall: updatedToolCall,
-        toolCalls: session.toolCalls.map((tc) =>
+        toolCalls: agent.toolCalls.map((tc) =>
           tc.id === updatedToolCall.id ? updatedToolCall : tc,
         ),
       };
     }
 
     case "tool_end": {
-      const session = agentStore.state.sessions[sessionId];
-      if (!session?.currentToolCall) return null;
+      const agent = agentStore.state.agents[agentId];
+      if (!agent?.currentToolCall) return null;
 
       const completedToolCall: ToolCall = {
-        ...session.currentToolCall,
+        ...agent.currentToolCall,
         status: "complete",
       };
       return {
         currentToolCall: undefined,
-        toolCalls: session.toolCalls.map((tc) =>
+        toolCalls: agent.toolCalls.map((tc) =>
           tc.id === completedToolCall.id ? completedToolCall : tc,
         ),
       };
@@ -126,12 +124,14 @@ function handleAgentEvent(sessionId: string, event: AgentEvent): Partial<Session
     case "status_change":
       return {
         isStreaming: event.status === "streaming",
+        runtimeStatus: event.status,
       };
 
     case "error":
       // Error events set the store-level error
       return {
         isStreaming: false,
+        runtimeStatus: "error",
       };
 
     default:
@@ -142,12 +142,12 @@ function handleAgentEvent(sessionId: string, event: AgentEvent): Partial<Session
 /**
  * Finalize streaming message (remove isStreaming flag)
  */
-function finalizeMessage(sessionId: string) {
-  const session = agentStore.state.sessions[sessionId];
-  if (!session) return;
+function finalizeMessage(agentId: string) {
+  const agent = agentStore.state.agents[agentId];
+  if (!agent) return;
 
-  const messages = session.messages.map((msg, index) => {
-    if (index === session.messages.length - 1 && msg.isStreaming) {
+  const messages = agent.messages.map((msg, index) => {
+    if (index === agent.messages.length - 1 && msg.isStreaming) {
       return { ...msg, isStreaming: false };
     }
     return msg;
@@ -155,10 +155,10 @@ function finalizeMessage(sessionId: string) {
 
   agentStore.setState((state) => ({
     ...state,
-    sessions: {
-      ...state.sessions,
-      [sessionId]: {
-        ...state.sessions[sessionId],
+    agents: {
+      ...state.agents,
+      [agentId]: {
+        ...state.agents[agentId],
         messages,
       },
     },
@@ -166,108 +166,115 @@ function finalizeMessage(sessionId: string) {
 }
 
 /**
- * Create a new agent session
+ * Initialize agent data from metadata + runtime
  */
-export async function createSession(input: {
-  name: string;
-  model?: string;
-  thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
-}): Promise<AgentSessionState | null> {
-  const projectId = projectStore.state.currentProjectId;
-  if (!projectId) {
-    console.error("[AgentStore] No project selected");
-    return null;
-  }
+export async function initializeAgent(agent: AgentMetadata, projectId: string): Promise<void> {
+  // Get runtime state
+  const runtime = await rpc.agent.getAgentRuntime({ projectId, agentId: agent.id });
 
-  try {
-    const session = await rpc.agent.createSession({
-      projectId,
-      name: input.name,
-      model: input.model,
-      thinkingLevel: input.thinkingLevel,
-    });
-
-    const sessionState: AgentSessionState = {
-      ...session,
-      messages: [],
-      isStreaming: false,
-      toolCalls: [],
-    };
-
-    agentStore.setState((state) => ({
-      ...state,
-      sessions: {
-        ...state.sessions,
-        [session.id]: sessionState,
-      },
-      activeSessionId: state.activeSessionId ?? session.id,
-    }));
-
-    // Invalidate sessions list query
-    void queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
-
-    return sessionState;
-  } catch (error) {
-    console.error("[AgentStore] Failed to create session:", error);
-    agentStore.setState((state) => ({
-      ...state,
-      error: error instanceof Error ? error.message : "Failed to create session",
-    }));
-    return null;
-  }
-}
-
-/**
- * Select an active session
- */
-export function selectSession(sessionId: string | null) {
   agentStore.setState((state) => ({
     ...state,
-    activeSessionId: sessionId,
+    agents: {
+      ...state.agents,
+      [agent.id]: {
+        ...agent,
+        ...runtime,
+        messages: [],
+        isStreaming: false,
+        toolCalls: [],
+        queuedSteering: [],
+        queuedFollowUp: [],
+      },
+    },
   }));
 }
 
 /**
- * Close and remove a session
+ * Create a new agent
  */
-export async function closeSession(sessionId: string): Promise<void> {
-  const projectId = projectStore.state.currentProjectId;
-  if (!projectId) return;
-
+export async function createAgent(input: {
+  name: string;
+  projectId: string;
+}): Promise<AgentMetadata | null> {
   try {
-    await rpc.agent.terminateSession({ projectId, sessionId });
+    const agent = await rpc.agent.createAgent({
+      id: crypto.randomUUID(),
+      projectId: input.projectId,
+      name: input.name,
+    });
+
+    if (!agent) return null;
+
+    // Initialize the agent in store
+    await initializeAgent(agent, input.projectId);
+
+    agentStore.setState((state) => ({
+      ...state,
+      activeAgentId: state.activeAgentId ?? agent.id,
+    }));
+
+    // Invalidate agents list query
+    void queryClient.invalidateQueries({ queryKey: ["agents", input.projectId] });
+
+    return agent;
+  } catch (error) {
+    console.error("[AgentStore] Failed to create agent:", error);
+    agentStore.setState((state) => ({
+      ...state,
+      error: error instanceof Error ? error.message : "Failed to create agent",
+    }));
+    return null;
+  }
+}
+
+/**
+ * Select an active agent
+ */
+export function selectAgent(agentId: string | null) {
+  agentStore.setState((state) => ({
+    ...state,
+    activeAgentId: agentId,
+  }));
+}
+
+/**
+ * Delete an agent
+ */
+export async function deleteAgent(agentId: string, projectId: string): Promise<void> {
+  try {
+    await rpc.agent.deleteAgent({ projectId, id: agentId });
 
     agentStore.setState((state) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { [sessionId]: _, ...remainingSessions } = state.sessions;
+      const { [agentId]: _, ...remainingAgents } = state.agents;
       return {
         ...state,
-        sessions: remainingSessions,
-        activeSessionId:
-          state.activeSessionId === sessionId
-            ? (Object.keys(remainingSessions)[0] ?? null)
-            : state.activeSessionId,
+        agents: remainingAgents,
+        activeAgentId:
+          state.activeAgentId === agentId
+            ? (Object.keys(remainingAgents)[0] ?? null)
+            : state.activeAgentId,
       };
     });
 
-    // Invalidate sessions list query
-    void queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
+    // Invalidate agents list query
+    void queryClient.invalidateQueries({ queryKey: ["agents", projectId] });
   } catch (error) {
-    console.error("[AgentStore] Failed to close session:", error);
+    console.error("[AgentStore] Failed to delete agent:", error);
     agentStore.setState((state) => ({
       ...state,
-      error: error instanceof Error ? error.message : "Failed to close session",
+      error: error instanceof Error ? error.message : "Failed to delete agent",
     }));
   }
 }
 
 /**
- * Send a prompt and stream the response
+ * Send a prompt to an agent and stream the response
  */
-export async function sendPrompt(text: string): Promise<void> {
-  const { activeSessionId } = agentStore.state;
-  if (!activeSessionId) {
-    console.error("[AgentStore] No active session");
+export async function sendPrompt(text: string, agentId?: string): Promise<void> {
+  const targetAgentId = agentId ?? agentStore.state.activeAgentId;
+  if (!targetAgentId) {
+    console.error("[AgentStore] No active agent");
     return;
   }
 
@@ -287,11 +294,11 @@ export async function sendPrompt(text: string): Promise<void> {
   agentStore.setState((state) => ({
     ...state,
     connectionStatus: "connecting",
-    sessions: {
-      ...state.sessions,
-      [activeSessionId]: {
-        ...state.sessions[activeSessionId],
-        messages: [...state.sessions[activeSessionId].messages, userMessage],
+    agents: {
+      ...state.agents,
+      [targetAgentId]: {
+        ...state.agents[targetAgentId],
+        messages: [...(state.agents[targetAgentId]?.messages ?? []), userMessage],
       },
     },
   }));
@@ -303,9 +310,9 @@ export async function sendPrompt(text: string): Promise<void> {
     }));
 
     // Call the streaming prompt RPC
-    const events = await rpc.agent.prompt({
+    const events = await rpc.agent.promptAgent({
       projectId,
-      sessionId: activeSessionId,
+      agentId: targetAgentId,
       text,
     });
 
@@ -320,15 +327,15 @@ export async function sendPrompt(text: string): Promise<void> {
         continue;
       }
 
-      const updates = handleAgentEvent(activeSessionId, event);
+      const updates = handleAgentEvent(targetAgentId, event);
 
       if (updates) {
         agentStore.setState((state) => ({
           ...state,
-          sessions: {
-            ...state.sessions,
-            [activeSessionId]: {
-              ...state.sessions[activeSessionId],
+          agents: {
+            ...state.agents,
+            [targetAgentId]: {
+              ...state.agents[targetAgentId],
               ...updates,
             },
           },
@@ -337,7 +344,7 @@ export async function sendPrompt(text: string): Promise<void> {
     }
 
     // Finalize the streaming message
-    finalizeMessage(activeSessionId);
+    finalizeMessage(targetAgentId);
 
     agentStore.setState((state) => ({
       ...state,
@@ -349,10 +356,10 @@ export async function sendPrompt(text: string): Promise<void> {
       ...state,
       connectionStatus: "error",
       error: error instanceof Error ? error.message : "Prompt failed",
-      sessions: {
-        ...state.sessions,
-        [activeSessionId]: {
-          ...state.sessions[activeSessionId],
+      agents: {
+        ...state.agents,
+        [targetAgentId]: {
+          ...state.agents[targetAgentId],
           isStreaming: false,
         },
       },
@@ -361,26 +368,137 @@ export async function sendPrompt(text: string): Promise<void> {
 }
 
 /**
+ * Queue a steering message
+ */
+export async function queueSteer(text: string, agentId?: string): Promise<boolean> {
+  const targetAgentId = agentId ?? agentStore.state.activeAgentId;
+  if (!targetAgentId) return false;
+
+  const projectId = projectStore.state.currentProjectId;
+  if (!projectId) return false;
+
+  // Optimistic update
+  agentStore.setState((state) => ({
+    ...state,
+    agents: {
+      ...state.agents,
+      [targetAgentId]: {
+        ...state.agents[targetAgentId],
+        queuedSteering: [...(state.agents[targetAgentId]?.queuedSteering ?? []), text],
+      },
+    },
+  }));
+
+  try {
+    return await rpc.agent.queueSteer({ projectId, agentId: targetAgentId, text });
+  } catch (error) {
+    console.error("[AgentStore] Failed to queue steer:", error);
+    return false;
+  }
+}
+
+/**
+ * Queue a follow-up message
+ */
+export async function queueFollowUp(text: string, agentId?: string): Promise<boolean> {
+  const targetAgentId = agentId ?? agentStore.state.activeAgentId;
+  if (!targetAgentId) return false;
+
+  const projectId = projectStore.state.currentProjectId;
+  if (!projectId) return false;
+
+  // Optimistic update
+  agentStore.setState((state) => ({
+    ...state,
+    agents: {
+      ...state.agents,
+      [targetAgentId]: {
+        ...state.agents[targetAgentId],
+        queuedFollowUp: [...(state.agents[targetAgentId]?.queuedFollowUp ?? []), text],
+      },
+    },
+  }));
+
+  try {
+    return await rpc.agent.queueFollowUp({ projectId, agentId: targetAgentId, text });
+  } catch (error) {
+    console.error("[AgentStore] Failed to queue follow-up:", error);
+    return false;
+  }
+}
+
+/**
  * Abort the current streaming operation
  */
-export function abortStreaming(): void {
-  const { activeSessionId } = agentStore.state;
-  if (!activeSessionId) return;
+export function abortStreaming(agentId?: string): void {
+  const targetAgentId = agentId ?? agentStore.state.activeAgentId;
+  if (!targetAgentId) return;
 
   // Finalize any streaming messages
-  finalizeMessage(activeSessionId);
+  finalizeMessage(targetAgentId);
 
   agentStore.setState((state) => ({
     ...state,
     connectionStatus: "idle",
-    sessions: {
-      ...state.sessions,
-      [activeSessionId]: {
-        ...state.sessions[activeSessionId],
+    agents: {
+      ...state.agents,
+      [targetAgentId]: {
+        ...state.agents[targetAgentId],
         isStreaming: false,
       },
     },
   }));
+}
+
+/**
+ * Switch attached Pi session
+ */
+export async function switchSession(sessionFile: string, agentId?: string): Promise<void> {
+  const targetAgentId = agentId ?? agentStore.state.activeAgentId;
+  if (!targetAgentId) return;
+
+  const projectId = projectStore.state.currentProjectId;
+  if (!projectId) return;
+
+  try {
+    await rpc.agent.switchSession({ projectId, agentId: targetAgentId, sessionFile });
+
+    // Refresh agent data
+    const agent = await rpc.agent.getAgent({ projectId, id: targetAgentId });
+    if (agent) {
+      await initializeAgent(agent, projectId);
+    }
+  } catch (error) {
+    console.error("[AgentStore] Failed to switch session:", error);
+    agentStore.setState((state) => ({
+      ...state,
+      error: error instanceof Error ? error.message : "Failed to switch session",
+    }));
+  }
+}
+
+/**
+ * List attachable sessions for current project
+ */
+export async function listAttachableSessions(): Promise<
+  ReadonlyArray<{
+    readonly path: string;
+    readonly id: string;
+    readonly cwd: string;
+    readonly name?: string;
+    readonly firstMessage: string;
+    readonly messageCount: number;
+  }>
+> {
+  const projectId = projectStore.state.currentProjectId;
+  if (!projectId) return [];
+
+  try {
+    return await rpc.agent.listAttachableSessions({ projectId });
+  } catch (error) {
+    console.error("[AgentStore] Failed to list attachable sessions:", error);
+    return [];
+  }
 }
 
 /**

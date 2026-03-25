@@ -7,6 +7,7 @@ import {
 } from "./contracts/project";
 import {
   createAgentContract,
+  getAgentContract,
   updateAgentContract,
   deleteAgentContract,
   listAgentsContract,
@@ -50,6 +51,7 @@ export const routerContract = {
   },
   agent: {
     createAgent: createAgentContract,
+    getAgent: getAgentContract,
     updateAgent: updateAgentContract,
     deleteAgent: deleteAgentContract,
     listAgents: listAgentsContract,
