@@ -202,7 +202,12 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
         return Option.some(project);
       });
 
-      return { createProject, deleteProject, listProjects, getProjectDetail } as unknown as ProjectServiceShape;
+      return {
+        createProject,
+        deleteProject,
+        listProjects,
+        getProjectDetail,
+      } as unknown as ProjectServiceShape;
     }),
   },
 ) {

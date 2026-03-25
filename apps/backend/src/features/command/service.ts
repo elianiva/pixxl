@@ -151,7 +151,12 @@ export class CommandService extends ServiceMap.Service<CommandService, CommandSe
         });
       });
 
-      return { createCommand, getCommand, deleteCommand, listCommands } as unknown as CommandServiceShape;
+      return {
+        createCommand,
+        getCommand,
+        deleteCommand,
+        listCommands,
+      } as unknown as CommandServiceShape;
     }),
   },
 ) {

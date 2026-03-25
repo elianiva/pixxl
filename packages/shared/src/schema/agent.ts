@@ -3,7 +3,6 @@ import { Schema } from "effect";
 export const CreateAgentInputSchema = Schema.Struct({
   id: Schema.String,
   projectId: Schema.String,
-  projectPath: Schema.String,
   name: Schema.NonEmptyString,
 });
 
