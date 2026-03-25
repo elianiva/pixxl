@@ -1,12 +1,13 @@
 import { useEffect } from "react";
 import { useStore } from "@tanstack/react-store";
+import { useLiveQuery } from "@tanstack/react-db";
 import { createFileRoute } from "@tanstack/react-router";
 import { AgentChat } from "@/features/agent/components/agent-chat";
 import { ConnectionStatus } from "@/features/agent/components/connection-status";
 import { Button } from "@/components/ui/button";
 import { RiRobot2Line } from "@remixicon/react";
-import { agentStore, selectAgent, initializeAgent } from "@/features/agent/store";
-import { rpc } from "@/lib/rpc";
+import { getAgentsCollection } from "@/features/agent/agents-collection";
+import { agentStore, selectAgent } from "@/features/agent/store";
 
 export const Route = createFileRoute("/app/$projectId/agent/$agentId")({
   component: AgentRoute,
@@ -15,43 +16,17 @@ export const Route = createFileRoute("/app/$projectId/agent/$agentId")({
 function AgentRoute() {
   const { projectId, agentId } = Route.useParams();
 
-  const activeAgent = useStore(agentStore, (state) =>
-    state.activeAgentId ? (state.agents[state.activeAgentId] ?? null) : null,
-  );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const agents = useLiveQuery(projectId ? getAgentsCollection(projectId) : (null as any));
+  const activeAgent = (agents.data ?? []).find((agent) => agent.id === agentId) ?? null;
   const connectionStatus = useStore(agentStore, (state) => state.connectionStatus);
 
-  // Load agent data on mount
   useEffect(() => {
-    if (!projectId || !agentId) return;
-
-    // Load agent metadata from server
-    rpc.agent
-      .getAgent({ projectId, id: agentId })
-      .then((agent) => {
-        if (agent) {
-          // Initialize agent in store
-          void initializeAgent(agent, projectId);
-          selectAgent(agentId);
-        }
-      })
-      .catch((error) => {
-        console.error("[AgentRoute] Failed to load agent:", error);
-      });
+    selectAgent(agentId);
 
     return () => {
-      // Reset active agent on unmount
-      agentStore.setState((state) => ({
-        ...state,
-        activeAgentId: null,
-      }));
+      selectAgent(null);
     };
-  }, [projectId, agentId]);
-
-  // Select agent from URL
-  useEffect(() => {
-    if (agentId) {
-      selectAgent(agentId);
-    }
   }, [agentId]);
 
   return (
@@ -59,7 +34,7 @@ function AgentRoute() {
       <div className="flex flex-1 flex-col min-w-0">
         <AgentHeader agentName={activeAgent?.name} connectionStatus={connectionStatus} />
         <div className="flex-1 overflow-hidden">
-          {activeAgent ? <AgentChat projectId={projectId} /> : <EmptyState />}
+          {activeAgent ? <AgentChat projectId={projectId} agentId={agentId} /> : <EmptyState />}
         </div>
       </div>
     </div>
@@ -87,7 +62,7 @@ function AgentHeader({ agentName, connectionStatus }: AgentHeaderProps) {
             variant="outline"
             size="sm"
             onClick={() => {
-              // Abort streaming - this will be handled by AgentChat
+              // Abort streaming is handled in chat input controls
             }}
           >
             Stop

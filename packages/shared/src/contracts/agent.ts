@@ -12,11 +12,11 @@ import {
   SwitchSessionInputSchema,
   ListAttachableSessionsInputSchema,
   PromptAgentInputSchema,
-  QueueSteerInputSchema,
-  QueueFollowUpInputSchema,
   GetAgentRuntimeInputSchema,
+  GetAgentHistoryInputSchema,
   AgentRuntimeStateSchema,
   PiSessionInfoListSchema,
+  AgentHistorySchema,
   AgentEventSchema,
 } from "../schema/agent";
 
@@ -59,15 +59,11 @@ export const getAgentRuntimeContract = oc
   .input(Schema.toStandardSchemaV1(GetAgentRuntimeInputSchema))
   .output(Schema.toStandardSchemaV1(Schema.NullOr(AgentRuntimeStateSchema)));
 
-// Prompt and queue contracts - agent-centric
+export const getAgentHistoryContract = oc
+  .input(Schema.toStandardSchemaV1(GetAgentHistoryInputSchema))
+  .output(Schema.toStandardSchemaV1(Schema.NullOr(AgentHistorySchema)));
+
+// Prompt contract - mode is now integrated (immediate | steer | followUp)
 export const promptAgentContract = oc
   .input(Schema.toStandardSchemaV1(PromptAgentInputSchema))
   .output(eventIterator(Schema.toStandardSchemaV1(AgentEventSchema)));
-
-export const queueSteerContract = oc
-  .input(Schema.toStandardSchemaV1(QueueSteerInputSchema))
-  .output(Schema.toStandardSchemaV1(Schema.Boolean));
-
-export const queueFollowUpContract = oc
-  .input(Schema.toStandardSchemaV1(QueueFollowUpInputSchema))
-  .output(Schema.toStandardSchemaV1(Schema.Boolean));

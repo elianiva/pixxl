@@ -57,26 +57,23 @@ export const ListAttachableSessionsInputSchema = Schema.Struct({
   projectId: Schema.String,
 });
 
-// Prompt and queue schemas - agent-centric
+// Prompt mode: how to handle if agent is already streaming
+export const PromptModeSchema = Schema.Literals(["immediate", "steer", "followUp"]);
+
+// Prompt schema - mode integrated into prompt
 export const PromptAgentInputSchema = Schema.Struct({
   projectId: Schema.String,
   agentId: Schema.String,
   text: Schema.String,
-});
-
-export const QueueSteerInputSchema = Schema.Struct({
-  projectId: Schema.String,
-  agentId: Schema.String,
-  text: Schema.String,
-});
-
-export const QueueFollowUpInputSchema = Schema.Struct({
-  projectId: Schema.String,
-  agentId: Schema.String,
-  text: Schema.String,
+  mode: Schema.optionalKey(PromptModeSchema),
 });
 
 export const GetAgentRuntimeInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+});
+
+export const GetAgentHistoryInputSchema = Schema.Struct({
   projectId: Schema.String,
   agentId: Schema.String,
 });
@@ -100,10 +97,118 @@ export const PiSessionInfoListSchema = Schema.Array(PiSessionInfoSchema);
 export const AgentRuntimeStateSchema = Schema.Struct({
   agentId: Schema.String,
   projectId: Schema.String,
-  status: Schema.Literals(["idle", "streaming", "switchingSession", "error"]),
+  status: Schema.Literals(["idle", "streaming", "initializing", "switchingSession", "error"]),
   queuedSteering: Schema.Array(Schema.String),
   queuedFollowUp: Schema.Array(Schema.String),
   currentSessionFile: Schema.String,
+});
+
+const PiMessageEntrySchema = Schema.Struct({
+  type: Schema.Literal("message"),
+  id: Schema.String,
+  parentId: Schema.NullOr(Schema.String),
+  timestamp: Schema.String,
+  message: Schema.Unknown,
+});
+
+const PiModelChangeEntrySchema = Schema.Struct({
+  type: Schema.Literal("model_change"),
+  id: Schema.String,
+  parentId: Schema.NullOr(Schema.String),
+  timestamp: Schema.String,
+  provider: Schema.String,
+  modelId: Schema.String,
+});
+
+const PiThinkingLevelChangeEntrySchema = Schema.Struct({
+  type: Schema.Literal("thinking_level_change"),
+  id: Schema.String,
+  parentId: Schema.NullOr(Schema.String),
+  timestamp: Schema.String,
+  thinkingLevel: Schema.String,
+});
+
+const PiCompactionEntrySchema = Schema.Struct({
+  type: Schema.Literal("compaction"),
+  id: Schema.String,
+  parentId: Schema.NullOr(Schema.String),
+  timestamp: Schema.String,
+  summary: Schema.String,
+  firstKeptEntryId: Schema.String,
+  tokensBefore: Schema.Number,
+  details: Schema.optionalKey(Schema.Unknown),
+  fromHook: Schema.optionalKey(Schema.Boolean),
+});
+
+const PiBranchSummaryEntrySchema = Schema.Struct({
+  type: Schema.Literal("branch_summary"),
+  id: Schema.String,
+  parentId: Schema.NullOr(Schema.String),
+  timestamp: Schema.String,
+  fromId: Schema.String,
+  summary: Schema.String,
+  details: Schema.optionalKey(Schema.Unknown),
+  fromHook: Schema.optionalKey(Schema.Boolean),
+});
+
+const PiCustomEntrySchema = Schema.Struct({
+  type: Schema.Literal("custom"),
+  id: Schema.String,
+  parentId: Schema.NullOr(Schema.String),
+  timestamp: Schema.String,
+  customType: Schema.String,
+  data: Schema.optionalKey(Schema.Unknown),
+});
+
+const PiCustomMessageEntrySchema = Schema.Struct({
+  type: Schema.Literal("custom_message"),
+  id: Schema.String,
+  parentId: Schema.NullOr(Schema.String),
+  timestamp: Schema.String,
+  customType: Schema.String,
+  content: Schema.Unknown,
+  details: Schema.optionalKey(Schema.Unknown),
+  display: Schema.Boolean,
+});
+
+const PiLabelEntrySchema = Schema.Struct({
+  type: Schema.Literal("label"),
+  id: Schema.String,
+  parentId: Schema.NullOr(Schema.String),
+  timestamp: Schema.String,
+  targetId: Schema.String,
+  label: Schema.optionalKey(Schema.String),
+});
+
+const PiSessionInfoEntrySchema = Schema.Struct({
+  type: Schema.Literal("session_info"),
+  id: Schema.String,
+  parentId: Schema.NullOr(Schema.String),
+  timestamp: Schema.String,
+  name: Schema.optionalKey(Schema.String),
+});
+
+export const PiSessionEntrySchema = Schema.Union([
+  PiMessageEntrySchema,
+  PiModelChangeEntrySchema,
+  PiThinkingLevelChangeEntrySchema,
+  PiCompactionEntrySchema,
+  PiBranchSummaryEntrySchema,
+  PiCustomEntrySchema,
+  PiCustomMessageEntrySchema,
+  PiLabelEntrySchema,
+  PiSessionInfoEntrySchema,
+]);
+
+export const AgentHistorySchema = Schema.Struct({
+  agentId: Schema.String,
+  projectId: Schema.String,
+  sessionFile: Schema.String,
+  sessionId: Schema.String,
+  cwd: Schema.String,
+  sessionName: Schema.optionalKey(Schema.String),
+  leafId: Schema.NullOr(Schema.String),
+  entries: Schema.Array(PiSessionEntrySchema),
 });
 
 // Streaming event schemas
@@ -184,11 +289,13 @@ export type ListAgentsInput = typeof ListAgentsInputSchema.Type;
 export type AttachSessionInput = typeof AttachSessionInputSchema.Type;
 export type SwitchSessionInput = typeof SwitchSessionInputSchema.Type;
 export type ListAttachableSessionsInput = typeof ListAttachableSessionsInputSchema.Type;
+export type PromptMode = typeof PromptModeSchema.Type;
 export type PromptAgentInput = typeof PromptAgentInputSchema.Type;
-export type QueueSteerInput = typeof QueueSteerInputSchema.Type;
-export type QueueFollowUpInput = typeof QueueFollowUpInputSchema.Type;
 export type GetAgentRuntimeInput = typeof GetAgentRuntimeInputSchema.Type;
+export type GetAgentHistoryInput = typeof GetAgentHistoryInputSchema.Type;
 export type PiSessionInfo = typeof PiSessionInfoSchema.Type;
 export type PiSessionInfoList = typeof PiSessionInfoListSchema.Type;
 export type AgentRuntimeState = typeof AgentRuntimeStateSchema.Type;
+export type PiSessionEntry = typeof PiSessionEntrySchema.Type;
+export type AgentHistory = typeof AgentHistorySchema.Type;
 export type AgentEvent = typeof AgentEventSchema.Type;

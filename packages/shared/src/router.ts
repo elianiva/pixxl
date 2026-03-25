@@ -15,9 +15,8 @@ import {
   switchSessionContract,
   listAttachableSessionsContract,
   getAgentRuntimeContract,
+  getAgentHistoryContract,
   promptAgentContract,
-  queueSteerContract,
-  queueFollowUpContract,
 } from "./contracts/agent";
 import {
   createTerminalContract,
@@ -53,9 +52,8 @@ export const routerContract = {
     switchSession: switchSessionContract,
     listAttachableSessions: listAttachableSessionsContract,
     getAgentRuntime: getAgentRuntimeContract,
+    getAgentHistory: getAgentHistoryContract,
     promptAgent: promptAgentContract,
-    queueSteer: queueSteerContract,
-    queueFollowUp: queueFollowUpContract,
   },
   terminal: {
     createTerminal: createTerminalContract,

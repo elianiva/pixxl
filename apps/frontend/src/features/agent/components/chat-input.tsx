@@ -5,12 +5,19 @@ import { RiAddLine, RiArrowUpLine, RiStopLine } from "@remixicon/react";
 import { ModelSelector, MODELS, type ModelOption } from "./model-selector";
 import { ThinkingLevelSelector, type ThinkingLevel } from "./thinking-level-selector";
 
+interface QueuedMessage {
+  text: string;
+  type: "steer" | "followUp";
+}
+
 interface ChatInputProps {
   onSubmit: (text: string) => void;
   onAbort?: () => void;
   isStreaming?: boolean;
   disabled?: boolean;
   placeholder?: string;
+  queuedMessages?: QueuedMessage[];
+  onQueueClick?: (message: QueuedMessage) => void;
 }
 
 export function ChatInput({
@@ -19,6 +26,8 @@ export function ChatInput({
   isStreaming = false,
   disabled = false,
   placeholder = "Ask anything...",
+  queuedMessages = [],
+  onQueueClick,
 }: ChatInputProps) {
   const [inputText, setInputText] = useState("");
   const [selectedModel, setSelectedModel] = useState<ModelOption>(MODELS[0]);
@@ -43,8 +52,48 @@ export function ChatInput({
     [handleSubmit],
   );
 
+  const steerCount = queuedMessages.filter((m) => m.type === "steer").length;
+  const followUpCount = queuedMessages.filter((m) => m.type === "followUp").length;
+
   return (
     <div className="mx-auto w-3xl border bg-background">
+      {/* Queued messages bar */}
+      {queuedMessages.length > 0 && (
+        <div className="border-b px-4 py-2">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-muted-foreground">{queuedMessages.length} queued</span>
+            <div className="flex items-center gap-1">
+              {steerCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const msg = queuedMessages.find((m) => m.type === "steer");
+                    if (msg) onQueueClick?.(msg);
+                  }}
+                  className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-amber-700 hover:bg-amber-200"
+                >
+                  <span>steer</span>
+                  <span className="font-medium">{steerCount}</span>
+                </button>
+              )}
+              {followUpCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const msg = queuedMessages.find((m) => m.type === "followUp");
+                    if (msg) onQueueClick?.(msg);
+                  }}
+                  className="inline-flex items-center gap-1 rounded bg-blue-100 px-2 py-0.5 text-blue-700 hover:bg-blue-200"
+                >
+                  <span>follow-up</span>
+                  <span className="font-medium">{followUpCount}</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Input area */}
       <div className="relative border-b">
         <Textarea

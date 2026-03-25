@@ -131,9 +131,88 @@ export const getAgentRuntimeRpc = os.agent.getAgentRuntime.handler(({ input }) =
   ),
 );
 
-// Prompt handler - agent-centric, goes through actor
+export const getAgentHistoryRpc = os.agent.getAgentHistory.handler(({ input }) =>
+  Effect.gen(function* () {
+    const service = yield* AgentService;
+    const history = yield* service.getAgentHistory(input);
+    return Option.match(history, {
+      onSome: (history) => history,
+      onNone: () => null,
+    });
+  }).pipe(
+    Effect.provide(AgentService.layer),
+    mapToOrpcError({ feature: "agent" }),
+    Effect.runPromise,
+  ),
+);
+
+class AsyncEventQueue<T> {
+  private items: T[] = [];
+  private resolvers: Array<(value: T | null) => void> = [];
+  private closed = false;
+
+  push(item: T) {
+    if (this.closed) return;
+
+    const resolver = this.resolvers.shift();
+    if (resolver) {
+      resolver(item);
+      return;
+    }
+
+    this.items.push(item);
+  }
+
+  close() {
+    if (this.closed) return;
+    this.closed = true;
+
+    while (this.resolvers.length > 0) {
+      this.resolvers.shift()?.(null);
+    }
+  }
+
+  async next(): Promise<T | null> {
+    if (this.items.length > 0) {
+      return this.items.shift() ?? null;
+    }
+
+    if (this.closed) {
+      return null;
+    }
+
+    return new Promise((resolve) => {
+      this.resolvers.push(resolve);
+    });
+  }
+}
+
+function isTerminalEvent(event: AgentEvent): boolean {
+  return (
+    event.type === "error" ||
+    (event.type === "status_change" && (event.status === "idle" || event.status === "error"))
+  );
+}
+
+// Prompt handler - sends through actor with mode
 export const promptAgentRpc = os.agent.promptAgent.handler(async function* ({ input }) {
-  // Get or create the actor for this agent
+  const service = await Effect.gen(function* () {
+    return yield* AgentService;
+  })
+    .pipe(Effect.provide(AgentService.layer), Effect.runPromise)
+    .catch(() => null);
+
+  if (service) {
+    await Effect.gen(function* () {
+      yield* service.ensureAgentActor({
+        projectId: input.projectId,
+        agentId: input.agentId,
+      });
+    })
+      .pipe(Effect.runPromise)
+      .catch(() => null);
+  }
+
   const actor = agentManager.get(input.agentId);
 
   if (!actor) {
@@ -147,60 +226,39 @@ export const promptAgentRpc = os.agent.promptAgent.handler(async function* ({ in
     return;
   }
 
-  // Connect to actor's event stream
-  const events: AgentEvent[] = [];
-  let done = false;
+  // Wait for actor to be ready (not initializing)
+  if (state.matches("initializing")) {
+    yield { type: "error" as const, sessionId: input.agentId, message: "Agent is initializing" };
+    return;
+  }
 
-  // Subscribe to actor events
-  const subscription = actor.subscribe((actorState) => {
-    if (actorState.matches("streaming")) {
-      events.push({ type: "status_change", sessionId: input.agentId, status: "streaming" });
-    } else if (actorState.matches("ready")) {
-      events.push({ type: "status_change", sessionId: input.agentId, status: "idle" });
-      done = true;
-    } else if (actorState.matches("error")) {
-      events.push({
-        type: "error",
-        sessionId: input.agentId,
-        message: (actorState as { context: { error?: string } }).context.error || "Unknown error",
-      });
-      done = true;
-    }
-  });
+  const queue = new AsyncEventQueue<AgentEvent>();
+  let terminalSeen = false;
 
-  // Send prompt to actor
-  actor.send({ type: "PROMPT", text: input.text });
+  const client = {
+    closed: false,
+    send: (event: AgentEvent) => {
+      queue.push(event);
+
+      if (isTerminalEvent(event) && !terminalSeen) {
+        terminalSeen = true;
+        queue.close();
+      }
+    },
+  };
+
+  actor.send({ type: "CLIENT_CONNECT", client });
+  actor.send({ type: "PROMPT", text: input.text, mode: input.mode ?? "immediate" });
 
   try {
-    // Yield events as they arrive
-    while (!done || events.length > 0) {
-      if (events.length > 0) {
-        const event = events.shift()!;
-        yield event;
-      } else {
-        await new Promise((resolve) => setTimeout(resolve, 10));
-      }
+    while (true) {
+      const next = await queue.next();
+      if (next === null) break;
+      yield next;
     }
   } finally {
-    subscription.unsubscribe();
+    client.closed = true;
+    queue.close();
+    actor.send({ type: "CLIENT_DISCONNECT", client });
   }
-});
-
-// Queue handlers
-export const queueSteerRpc = os.agent.queueSteer.handler(({ input }) => {
-  const actor = agentManager.get(input.agentId);
-  if (!actor) {
-    return Promise.resolve(false);
-  }
-  actor.send({ type: "QUEUE_STEER", text: input.text });
-  return Promise.resolve(true);
-});
-
-export const queueFollowUpRpc = os.agent.queueFollowUp.handler(({ input }) => {
-  const actor = agentManager.get(input.agentId);
-  if (!actor) {
-    return Promise.resolve(false);
-  }
-  actor.send({ type: "QUEUE_FOLLOW_UP", text: input.text });
-  return Promise.resolve(true);
 });

@@ -1,170 +1,90 @@
 import { useCallback } from "react";
 import { useStore } from "@tanstack/react-store";
-import {
-  agentStore,
-  selectAgent,
-  createAgent,
-  deleteAgent,
-  sendPrompt,
-  abortStreaming,
-  clearError,
-  type AgentStateItem,
-} from "./store";
+import { useLiveQuery } from "@tanstack/react-db";
+import { projectStore } from "@/lib/project-store";
+import { getInteractionsCollection, sendAgentMessage } from "./interactions-collection";
+import { agentStore, selectAgent } from "./store";
 
-/**
- * Get all agents from the store
- */
-export function useAgentSessions() {
-  return useStore(agentStore, (state) => Object.values(state.agents));
+function messageTextFromContent(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+
+  return content
+    .map((item) => {
+      if (!item || typeof item !== "object") return "";
+      const block = item as { type?: unknown; text?: unknown };
+      return block.type === "text" && typeof block.text === "string" ? block.text : "";
+    })
+    .join("");
 }
 
-/**
- * Get a specific agent by ID
- */
-export function useSession(agentId: string | null): AgentStateItem | null {
-  return useStore(agentStore, (state) => (agentId ? (state.agents[agentId] ?? null) : null));
-}
-
-/**
- * Get the currently active agent
- */
-export function useActiveSession(): AgentStateItem | null {
-  return useStore(agentStore, (state) =>
-    state.activeAgentId ? (state.agents[state.activeAgentId] ?? null) : null,
-  );
-}
-
-/**
- * Get the active agent ID
- */
-export function useActiveSessionId(): string | null {
+export function useActiveAgentId(): string | null {
   return useStore(agentStore, (state) => state.activeAgentId);
 }
 
-/**
- * Get the streaming message (last message if streaming)
- */
-export function useStreamingMessage(): { content: string; isStreaming: boolean } | null {
-  const agent = useActiveSession();
-  if (!agent) return null;
+export function useMessages(
+  agentId?: string,
+): Array<{ id: string; role: "user" | "assistant"; content: string }> {
+  const activeAgentId = useActiveAgentId();
+  const targetAgentId = agentId ?? activeAgentId;
+  const projectId = useStore(projectStore, (state) => state.currentProjectId);
 
-  const lastMessage = agent.messages.at(-1);
-  if (lastMessage?.isStreaming) {
-    return { content: lastMessage.content, isStreaming: true };
-  }
-
-  return null;
-}
-
-/**
- * Get the current connection status
- */
-export function useAgentConnectionStatus() {
-  return useStore(agentStore, (state) => state.connectionStatus);
-}
-
-/**
- * Get the current error, if any
- */
-export function useAgentError() {
-  return useStore(agentStore, (state) => state.error);
-}
-
-/**
- * Check if an agent is currently streaming
- */
-export function useIsStreaming(agentId?: string) {
-  const activeAgentId = useActiveSessionId();
-  const targetId = agentId ?? activeAgentId;
-
-  return useStore(agentStore, (state) =>
-    targetId ? (state.agents[targetId]?.isStreaming ?? false) : false,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const interactions = useLiveQuery(
+    projectId && targetAgentId
+      ? getInteractionsCollection(projectId, targetAgentId)
+      : (null as any),
   );
+
+  return (interactions.data ?? []).reduce<
+    Array<{ id: string; role: "user" | "assistant"; content: string }>
+  >((acc, item) => {
+    if (item.entry.type !== "message") return acc;
+
+    const message = item.entry.message as {
+      role?: "user" | "assistant";
+      content?: unknown;
+    };
+
+    const role: "user" | "assistant" = message.role === "assistant" ? "assistant" : "user";
+
+    acc.push({
+      id: item.entry.id,
+      role,
+      content: messageTextFromContent(message.content),
+    });
+
+    return acc;
+  }, []);
 }
 
-/**
- * Get the current tool call being executed
- */
-export function useCurrentToolCall(agentId?: string) {
-  const activeAgentId = useActiveSessionId();
-  const targetId = agentId ?? activeAgentId;
-
-  return useStore(agentStore, (state) =>
-    targetId ? (state.agents[targetId]?.currentToolCall ?? null) : null,
-  );
-}
-
-/**
- * Get all tool calls for an agent
- */
-export function useToolCalls(agentId?: string) {
-  const activeAgentId = useActiveSessionId();
-  const targetId = agentId ?? activeAgentId;
-
-  return useStore(agentStore, (state) =>
-    targetId ? (state.agents[targetId]?.toolCalls ?? []) : [],
-  );
-}
-
-/**
- * Get messages for an agent
- */
-export function useMessages(agentId?: string) {
-  const activeAgentId = useActiveSessionId();
-  const targetId = agentId ?? activeAgentId;
-
-  return useStore(agentStore, (state) =>
-    targetId ? (state.agents[targetId]?.messages ?? []) : [],
-  );
-}
-
-/**
- * Hook that provides agent actions with bound agent ID
- */
 export function useAgentActions(projectId: string) {
-  const activeAgentId = useActiveSessionId();
+  const activeAgentId = useActiveAgentId();
 
-  const handleSelectAgent = useCallback((agentId: string | null) => {
+  const select = useCallback((agentId: string | null) => {
     selectAgent(agentId);
   }, []);
 
-  const handleCreateAgent = useCallback(
-    async (input: {
-      name: string;
-      model?: string;
-      thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
-    }) => {
-      return createAgent({ ...input, projectId });
+  const sendPrompt = useCallback(
+    async (text: string, mode: "immediate" | "steer" | "followUp" = "immediate") => {
+      const agentId = activeAgentId;
+      if (!agentId) return;
+
+      // Send message - backend handles persistence and streaming
+      const stream = await sendAgentMessage(projectId, agentId, text, mode);
+
+      for await (const event of stream) {
+        // Events are used for UI feedback (thinking, tools, etc.)
+        // The collection will refetch after stream completes
+        console.debug("Agent event:", event);
+      }
     },
-    [projectId],
+    [activeAgentId, projectId],
   );
-
-  const handleDeleteAgent = useCallback(
-    async (agentId: string) => {
-      return deleteAgent(agentId, projectId);
-    },
-    [projectId],
-  );
-
-  const handleSendPrompt = useCallback(async (text: string) => {
-    return sendPrompt(text);
-  }, []);
-
-  const handleAbort = useCallback(() => {
-    abortStreaming();
-  }, []);
-
-  const handleClearError = useCallback(() => {
-    clearError();
-  }, []);
 
   return {
-    selectAgent: handleSelectAgent,
-    createAgent: handleCreateAgent,
-    deleteAgent: handleDeleteAgent,
-    sendPrompt: handleSendPrompt,
-    abort: handleAbort,
-    clearError: handleClearError,
+    selectAgent: select,
+    sendPrompt,
     activeAgentId,
   };
 }

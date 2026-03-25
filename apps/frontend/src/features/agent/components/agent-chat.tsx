@@ -1,29 +1,57 @@
 import { useCallback, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { rpc } from "@/lib/rpc";
 import { Button } from "@/components/ui/button";
 import { AgentMessageContent } from "./agent-message-content";
 import { ChatInput } from "./chat-input";
-import { useAgentActions, useMessages, useAgentConnectionStatus } from "../hooks";
+import { useAgentActions, useMessages } from "../hooks";
 
 interface AgentChatProps {
   projectId: string;
+  agentId: string;
 }
 
-export function AgentChat({ projectId }: AgentChatProps) {
-  const messages = useMessages();
-  const connectionStatus = useAgentConnectionStatus();
-  const { sendPrompt, abort } = useAgentActions(projectId);
+export function AgentChat({ projectId, agentId }: AgentChatProps) {
+  const messages = useMessages(agentId);
+  console.log({ messages });
+  const { sendPrompt } = useAgentActions(projectId);
   const [isScrollButtonVisible, setIsScrollButtonVisible] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const conversationRef = useRef<HTMLDivElement>(null);
 
-  const isStreaming = connectionStatus === "streaming" || connectionStatus === "connecting";
+  // Fetch runtime state for queued messages
+  const { data: runtimeState } = useQuery({
+    queryKey: ["agent-runtime", projectId, agentId],
+    queryFn: () => rpc.agent.getAgentRuntime({ projectId, agentId }),
+    refetchInterval: 1000, // Poll for queue updates while streaming
+  });
+
+  const queuedMessages = [
+    ...(runtimeState?.queuedSteering ?? []).map((text: string) => ({
+      text,
+      type: "steer" as const,
+    })),
+    ...(runtimeState?.queuedFollowUp ?? []).map((text: string) => ({
+      text,
+      type: "followUp" as const,
+    })),
+  ];
 
   const handleSubmit = useCallback(
     (text: string) => {
-      if (isStreaming) return;
-      void sendPrompt(text);
+      void sendPrompt(text, "immediate");
+      setIsStreaming(true);
     },
-    [isStreaming, sendPrompt],
+    [sendPrompt],
+  );
+
+  const handleQueueClick = useCallback(
+    (message: { text: string; type: "steer" | "followUp" }) => {
+      void sendPrompt(message.text, message.type);
+      setIsStreaming(true);
+    },
+    [sendPrompt],
   );
 
   const handleScroll = useCallback(() => {
@@ -138,8 +166,9 @@ export function AgentChat({ projectId }: AgentChatProps) {
       {/* Prompt input */}
       <ChatInput
         onSubmit={handleSubmit}
-        onAbort={abort}
         isStreaming={isStreaming}
+        queuedMessages={queuedMessages}
+        onQueueClick={handleQueueClick}
         placeholder="Ask anything..."
       />
     </div>

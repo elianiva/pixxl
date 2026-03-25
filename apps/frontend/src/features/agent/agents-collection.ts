@@ -4,8 +4,6 @@ import { rpc } from "@/lib/rpc";
 import { generateId, type AgentMetadata } from "@pixxl/shared";
 import { queryClient } from "@/lib/query-client";
 
-// we're wrapping createCollection here first so that we can get the return type of createCollection
-// for the cached version later on
 function getAgentsCollectionInternal(projectId: string) {
   return createCollection(
     queryCollectionOptions({

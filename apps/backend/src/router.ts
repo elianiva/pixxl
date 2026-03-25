@@ -16,9 +16,8 @@ import {
   switchSessionRpc,
   listAttachableSessionsRpc,
   getAgentRuntimeRpc,
+  getAgentHistoryRpc,
   promptAgentRpc,
-  queueSteerRpc,
-  queueFollowUpRpc,
 } from "./features/agent/rpc";
 import {
   createTerminalRpc,
@@ -50,9 +49,8 @@ export const router = os.router({
     switchSession: switchSessionRpc,
     listAttachableSessions: listAttachableSessionsRpc,
     getAgentRuntime: getAgentRuntimeRpc,
+    getAgentHistory: getAgentHistoryRpc,
     promptAgent: promptAgentRpc,
-    queueSteer: queueSteerRpc,
-    queueFollowUp: queueFollowUpRpc,
   },
   terminal: {
     createTerminal: createTerminalRpc,

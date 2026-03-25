@@ -6,6 +6,7 @@ import {
   EntityService,
   type AgentRuntimeState,
   type PiSessionInfo,
+  type AgentHistory,
 } from "@pixxl/shared";
 import {
   AgentNotFoundError,
@@ -53,6 +54,10 @@ export type AgentServiceApi = {
     id: string;
   }) => Effect.Effect<Option.Option<boolean>, AgentServiceError>;
   readonly listAgents: (input: { projectId: string }) => Effect.Effect<AgentMetadata[], never>;
+  readonly ensureAgentActor: (input: {
+    projectId: string;
+    agentId: string;
+  }) => Effect.Effect<Option.Option<boolean>, AgentServiceError>;
   readonly attachSession: (input: {
     projectId: string;
     agentId: string;
@@ -70,6 +75,10 @@ export type AgentServiceApi = {
     projectId: string;
     agentId: string;
   }) => Effect.Effect<Option.Option<AgentRuntimeState>, AgentServiceError>;
+  readonly getAgentHistory: (input: {
+    projectId: string;
+    agentId: string;
+  }) => Effect.Effect<Option.Option<AgentHistory>, AgentServiceError>;
 };
 
 export class AgentService extends ServiceMap.Service<AgentService, AgentServiceApi>()(
@@ -82,7 +91,7 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceA
       const agents = entity.forEntity<
         AgentMetadata,
         { name: string; projectId: string; sessionFile: string },
-        { name: string }
+        { name: string; sessionFile?: string }
       >({
         directoryName: "agents",
         schema: AgentMetadataSchema,
@@ -96,10 +105,14 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceA
             sessionFile,
           },
         }),
-        update: (current, { now, name }) => ({
+        update: (current, { now, name, sessionFile }) => ({
           ...current,
           name,
           updatedAt: now,
+          pi: {
+            ...current.pi,
+            ...(sessionFile ? { sessionFile } : {}),
+          },
         }),
       });
 
@@ -255,6 +268,58 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceA
         return Option.getOrElse(listResult, () => [] as AgentMetadata[]);
       });
 
+      const ensureAgentActor = Effect.fn("AgentService.ensureAgentActor")(function* (input: {
+        projectId: string;
+        agentId: string;
+      }) {
+        const existingActor = agentManager.get(input.agentId);
+        if (existingActor) {
+          return Option.some(true);
+        }
+
+        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
+
+        if (Option.isNone(projectResult)) {
+          return Option.none();
+        }
+
+        const projectPath = projectResult.value.path;
+
+        const agentResult = yield* agents
+          .get({
+            projectPath,
+            id: input.agentId,
+          })
+          .pipe(
+            Effect.mapError(
+              (cause) =>
+                new AgentNotFoundError({
+                  agentId: input.agentId,
+                  projectId: input.projectId,
+                  cause,
+                }),
+            ),
+          );
+
+        if (Option.isNone(agentResult)) {
+          return Option.none();
+        }
+
+        const metadata = agentResult.value;
+
+        const sessionManager = yield* openPiSession(metadata.pi.sessionFile, projectPath);
+
+        agentManager.getOrCreate({
+          agentId: input.agentId,
+          projectId: input.projectId,
+          projectPath,
+          metadata,
+          sessionManager,
+        });
+
+        return Option.some(true);
+      });
+
       const attachSession = Effect.fn("AgentService.attachSession")(function* (input: {
         projectId: string;
         agentId: string;
@@ -299,6 +364,7 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceA
           id: input.agentId,
           projectPath,
           name: updated.name,
+          sessionFile: input.sessionFile,
         });
 
         // Notify actor about session switch
@@ -356,7 +422,6 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceA
           return Option.none();
         }
 
-        // Get or create actor for this agent
         const actor = agentManager.get(input.agentId);
 
         if (!actor) {
@@ -371,8 +436,90 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceA
           status: actorState.status,
           queuedSteering: actorState.queuedSteering,
           queuedFollowUp: actorState.queuedFollowUp,
-          currentSessionFile: "",
+          currentSessionFile: actorState.currentSessionFile,
         });
+      });
+
+      const getAgentHistory = Effect.fn("AgentService.getAgentHistory")(function* (input: {
+        projectId: string;
+        agentId: string;
+      }) {
+        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
+
+        if (Option.isNone(projectResult)) {
+          return Option.none();
+        }
+
+        const agentResult = yield* agents
+          .get({
+            projectPath: projectResult.value.path,
+            id: input.agentId,
+          })
+          .pipe(
+            Effect.mapError(
+              (cause) =>
+                new AgentNotFoundError({
+                  agentId: input.agentId,
+                  projectId: input.projectId,
+                  cause,
+                }),
+            ),
+          );
+
+        if (Option.isNone(agentResult)) {
+          return Option.none();
+        }
+
+        const metadata = agentResult.value;
+        const sessionManager = yield* openPiSession(
+          metadata.pi.sessionFile,
+          projectResult.value.path,
+        ).pipe(
+          Effect.catchTag("PiSessionValidationError", () =>
+            Effect.gen(function* () {
+              const { sessionFile, sessionManager } = yield* createPiSession(
+                projectResult.value.path,
+              );
+
+              yield* agents.update({
+                id: input.agentId,
+                projectPath: projectResult.value.path,
+                name: metadata.name,
+                sessionFile,
+              });
+
+              const actor = agentManager.get(input.agentId);
+              if (actor) {
+                actor.send({ type: "ATTACH_SESSION", sessionManager });
+              }
+
+              return sessionManager;
+            }),
+          ),
+        );
+
+        const resolvedSessionFile = sessionManager.getSessionFile() ?? metadata.pi.sessionFile;
+        const header = sessionManager.getHeader();
+
+        if (!header) {
+          return yield* new PiSessionValidationError({
+            sessionFile: metadata.pi.sessionFile,
+            cause: "Session header missing",
+          });
+        }
+
+        const sessionName = sessionManager.getSessionName();
+
+        return Option.some({
+          agentId: input.agentId,
+          projectId: input.projectId,
+          sessionFile: resolvedSessionFile,
+          sessionId: header.id,
+          cwd: header.cwd,
+          ...(sessionName !== undefined ? { sessionName } : {}),
+          leafId: sessionManager.getLeafId(),
+          entries: sessionManager.getEntries(),
+        } satisfies AgentHistory);
       });
 
       return {
@@ -381,10 +528,12 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceA
         updateAgent,
         deleteAgent,
         listAgents,
+        ensureAgentActor,
         attachSession,
         switchSession,
         listAttachableSessions,
         getAgentRuntime,
+        getAgentHistory,
       } as unknown as AgentServiceApi;
     }),
   },
