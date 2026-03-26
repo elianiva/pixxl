@@ -1,4 +1,13 @@
-import { createAgentActor, type AgentActor, type AgentActorInput } from "./actor";
+import { Effect } from "effect";
+import { AgentService } from "./service";
+import { waitForActorReady } from "./actor";
+import type { AgentActor } from "./actor";
+
+import { createAgentActor, type AgentActorInput } from "./actor";
+
+export { waitForActorReady };
+
+export type { AgentActor, AgentActorInput };
 
 class AgentManager {
   private actors = new Map<string, AgentActor>();
@@ -70,3 +79,65 @@ class AgentManager {
 }
 
 export const agentManager = new AgentManager();
+
+/**
+ * Result of getting a ready actor.
+ */
+export type ReadyActorResult =
+  | { ok: true; actor: AgentActor }
+  | {
+      ok: false;
+      error: { type: "error"; sessionId: string; message: string };
+    };
+
+/**
+ * Get an actor that's ready to receive prompts.
+ * Ensures the agent actor exists and is in a ready/streaming state.
+ */
+export async function getReadyActor(projectId: string, agentId: string): Promise<ReadyActorResult> {
+  const service = await Effect.gen(function* () {
+    return yield* AgentService;
+  })
+    .pipe(Effect.provide(AgentService.layer), Effect.runPromise)
+    .catch(() => null);
+
+  if (service) {
+    await Effect.gen(function* () {
+      yield* service.ensureAgentActor({ projectId, agentId });
+    })
+      .pipe(Effect.runPromise)
+      .catch(() => null);
+  }
+
+  const actor = agentManager.get(agentId);
+
+  if (!actor) {
+    return {
+      ok: false as const,
+      error: { type: "error" as const, sessionId: agentId, message: "Agent actor not found" },
+    };
+  }
+
+  const state = actor.getSnapshot();
+  if (state.matches("deleted") || state.matches("deleting")) {
+    return {
+      ok: false as const,
+      error: { type: "error" as const, sessionId: agentId, message: "Agent is being deleted" },
+    };
+  }
+
+  try {
+    await waitForActorReady(actor);
+  } catch (error) {
+    return {
+      ok: false as const,
+      error: {
+        type: "error" as const,
+        sessionId: agentId,
+        message: error instanceof Error ? error.message : "Agent is initializing",
+      },
+    };
+  }
+
+  return { ok: true as const, actor };
+}

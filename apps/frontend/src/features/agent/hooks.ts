@@ -290,11 +290,14 @@ export function useAgentActions(projectId: string, agentId?: string) {
           text,
         });
 
+        let eventCount = 0;
         for await (const event of stream) {
-          console.log("event", event);
+          eventCount++;
+          console.log(`[Frontend] EVENT #${eventCount}:`, event.type, event);
           applyAgentEvent(resolvedAgentId, requestId, event);
         }
 
+        console.log(`[Frontend] STREAM ENDED (total events=${eventCount})`);
         finishAgentStream(resolvedAgentId, requestId);
       } catch (error) {
         if (requestId) {

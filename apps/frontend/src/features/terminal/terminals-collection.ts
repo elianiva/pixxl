@@ -1,4 +1,4 @@
-import { createCollection } from "@tanstack/db";
+import { createCollection, BasicIndex } from "@tanstack/db";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import { rpc } from "@/lib/rpc";
 import { generateId } from "@/lib/utils";
@@ -6,7 +6,7 @@ import type { TerminalMetadata } from "@pixxl/shared";
 import { queryClient } from "@/lib/query-client";
 
 function getTerminalsCollectionInternal(projectId: string) {
-  return createCollection(
+  const collection = createCollection(
     queryCollectionOptions({
       queryClient,
       queryKey: ["terminals", projectId],
@@ -46,6 +46,10 @@ function getTerminalsCollectionInternal(projectId: string) {
       },
     }),
   );
+
+  collection.createIndex((item) => item.updatedAt, { indexType: BasicIndex });
+
+  return collection;
 }
 
 type TerminalsCollection = ReturnType<typeof getTerminalsCollectionInternal>;

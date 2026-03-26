@@ -3,8 +3,8 @@ import type { AgentEvent } from "@pixxl/shared";
 import { os } from "@/contract";
 import { AgentService } from "./service";
 import { mapToOrpcError } from "@/lib/error";
-import { agentManager } from "./manager";
-import { waitForActorReady } from "./actor";
+import { getReadyActor } from "./manager";
+import { AsyncEventQueue } from "./queue";
 
 // Agent metadata handlers
 export const getAgentRpc = os.agent.getAgent.handler(({ input }) =>
@@ -169,100 +169,11 @@ export const getAgentFrontendConfigRpc = os.agent.getAgentFrontendConfig.handler
   ),
 );
 
-class AsyncEventQueue<T> {
-  private items: T[] = [];
-  private resolvers: Array<(value: T | null) => void> = [];
-  private closed = false;
-
-  push(item: T) {
-    if (this.closed) return;
-
-    const resolver = this.resolvers.shift();
-    if (resolver) {
-      resolver(item);
-      return;
-    }
-
-    this.items.push(item);
-  }
-
-  close() {
-    if (this.closed) return;
-    this.closed = true;
-
-    while (this.resolvers.length > 0) {
-      this.resolvers.shift()?.(null);
-    }
-  }
-
-  async next(): Promise<T | null> {
-    if (this.items.length > 0) {
-      return this.items.shift() ?? null;
-    }
-
-    if (this.closed) {
-      return null;
-    }
-
-    return new Promise((resolve) => {
-      this.resolvers.push(resolve);
-    });
-  }
-}
-
 function isTerminatingEvent(event: AgentEvent): boolean {
   return (
     event.type === "error" ||
     (event.type === "status_change" && (event.status === "idle" || event.status === "error"))
   );
-}
-
-async function getReadyActor(projectId: string, agentId: string) {
-  const service = await Effect.gen(function* () {
-    return yield* AgentService;
-  })
-    .pipe(Effect.provide(AgentService.layer), Effect.runPromise)
-    .catch(() => null);
-
-  if (service) {
-    await Effect.gen(function* () {
-      yield* service.ensureAgentActor({ projectId, agentId });
-    })
-      .pipe(Effect.runPromise)
-      .catch(() => null);
-  }
-
-  const actor = agentManager.get(agentId);
-
-  if (!actor) {
-    return {
-      ok: false as const,
-      error: { type: "error" as const, sessionId: agentId, message: "Agent actor not found" },
-    };
-  }
-
-  const state = actor.getSnapshot();
-  if (state.matches("deleted") || state.matches("deleting")) {
-    return {
-      ok: false as const,
-      error: { type: "error" as const, sessionId: agentId, message: "Agent is being deleted" },
-    };
-  }
-
-  try {
-    await waitForActorReady(actor);
-  } catch (error) {
-    return {
-      ok: false as const,
-      error: {
-        type: "error" as const,
-        sessionId: agentId,
-        message: error instanceof Error ? error.message : "Agent is initializing",
-      },
-    };
-  }
-
-  return { ok: true as const, actor };
 }
 
 export const enqueueAgentPromptRpc = os.agent.enqueueAgentPrompt.handler(async ({ input }) => {
@@ -286,8 +197,12 @@ export const abortAgentRpc = os.agent.abortAgent.handler(async ({ input }) => {
 });
 
 export const promptAgentRpc = os.agent.promptAgent.handler(async function* ({ input }) {
+  const streamId = Math.random().toString(36).slice(2, 8);
+  console.log(`[Stream ${streamId}] START project=${input.projectId} agent=${input.agentId}`);
+
   const result = await getReadyActor(input.projectId, input.agentId);
   if (!result.ok) {
+    console.error(`[Stream ${streamId}] ACTOR NOT READY:`, result.error.message);
     yield result.error;
     return;
   }
@@ -295,32 +210,50 @@ export const promptAgentRpc = os.agent.promptAgent.handler(async function* ({ in
   const actor = result.actor;
   const queue = new AsyncEventQueue<AgentEvent>();
   let shouldEnd = false;
+  let eventCount = 0;
 
   const client = {
     closed: false,
     send: (event: AgentEvent) => {
-      console.log("sending event", event);
+      eventCount++;
+      console.log(`[Stream ${streamId}] EVENT #${eventCount}:`, event.type);
       queue.push(event);
 
       if (isTerminatingEvent(event) && !shouldEnd) {
+        console.log(`[Stream ${streamId}] TERMINATING EVENT DETECTED`);
         shouldEnd = true;
         queue.close();
       }
     },
   };
 
+  console.log(`[Stream ${streamId}] CONNECTING CLIENT`);
   actor.send({ type: "CLIENT_CONNECT", client });
+  console.log(`[Stream ${streamId}] SENDING PROMPT`);
   actor.send({ type: "PROMPT", text: input.text, mode: "immediate" });
 
   try {
+    let yieldedCount = 0;
     while (true) {
+      console.log(`[Stream ${streamId}] AWAITING NEXT (yielded=${yieldedCount})`);
       const next = await queue.next();
-      if (next === null) break;
+      if (next === null) {
+        console.log(`[Stream ${streamId}] GOT NULL, BREAKING`);
+        break;
+      }
+      yieldedCount++;
+      console.log(`[Stream ${streamId}] YIELDING #${yieldedCount}:`, next.type);
       yield next;
     }
+    console.log(`[Stream ${streamId}] LOOP ENDED (total yielded=${yieldedCount})`);
+  } catch (err) {
+    console.error(`[Stream ${streamId}] ERROR IN LOOP:`, err);
+    throw err;
   } finally {
+    console.log(`[Stream ${streamId}] FINALLY (events=${eventCount}, shouldEnd=${shouldEnd})`);
     client.closed = true;
     queue.close();
     actor.send({ type: "CLIENT_DISCONNECT", client });
+    console.log(`[Stream ${streamId}] CLEANUP COMPLETE`);
   }
 });

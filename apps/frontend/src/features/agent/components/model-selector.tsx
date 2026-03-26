@@ -48,8 +48,8 @@ export function ModelSelector({
       query.length === 0
         ? models
         : models.filter(
-          (m) => m.name.toLowerCase().includes(query) || m.provider.toLowerCase().includes(query),
-        );
+            (m) => m.name.toLowerCase().includes(query) || m.provider.toLowerCase().includes(query),
+          );
 
     const groups = new Map<string, ModelOption[]>();
     for (const model of filtered) {

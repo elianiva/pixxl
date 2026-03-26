@@ -1,11 +1,11 @@
-import { createCollection } from "@tanstack/db";
+import { createCollection, BasicIndex } from "@tanstack/db";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import { rpc } from "@/lib/rpc";
 import { generateId, type CommandMetadata } from "@pixxl/shared";
 import { queryClient } from "@/lib/query-client";
 
 function getCommandsCollectionInternal(projectId: string) {
-  return createCollection(
+  const collection = createCollection(
     queryCollectionOptions({
       queryClient,
       queryKey: ["commands", projectId],
@@ -38,6 +38,10 @@ function getCommandsCollectionInternal(projectId: string) {
       },
     }),
   );
+
+  collection.createIndex((item) => item.updatedAt, { indexType: BasicIndex });
+
+  return collection;
 }
 
 type CommandsCollection = ReturnType<typeof getCommandsCollectionInternal>;

@@ -1,156 +1,22 @@
 import { assign, createActor, fromPromise, setup } from "xstate";
-import type { AgentEvent, AgentMetadata, AgentModel, AgentThinkingLevel } from "@pixxl/shared";
-import { createAgentSession } from "@mariozechner/pi-coding-agent";
-import type { AgentSession, SessionManager, SessionEntry } from "@mariozechner/pi-coding-agent";
-import { getModel } from "@mariozechner/pi-ai";
+import type { AgentEvent } from "@pixxl/shared";
+import {
+  createPiSession,
+  type AgentActorInput,
+  type PromptMode,
+  type AgentActorContext,
+  type AgentActorEvents,
+} from "./types";
+import { extractTextFromContent, extractToolOutput, extractErrorMessage } from "./utils";
 
-// Entry types from pi session
-interface ModelChangeEntry {
-  type: "model_change";
-  provider: string;
-  modelId: string;
-}
-
-interface ThinkingLevelChangeEntry {
-  type: "thinking_level_change";
-  thinkingLevel: string;
-}
-
-function extractLastConfig(entries: SessionEntry[]): {
-  model?: { provider: string; id: string };
-  thinkingLevel?: string;
-} {
-  let model: { provider: string; id: string } | undefined;
-  let thinkingLevel: string | undefined;
-
-  // Process entries in reverse to find the last config changes
-  for (let i = entries.length - 1; i >= 0; i--) {
-    const entry = entries[i] as SessionEntry & { type?: string };
-
-    if (entry.type === "model_change" && !model) {
-      const modelEntry = entry as unknown as ModelChangeEntry;
-      model = { provider: modelEntry.provider, id: modelEntry.modelId };
-    }
-
-    if (entry.type === "thinking_level_change" && !thinkingLevel) {
-      const levelEntry = entry as unknown as ThinkingLevelChangeEntry;
-      thinkingLevel = levelEntry.thinkingLevel;
-    }
-
-    // Stop early if we found both
-    if (model && thinkingLevel) break;
-  }
-
-  return { model, thinkingLevel };
-}
-
-// Actor input
-export interface AgentActorInput {
-  agentId: string;
-  projectId: string;
-  projectPath: string;
-  metadata: AgentMetadata;
-  sessionManager: SessionManager;
-}
-
-// Client subscription for streaming events
-export interface AgentClient {
-  send: (event: AgentEvent) => void;
-  closed: boolean;
-  close?: () => void;
-}
-
-// Prompt mode: how to handle if agent is already streaming
-export type PromptMode = "immediate" | "steer" | "followUp";
-
-// Actor context
-export interface AgentActorContext {
-  agentId: string;
-  projectId: string;
-  projectPath: string;
-  metadata: AgentMetadata;
-  sessionManager: SessionManager;
-  session: AgentSession | null;
-  clients: Set<AgentClient>;
-  error?: string;
-}
-
-// Actor events
-export type AgentActorEvents =
-  | { type: "CLIENT_CONNECT"; client: AgentClient }
-  | { type: "CLIENT_DISCONNECT"; client: AgentClient }
-  | { type: "PROMPT"; text: string; mode: PromptMode }
-  | { type: "ABORT" }
-  | { type: "DELETE_METADATA" }
-  | { type: "HYDRATE"; metadata: AgentMetadata; sessionManager: SessionManager }
-  | { type: "ATTACH_SESSION"; sessionManager: SessionManager }
-  | { type: "STREAM_ERROR"; error: string }
-  | { type: "AGENT_SESSION_EVENT"; event: AgentEvent };
-
-function extractTextFromContent(content: unknown): string {
-  if (!Array.isArray(content)) return "";
-
-  const chunks: string[] = [];
-  for (const item of content) {
-    if (!item || typeof item !== "object") continue;
-
-    const block = item as { type?: unknown; text?: unknown };
-    if (block.type === "text" && typeof block.text === "string") {
-      chunks.push(block.text);
-    }
-  }
-
-  return chunks.join("");
-}
-
-function extractToolOutput(partialResult: unknown): string {
-  if (typeof partialResult === "string") return partialResult;
-  if (!partialResult || typeof partialResult !== "object") return "";
-
-  const value = partialResult as {
-    content?: unknown;
-    output?: unknown;
-    details?: unknown;
-  };
-
-  const contentText = extractTextFromContent(value.content);
-  if (contentText.length > 0) return contentText;
-
-  if (typeof value.output === "string") return value.output;
-  if (typeof value.details === "string") return value.details;
-
-  return "";
-}
-
-function extractErrorMessage(value: unknown): string | undefined {
-  if (typeof value === "string") return value;
-  if (value instanceof Error) return value.message;
-  if (!value || typeof value !== "object") return undefined;
-
-  const maybeError = value as {
-    message?: unknown;
-    errorMessage?: unknown;
-    content?: unknown;
-  };
-
-  if (typeof maybeError.errorMessage === "string" && maybeError.errorMessage.length > 0) {
-    return maybeError.errorMessage;
-  }
-
-  if (typeof maybeError.message === "string" && maybeError.message.length > 0) {
-    return maybeError.message;
-  }
-
-  const contentText = extractTextFromContent(maybeError.content);
-  if (contentText.length > 0) return contentText;
-
-  return undefined;
-}
+// Actor context type for setup
+type ActorContext = AgentActorContext;
+type ActorEvents = AgentActorEvents;
 
 export const agentMachine = setup({
   types: {
-    context: {} as AgentActorContext,
-    events: {} as AgentActorEvents,
+    context: {} as ActorContext,
+    events: {} as ActorEvents,
     input: {} as AgentActorInput,
   },
   actions: {
@@ -252,16 +118,17 @@ export const agentMachine = setup({
     },
   },
   actors: {
-    runPrompt: fromPromise(async ({ input, self }) => {
-      const { session, text, mode, agentId } = input as {
-        session: AgentSession;
+    runPrompt: fromPromise(async ({ input }) => {
+      const { session, text, mode, agentId, parent } = input as {
+        session: NonNullable<ActorContext["session"]>;
         text: string;
         mode: PromptMode;
         agentId: string;
+        parent: { send: (event: { type: string; event: AgentEvent }) => void };
       };
 
       const emitMappedEvent = (mappedEvent: AgentEvent) => {
-        self.send({ type: "AGENT_SESSION_EVENT", event: mappedEvent });
+        parent.send({ type: "AGENT_SESSION_EVENT", event: mappedEvent });
       };
 
       let sawAssistantTextDelta = false;
@@ -381,6 +248,22 @@ export const agentMachine = setup({
         unsubscribe();
       }
     }),
+    initializeSession: fromPromise(async ({ input }) => {
+      const { projectPath } = input as {
+        projectPath: string;
+      };
+
+      const { session } = await createPiSession(projectPath);
+      return session;
+    }),
+    switchSession: fromPromise(async ({ input }) => {
+      const { projectPath } = input as {
+        projectPath: string;
+      };
+
+      const { session } = await createPiSession(projectPath);
+      return session;
+    }),
   },
 }).createMachine({
   id: "agent",
@@ -399,35 +282,7 @@ export const agentMachine = setup({
     initializing: {
       entry: ["clearError"],
       invoke: {
-        src: fromPromise(async ({ input }) => {
-          const { sessionManager, projectPath } = input as {
-            sessionManager: SessionManager;
-            projectPath: string;
-          };
-          const { session } = await createAgentSession({
-            sessionManager,
-            cwd: projectPath,
-          });
-
-          // Apply last config from session entries (model_change, thinking_level_change)
-          const entries = sessionManager.getEntries();
-          const { model, thinkingLevel } = extractLastConfig(entries);
-
-          if (model) {
-            try {
-              const piModel = getModel(model.provider as never, model.id as never);
-              await session.setModel(piModel);
-            } catch {
-              // If model not available, keep default
-            }
-          }
-
-          if (thinkingLevel && session.supportsThinking()) {
-            session.setThinkingLevel(thinkingLevel as AgentThinkingLevel);
-          }
-
-          return session;
-        }),
+        src: "initializeSession",
         input: ({ context }) => ({
           sessionManager: context.sessionManager,
           projectPath: context.projectPath,
@@ -435,7 +290,7 @@ export const agentMachine = setup({
         onDone: {
           target: "ready",
           actions: assign({
-            session: ({ event }) => event.output as AgentSession,
+            session: ({ event }) => event.output,
           }),
         },
         onError: {
@@ -478,35 +333,7 @@ export const agentMachine = setup({
     switchingSession: {
       entry: ["notifyClientsIdle"],
       invoke: {
-        src: fromPromise(async ({ input }) => {
-          const { sessionManager, projectPath } = input as {
-            sessionManager: SessionManager;
-            projectPath: string;
-          };
-          const { session } = await createAgentSession({
-            sessionManager,
-            cwd: projectPath,
-          });
-
-          // Apply last config from session entries (model_change, thinking_level_change)
-          const entries = sessionManager.getEntries();
-          const { model, thinkingLevel } = extractLastConfig(entries);
-
-          if (model) {
-            try {
-              const piModel = getModel(model.provider as never, model.id as never);
-              await session.setModel(piModel);
-            } catch {
-              // If model not available, keep default
-            }
-          }
-
-          if (thinkingLevel && session.supportsThinking()) {
-            session.setThinkingLevel(thinkingLevel as AgentThinkingLevel);
-          }
-
-          return session;
-        }),
+        src: "switchSession",
         input: ({ context }) => ({
           sessionManager: context.sessionManager,
           projectPath: context.projectPath,
@@ -514,7 +341,7 @@ export const agentMachine = setup({
         onDone: {
           target: "ready",
           actions: assign({
-            session: ({ event }) => event.output as AgentSession,
+            session: ({ event }) => event.output,
           }),
         },
         onError: {
@@ -527,13 +354,14 @@ export const agentMachine = setup({
       entry: "notifyClientsStreaming",
       invoke: {
         src: "runPrompt",
-        input: ({ context, event }) => {
+        input: ({ context, event, self }) => {
           if (event.type !== "PROMPT") throw new Error("Expected PROMPT event");
           return {
             session: context.session!,
             text: event.text,
             mode: event.mode,
             agentId: context.agentId,
+            parent: self,
           };
         },
         onDone: {
@@ -563,7 +391,7 @@ export const agentMachine = setup({
     },
     deleting: {
       entry: assign({
-        session: (): AgentSession | null => null,
+        session: (): ActorContext["session"] => null,
       }),
       always: "deleted",
     },
@@ -608,7 +436,7 @@ export function createAgentActor(input: AgentActorInput) {
 
 export type AgentActor = ReturnType<typeof createAgentActor>;
 
-export async function waitForActorReady(actor: AgentActor): Promise<AgentSession> {
+export async function waitForActorReady(actor: AgentActor) {
   const snapshot = actor.getSnapshot();
   if (snapshot.matches("ready") && snapshot.context.session) {
     return snapshot.context.session;
@@ -626,7 +454,7 @@ export async function waitForActorReady(actor: AgentActor): Promise<AgentSession
     throw new Error(snapshot.context.error ?? "Agent failed to initialize");
   }
 
-  return await new Promise<AgentSession>((resolve, reject) => {
+  return await new Promise<NonNullable<ActorContext["session"]>>((resolve, reject) => {
     const subscription = actor.subscribe((state) => {
       if ((state.matches("ready") || state.matches("streaming")) && state.context.session) {
         subscription.unsubscribe();
@@ -651,15 +479,16 @@ export async function waitForActorReady(actor: AgentActor): Promise<AgentSession
 export async function configureActorSession(
   actor: AgentActor,
   input: {
-    model: AgentModel;
-    thinkingLevel: AgentThinkingLevel;
+    model: { provider: string; id: string };
+    thinkingLevel: string;
   },
 ) {
   const session = await waitForActorReady(actor);
 
+  const { getModel } = await import("@mariozechner/pi-ai");
   const model = getModel(input.model.provider as never, input.model.id as never);
   await session.setModel(model);
-  session.setThinkingLevel(input.thinkingLevel);
+  session.setThinkingLevel(input.thinkingLevel as never);
 }
 
 // Helper to get runtime state from actor
@@ -668,8 +497,8 @@ export function getActorRuntimeState(actor: AgentActor): {
   queuedSteering: string[];
   queuedFollowUp: string[];
   currentSessionFile: string;
-  model?: AgentModel;
-  thinkingLevel: AgentThinkingLevel;
+  model?: { provider: string; id: string; name: string };
+  thinkingLevel: string;
 } {
   const state = actor.getSnapshot();
   const session = state.context.session;
@@ -695,11 +524,9 @@ export function getActorRuntimeState(actor: AgentActor): {
             provider: String(model.provider),
             id: String(model.id),
             name: String(model.name ?? model.id),
-          } satisfies AgentModel,
+          },
         }
       : {}),
-    thinkingLevel: session?.supportsThinking()
-      ? (session.thinkingLevel as AgentThinkingLevel)
-      : "off",
+    thinkingLevel: session?.supportsThinking() ? String(session.thinkingLevel) : "off",
   };
 }
