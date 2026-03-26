@@ -3,6 +3,7 @@ import { MessageResponse, MessageActions, MessageAction } from "@/components/ai-
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning";
 import { RiFileCopyLine, RiGitBranchLine } from "@remixicon/react";
 import { ToolCallDisplay } from "./tool-call-display";
+import { StreamingToolCallGroup } from "./streaming-tool-call";
 
 interface AgentMessageContentProps {
   message: {
@@ -45,17 +46,23 @@ export const AgentMessageContent = memo(function AgentMessageContent({
         </Reasoning>
       )}
 
-      {/* Tool calls */}
+      {/* Tool calls - use streaming style for streaming messages, detailed view for complete */}
       {message.toolCalls && message.toolCalls.length > 0 && (
-        <div className="mb-2 space-y-2">
-          {message.toolCalls.map((tool) => (
-            <ToolCallDisplay key={tool.id} tool={tool} />
-          ))}
+        <div className="mb-2">
+          {message.isStreaming ? (
+            <StreamingToolCallGroup tools={message.toolCalls} />
+          ) : (
+            <div className="space-y-2">
+              {message.toolCalls.map((tool) => (
+                <ToolCallDisplay key={tool.id} tool={tool} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
       {/* Main content with MessageResponse (uses Streamdown with all plugins) */}
-      <div className="text-sm leading-relaxed">
+      <div className="leading-relaxed">
         <MessageResponse
           mode={message.isStreaming ? "streaming" : "static"}
           isAnimating={message.isStreaming}

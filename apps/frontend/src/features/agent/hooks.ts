@@ -21,17 +21,31 @@ interface ContentBlock {
   type?: string;
   text?: string;
   thinking?: string;
+  id?: string;
+  name?: string;
+  arguments?: Record<string, unknown>;
 }
 
-function extractFromContentBlocks(content: unknown): {
+interface ExtractedContent {
   text: string;
   thinking: string | undefined;
-} {
-  if (typeof content === "string") return { text: content, thinking: undefined };
-  if (!Array.isArray(content)) return { text: "", thinking: undefined };
+  toolCalls: Array<{
+    id: string;
+    name: string;
+    params: unknown;
+    status: "running" | "complete" | "error";
+    output?: string;
+    error?: string;
+  }>;
+}
+
+function extractFromContentBlocks(content: unknown): ExtractedContent {
+  if (typeof content === "string") return { text: content, thinking: undefined, toolCalls: [] };
+  if (!Array.isArray(content)) return { text: "", thinking: undefined, toolCalls: [] };
 
   let text = "";
   let thinking: string | undefined;
+  const toolCalls: ExtractedContent["toolCalls"] = [];
 
   for (const item of content) {
     if (!item || typeof item !== "object") continue;
@@ -43,9 +57,21 @@ function extractFromContentBlocks(content: unknown): {
     if (block.type === "thinking" && typeof block.thinking === "string") {
       thinking = (thinking ?? "") + block.thinking;
     }
+    if (
+      block.type === "toolCall" &&
+      typeof block.id === "string" &&
+      typeof block.name === "string"
+    ) {
+      toolCalls.push({
+        id: block.id,
+        name: block.name,
+        params: block.arguments ?? {},
+        status: "complete",
+      });
+    }
   }
 
-  return { text, thinking };
+  return { text, thinking, toolCalls };
 }
 
 export function useActiveAgentId(): string | null {
@@ -99,7 +125,7 @@ export function useMessages(agentId?: string): Message[] {
           type?: string;
           id: string;
           message?: {
-            role?: "user" | "assistant";
+            role?: "user" | "assistant" | "toolResult";
             content?: unknown;
             thinking?: string;
           };
@@ -107,14 +133,18 @@ export function useMessages(agentId?: string): Message[] {
 
         if (entry.type !== "message" || !entry.message) return acc;
 
+        // Skip tool result messages - they're displayed via tool_end event handling
+        if (entry.message.role === "toolResult") return acc;
+
         const message = entry.message;
-        const { text, thinking } = extractFromContentBlocks(message.content);
+        const { text, thinking, toolCalls } = extractFromContentBlocks(message.content);
 
         acc.push({
           id: entry.id,
           role: message.role === "assistant" ? "assistant" : "user",
           content: text,
           reasoning: thinking,
+          toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
         });
 
         return acc;
