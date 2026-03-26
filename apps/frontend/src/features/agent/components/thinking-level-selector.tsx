@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { RiArrowDownSLine, RiBrain4Line } from "@remixicon/react";
 
-export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high";
+export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
 export const THINKING_LEVELS: { id: ThinkingLevel; name: string }[] = [
   { id: "off", name: "Off" },
@@ -14,6 +14,7 @@ export const THINKING_LEVELS: { id: ThinkingLevel; name: string }[] = [
   { id: "low", name: "Low" },
   { id: "medium", name: "Medium" },
   { id: "high", name: "High" },
+  { id: "xhigh", name: "Extra High" },
 ];
 
 interface ThinkingLevelSelectorProps {

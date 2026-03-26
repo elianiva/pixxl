@@ -23,7 +23,6 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
   const { data: runtimeState } = useQuery({
     queryKey: ["agent-runtime", projectId, agentId],
     queryFn: () => rpc.agent.getAgentRuntime({ projectId, agentId }),
-    refetchInterval: 1000,
   });
 
   const queuedMessages: QueuedMessage[] = [
@@ -37,12 +36,22 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
     })),
   ];
 
-  const handleSubmit = (text: string, _options: ChatSubmitOptions) => {
-    void sendMessage(text, "immediate");
+  const initialModel = runtimeState?.model;
+  const initialThinkingLevel = runtimeState?.thinkingLevel;
+
+  const handleSubmit = (text: string, options: ChatSubmitOptions) => {
+    void sendMessage(text, "immediate", options);
   };
 
   const handleQueueClick = (message: QueuedMessage) => {
-    void sendMessage(message.text, message.type);
+    void sendMessage(message.text, message.type, {
+      model: initialModel ?? {
+        provider: "anthropic",
+        id: "claude-sonnet-4-20250514",
+        name: "Claude Sonnet 4",
+      },
+      thinkingLevel: initialThinkingLevel ?? "medium",
+    });
   };
 
   const handleAbort = () => {
@@ -61,6 +70,8 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
         isStreaming={isStreaming}
         queuedMessages={queuedMessages}
         onQueueClick={handleQueueClick}
+        initialModel={initialModel}
+        initialThinkingLevel={initialThinkingLevel}
         placeholder="Ask anything..."
       />
     </div>

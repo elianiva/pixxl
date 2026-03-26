@@ -1,7 +1,8 @@
 import { assign, createActor, fromPromise, setup } from "xstate";
-import type { AgentEvent, AgentMetadata } from "@pixxl/shared";
+import type { AgentEvent, AgentMetadata, AgentModel, AgentThinkingLevel } from "@pixxl/shared";
 import { createAgentSession } from "@mariozechner/pi-coding-agent";
 import type { AgentSession, SessionManager } from "@mariozechner/pi-coding-agent";
+import { getModel } from "@mariozechner/pi-ai";
 
 // Actor input
 export interface AgentActorInput {
@@ -531,15 +532,72 @@ export function createAgentActor(input: AgentActorInput) {
 
 export type AgentActor = ReturnType<typeof createAgentActor>;
 
+export async function waitForActorReady(actor: AgentActor): Promise<AgentSession> {
+  const snapshot = actor.getSnapshot();
+  if (snapshot.matches("ready") && snapshot.context.session) {
+    return snapshot.context.session;
+  }
+
+  if (snapshot.matches("streaming") && snapshot.context.session) {
+    return snapshot.context.session;
+  }
+
+  if (snapshot.matches("deleted")) {
+    throw new Error("Agent deleted");
+  }
+
+  if (snapshot.matches("error")) {
+    throw new Error(snapshot.context.error ?? "Agent failed to initialize");
+  }
+
+  return await new Promise<AgentSession>((resolve, reject) => {
+    const subscription = actor.subscribe((state) => {
+      if ((state.matches("ready") || state.matches("streaming")) && state.context.session) {
+        subscription.unsubscribe();
+        resolve(state.context.session);
+        return;
+      }
+
+      if (state.matches("deleted")) {
+        subscription.unsubscribe();
+        reject(new Error("Agent deleted"));
+        return;
+      }
+
+      if (state.matches("error")) {
+        subscription.unsubscribe();
+        reject(new Error(state.context.error ?? "Agent failed to initialize"));
+      }
+    });
+  });
+}
+
+export async function configureActorSession(
+  actor: AgentActor,
+  input: {
+    model: AgentModel;
+    thinkingLevel: AgentThinkingLevel;
+  },
+) {
+  const session = await waitForActorReady(actor);
+
+  const model = getModel(input.model.provider as never, input.model.id as never);
+  await session.setModel(model);
+  session.setThinkingLevel(input.thinkingLevel);
+}
+
 // Helper to get runtime state from actor
 export function getActorRuntimeState(actor: AgentActor): {
   status: "idle" | "streaming" | "initializing" | "switchingSession" | "error";
   queuedSteering: string[];
   queuedFollowUp: string[];
   currentSessionFile: string;
+  model?: AgentModel;
+  thinkingLevel: AgentThinkingLevel;
 } {
   const state = actor.getSnapshot();
   const session = state.context.session;
+  const model = session?.model;
 
   return {
     status: state.matches("ready")
@@ -555,5 +613,17 @@ export function getActorRuntimeState(actor: AgentActor): {
     queuedFollowUp: [...(session?.getFollowUpMessages() ?? [])],
     currentSessionFile:
       state.context.sessionManager.getSessionFile() ?? state.context.metadata.pi.sessionFile,
+    ...(model
+      ? {
+          model: {
+            provider: String(model.provider),
+            id: String(model.id),
+            name: String(model.name ?? model.id),
+          } satisfies AgentModel,
+        }
+      : {}),
+    thinkingLevel: session?.supportsThinking()
+      ? (session.thinkingLevel as AgentThinkingLevel)
+      : "off",
   };
 }

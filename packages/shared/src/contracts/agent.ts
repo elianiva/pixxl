@@ -12,6 +12,7 @@ import {
   SwitchSessionInputSchema,
   ListAttachableSessionsInputSchema,
   PromptAgentInputSchema,
+  ConfigureAgentSessionInputSchema,
   EnqueueAgentPromptInputSchema,
   GetAgentRuntimeInputSchema,
   GetAgentHistoryInputSchema,
@@ -64,6 +65,10 @@ export const getAgentRuntimeContract = oc
 export const getAgentHistoryContract = oc
   .input(Schema.toStandardSchemaV1(GetAgentHistoryInputSchema))
   .output(Schema.toStandardSchemaV1(Schema.NullOr(AgentHistorySchema)));
+
+export const configureAgentSessionContract = oc
+  .input(Schema.toStandardSchemaV1(ConfigureAgentSessionInputSchema))
+  .output(Schema.toStandardSchemaV1(Schema.Null));
 
 export const promptAgentContract = oc
   .input(Schema.toStandardSchemaV1(PromptAgentInputSchema))

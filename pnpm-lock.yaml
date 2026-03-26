@@ -8,7 +8,7 @@ catalogs:
   default:
     '@orpc/contract':
       specifier: ^1.13.11
-      version: 1.13.11
+      version: 1.13.9
     effect:
       specifier: 4.0.0-beta.36
       version: 4.0.0-beta.36
@@ -29,6 +29,9 @@ importers:
       '@effect/platform-bun':
         specifier: 4.0.0-beta.36
         version: 4.0.0-beta.36(effect@4.0.0-beta.36)
+      '@mariozechner/pi-ai':
+        specifier: ^0.62.0
+        version: 0.62.0(@modelcontextprotocol/sdk@1.27.1(zod@3.25.76))(ws@8.20.0)(zod@3.25.76)
       '@mariozechner/pi-coding-agent':
         specifier: ^0.62.0
         version: 0.62.0(@modelcontextprotocol/sdk@1.27.1(zod@3.25.76))(ws@8.20.0)(zod@3.25.76)

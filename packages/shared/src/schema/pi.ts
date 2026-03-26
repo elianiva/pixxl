@@ -119,6 +119,16 @@ const PiCustomEntrySchema = Schema.Struct({
   data: Schema.optionalKey(Schema.Unknown),
 });
 
+/** Pi CustomMessageEntry schema. */
+const PiCustomMessageEntrySchema = Schema.Struct({
+  ...SessionEntryBase,
+  type: Schema.Literal("custom_message"),
+  customType: Schema.String,
+  content: Schema.Unknown,
+  details: Schema.optionalKey(Schema.Unknown),
+  display: Schema.Boolean,
+});
+
 /** Pi LabelEntry schema - exact match */
 const PiLabelEntrySchema = Schema.Struct({
   ...SessionEntryBase,
@@ -145,6 +155,7 @@ export const PiSessionEntrySchema = Schema.Union([
   PiCompactionEntrySchema,
   PiBranchSummaryEntrySchema,
   PiCustomEntrySchema,
+  PiCustomMessageEntrySchema,
   PiLabelEntrySchema,
   PiSessionInfoEntrySchema,
 ]);

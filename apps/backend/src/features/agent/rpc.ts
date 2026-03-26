@@ -4,6 +4,7 @@ import { os } from "@/contract";
 import { AgentService } from "./service";
 import { mapToOrpcError } from "@/lib/error";
 import { agentManager } from "./manager";
+import { waitForActorReady } from "./actor";
 
 // Agent metadata handlers
 export const getAgentRpc = os.agent.getAgent.handler(({ input }) =>
@@ -146,6 +147,17 @@ export const getAgentHistoryRpc = os.agent.getAgentHistory.handler(({ input }) =
   ),
 );
 
+export const configureAgentSessionRpc = os.agent.configureAgentSession.handler(({ input }) =>
+  Effect.gen(function* () {
+    const service = yield* AgentService;
+    return yield* service.configureAgentSession(input);
+  }).pipe(
+    Effect.provide(AgentService.layer),
+    mapToOrpcError({ feature: "agent" }),
+    Effect.runPromise,
+  ),
+);
+
 class AsyncEventQueue<T> {
   private items: T[] = [];
   private resolvers: Array<(value: T | null) => void> = [];
@@ -226,10 +238,16 @@ async function getReadyActor(projectId: string, agentId: string) {
     };
   }
 
-  if (state.matches("initializing")) {
+  try {
+    await waitForActorReady(actor);
+  } catch (error) {
     return {
       ok: false as const,
-      error: { type: "error" as const, sessionId: agentId, message: "Agent is initializing" },
+      error: {
+        type: "error" as const,
+        sessionId: agentId,
+        message: error instanceof Error ? error.message : "Agent is initializing",
+      },
     };
   }
 

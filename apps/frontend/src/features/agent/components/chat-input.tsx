@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { RiAddLine, RiArrowUpLine, RiStopLine } from "@remixicon/react";
@@ -23,6 +23,8 @@ interface ChatInputProps {
   placeholder?: string;
   queuedMessages?: QueuedMessage[];
   onQueueClick?: (message: QueuedMessage) => void;
+  initialModel?: ModelOption;
+  initialThinkingLevel?: ThinkingLevel;
 }
 
 export function ChatInput({
@@ -33,11 +35,21 @@ export function ChatInput({
   placeholder = "Ask anything...",
   queuedMessages = [],
   onQueueClick,
+  initialModel = MODELS[0],
+  initialThinkingLevel = "medium",
 }: ChatInputProps) {
   const [inputText, setInputText] = useState("");
-  const [selectedModel, setSelectedModel] = useState<ModelOption>(MODELS[0]);
-  const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>("medium");
+  const [selectedModel, setSelectedModel] = useState<ModelOption>(initialModel);
+  const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(initialThinkingLevel);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    setSelectedModel(initialModel);
+  }, [initialModel]);
+
+  useEffect(() => {
+    setThinkingLevel(initialThinkingLevel);
+  }, [initialThinkingLevel]);
 
   const handleSubmit = useCallback(() => {
     const trimmed = inputText.trim();

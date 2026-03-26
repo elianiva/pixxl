@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 import type { SessionEntry, SessionInfo } from "@mariozechner/pi-coding-agent";
-import { PiSessionEntrySchema, PiSessionInfoSchema } from "./pi";
+import { PiSessionInfoSchema } from "./pi";
 
 export const CreateAgentInputSchema = Schema.Struct({
   id: Schema.String,
@@ -60,10 +60,32 @@ export const ListAttachableSessionsInputSchema = Schema.Struct({
 });
 
 // Immediate prompt schema
+export const AgentThinkingLevelSchema = Schema.Literals([
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+]);
+
+export const AgentModelSchema = Schema.Struct({
+  provider: Schema.String,
+  id: Schema.String,
+  name: Schema.String,
+});
+
 export const PromptAgentInputSchema = Schema.Struct({
   projectId: Schema.String,
   agentId: Schema.String,
   text: Schema.String,
+});
+
+export const ConfigureAgentSessionInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+  model: AgentModelSchema,
+  thinkingLevel: AgentThinkingLevelSchema,
 });
 
 export const EnqueuePromptModeSchema = Schema.Literals(["steer", "followUp"]);
@@ -105,6 +127,8 @@ export const AgentRuntimeStateSchema = Schema.Struct({
   queuedSteering: Schema.Array(Schema.String),
   queuedFollowUp: Schema.Array(Schema.String),
   currentSessionFile: Schema.String,
+  model: Schema.optionalKey(AgentModelSchema),
+  thinkingLevel: AgentThinkingLevelSchema,
 });
 
 export const AgentHistorySchema = Schema.Struct({
@@ -115,7 +139,7 @@ export const AgentHistorySchema = Schema.Struct({
   cwd: Schema.String,
   sessionName: Schema.optionalKey(Schema.String),
   leafId: Schema.NullOr(Schema.String),
-  entries: Schema.Array(PiSessionEntrySchema),
+  entries: Schema.Array(Schema.Unknown),
 });
 
 // Streaming event schemas for the web UI (local to our app, not from Pi)
@@ -196,7 +220,10 @@ export type ListAgentsInput = typeof ListAgentsInputSchema.Type;
 export type AttachSessionInput = typeof AttachSessionInputSchema.Type;
 export type SwitchSessionInput = typeof SwitchSessionInputSchema.Type;
 export type ListAttachableSessionsInput = typeof ListAttachableSessionsInputSchema.Type;
+export type AgentThinkingLevel = typeof AgentThinkingLevelSchema.Type;
+export type AgentModel = typeof AgentModelSchema.Type;
 export type PromptAgentInput = typeof PromptAgentInputSchema.Type;
+export type ConfigureAgentSessionInput = typeof ConfigureAgentSessionInputSchema.Type;
 export type EnqueuePromptMode = typeof EnqueuePromptModeSchema.Type;
 export type EnqueueAgentPromptInput = typeof EnqueueAgentPromptInputSchema.Type;
 export type GetAgentRuntimeInput = typeof GetAgentRuntimeInputSchema.Type;

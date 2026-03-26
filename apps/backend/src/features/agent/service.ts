@@ -7,6 +7,7 @@ import {
   type AgentRuntimeState,
   type PiSessionInfo,
   type AgentHistory,
+  type ConfigureAgentSessionInput,
 } from "@pixxl/shared";
 import {
   AgentNotFoundError,
@@ -23,7 +24,7 @@ import { ConfigService } from "../config/service";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
 import { createPiSession, openPiSession, listPiSessions, deletePiSessionFile } from "./pi";
 import { agentManager } from "./manager";
-import { getActorRuntimeState } from "./actor";
+import { configureActorSession, getActorRuntimeState } from "./actor";
 
 export type AgentServiceError =
   | AgentNotFoundError
@@ -79,6 +80,9 @@ export type AgentServiceApi = {
     projectId: string;
     agentId: string;
   }) => Effect.Effect<Option.Option<AgentHistory>, AgentServiceError>;
+  readonly configureAgentSession: (
+    input: ConfigureAgentSessionInput,
+  ) => Effect.Effect<null, AgentServiceError>;
 };
 
 export class AgentService extends ServiceMap.Service<AgentService, AgentServiceApi>()(
@@ -437,7 +441,50 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceA
           queuedSteering: actorState.queuedSteering,
           queuedFollowUp: actorState.queuedFollowUp,
           currentSessionFile: actorState.currentSessionFile,
+          ...(actorState.model ? { model: actorState.model } : {}),
+          thinkingLevel: actorState.thinkingLevel,
         });
+      });
+
+      const configureAgentSession = Effect.fn("AgentService.configureAgentSession")(function* (
+        input: ConfigureAgentSessionInput,
+      ) {
+        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
+
+        if (Option.isNone(projectResult)) {
+          return yield* new AgentNotFoundError({
+            agentId: input.agentId,
+            projectId: input.projectId,
+            cause: "Project not found",
+          });
+        }
+
+        yield* ensureAgentActor({
+          projectId: input.projectId,
+          agentId: input.agentId,
+        });
+
+        const actor = agentManager.get(input.agentId);
+
+        if (!actor) {
+          return yield* new AgentNotFoundError({
+            agentId: input.agentId,
+            projectId: input.projectId,
+            cause: "Agent actor not found",
+          });
+        }
+
+        yield* Effect.tryPromise({
+          try: () => configureActorSession(actor, input),
+          catch: (cause) =>
+            new AgentUpdateError({
+              agentId: input.agentId,
+              projectId: input.projectId,
+              cause: cause instanceof Error ? cause.message : "Failed to configure session",
+            }),
+        });
+
+        return null;
       });
 
       const getAgentHistory = Effect.fn("AgentService.getAgentHistory")(function* (input: {
@@ -534,6 +581,7 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceA
         listAttachableSessions,
         getAgentRuntime,
         getAgentHistory,
+        configureAgentSession,
       } as unknown as AgentServiceApi;
     }),
   },

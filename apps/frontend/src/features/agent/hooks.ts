@@ -77,16 +77,22 @@ export function useMessages(agentId?: string): Message[] {
     const persisted = historyMessages
       .toSorted((a, b) => a.order - b.order)
       .reduce<Message[]>((acc, item) => {
-        if (item.entry.type !== "message") return acc;
-
-        const message = item.entry.message as {
-          role?: "user" | "assistant";
-          content?: unknown;
-          thinking?: string;
+        const entry = item.entry as {
+          type?: string;
+          id: string;
+          message?: {
+            role?: "user" | "assistant";
+            content?: unknown;
+            thinking?: string;
+          };
         };
 
+        if (entry.type !== "message" || !entry.message) return acc;
+
+        const message = entry.message;
+
         acc.push({
-          id: item.entry.id,
+          id: entry.id,
           role: message.role === "assistant" ? "assistant" : "user",
           content: messageTextFromContent(message.content),
           reasoning: message.thinking,
@@ -124,6 +130,32 @@ export function useAgentActions(projectId: string, agentId?: string) {
     selectAgent(nextAgentId);
   }, []);
 
+  const invalidateAgentQueries = useCallback(
+    async (resolvedAgentId: string) => {
+      await queryClient.invalidateQueries({
+        queryKey: ["agent-runtime", projectId, resolvedAgentId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["agent-interactions", projectId, resolvedAgentId],
+      });
+    },
+    [projectId],
+  );
+
+  const configureSession = useCallback(
+    async (resolvedAgentId: string, options?: ChatSubmitOptions) => {
+      if (!options) return;
+
+      await rpc.agent.configureAgentSession({
+        projectId,
+        agentId: resolvedAgentId,
+        model: options.model,
+        thinkingLevel: options.thinkingLevel,
+      });
+    },
+    [projectId],
+  );
+
   const sendMessage = useCallback(
     async (
       text: string,
@@ -133,27 +165,25 @@ export function useAgentActions(projectId: string, agentId?: string) {
       const resolvedAgentId = targetAgentId;
       if (!resolvedAgentId) return;
 
-      if (mode !== "immediate") {
-        await rpc.agent.enqueueAgentPrompt({
-          projectId,
-          agentId: resolvedAgentId,
-          text,
-          mode,
-        });
-
-        await queryClient.invalidateQueries({
-          queryKey: ["agent-runtime", projectId, resolvedAgentId],
-        });
-        await queryClient.invalidateQueries({
-          queryKey: ["agent-interactions", projectId, resolvedAgentId],
-        });
-        return;
-      }
-
-      const requestId = beginAgentStream(resolvedAgentId, text);
+      const requestId = mode === "immediate" ? beginAgentStream(resolvedAgentId, text) : null;
 
       try {
-        void options;
+        await configureSession(resolvedAgentId, options);
+
+        if (mode !== "immediate") {
+          await rpc.agent.enqueueAgentPrompt({
+            projectId,
+            agentId: resolvedAgentId,
+            text,
+            mode,
+          });
+
+          return;
+        }
+
+        if (!requestId) {
+          throw new Error("Missing request id for immediate prompt");
+        }
 
         const stream = await rpc.agent.promptAgent({
           projectId,
@@ -167,21 +197,18 @@ export function useAgentActions(projectId: string, agentId?: string) {
 
         finishAgentStream(resolvedAgentId, requestId);
       } catch (error) {
-        failAgentStream(
-          resolvedAgentId,
-          requestId,
-          error instanceof Error ? error.message : "Prompt failed",
-        );
+        if (requestId) {
+          failAgentStream(
+            resolvedAgentId,
+            requestId,
+            error instanceof Error ? error.message : "Prompt failed",
+          );
+        }
       } finally {
-        await queryClient.invalidateQueries({
-          queryKey: ["agent-runtime", projectId, resolvedAgentId],
-        });
-        await queryClient.invalidateQueries({
-          queryKey: ["agent-interactions", projectId, resolvedAgentId],
-        });
+        await invalidateAgentQueries(resolvedAgentId);
       }
     },
-    [projectId, targetAgentId],
+    [configureSession, invalidateAgentQueries, projectId, targetAgentId],
   );
 
   const abortMessage = useCallback(async () => {
@@ -193,13 +220,8 @@ export function useAgentActions(projectId: string, agentId?: string) {
       agentId: resolvedAgentId,
     });
 
-    await queryClient.invalidateQueries({
-      queryKey: ["agent-runtime", projectId, resolvedAgentId],
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ["agent-interactions", projectId, resolvedAgentId],
-    });
-  }, [projectId, targetAgentId]);
+    await invalidateAgentQueries(resolvedAgentId);
+  }, [invalidateAgentQueries, projectId, targetAgentId]);
 
   return {
     selectAgent: select,
