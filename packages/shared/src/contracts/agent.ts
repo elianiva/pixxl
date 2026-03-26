@@ -22,6 +22,7 @@ import {
   AgentHistorySchema,
   AgentEventSchema,
   AgentFrontendConfigSchema,
+  PiAvailableModelListSchema,
 } from "../schema/agent";
 
 // Agent metadata contracts
@@ -86,3 +87,7 @@ export const abortAgentContract = oc
 export const getAgentFrontendConfigContract = oc
   .input(Schema.toStandardSchemaV1(Schema.Void))
   .output(Schema.toStandardSchemaV1(AgentFrontendConfigSchema));
+
+export const listAvailableModelsContract = oc
+  .input(Schema.toStandardSchemaV1(Schema.Void))
+  .output(Schema.toStandardSchemaV1(PiAvailableModelListSchema));

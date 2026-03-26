@@ -6,7 +6,7 @@ import { TerminalSettings } from "./settings-terminal";
 import { AgentSettings } from "./settings-agent";
 import { AppearanceSettings } from "./settings-appearance";
 import { AboutSettings } from "./settings-about";
-import { useConfig, useUpdateConfig, useAgentFrontendConfig } from "../hooks/use-config";
+import { useConfig, useUpdateConfig } from "../hooks/use-config";
 import { AppConfig } from "@pixxl/shared";
 
 type ConfigDomainError = {
@@ -101,7 +101,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [activeSection, setActiveSection] = React.useState<SettingsSection>("workspace");
   const [dismissedError, setDismissedError] = React.useState<string | null>(null);
   const { data: config, status, error: loadError } = useConfig();
-  const { data: agentFrontendConfig } = useAgentFrontendConfig();
   const updateConfig = useUpdateConfig();
 
   const handleUpdate = (section: keyof AppConfig, partial: Record<string, unknown>) => {
@@ -184,7 +183,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     {activeSection === "agent" && (
                       <AgentSettings
                         agent={config.agent}
-                        availableModels={agentFrontendConfig?.availableModels ?? []}
                         onUpdate={(partial) => handleUpdate("agent", partial)}
                       />
                     )}

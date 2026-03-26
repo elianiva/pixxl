@@ -160,8 +160,8 @@ export const DEFAULT_CONFIG: AppConfig = {
     shell: "/bin/zsh",
   },
   agent: {
-    defaultProvider: "anthropic",
-    defaultModel: "",
+    defaultProvider: "openrouter",
+    defaultModel: "kimi-k2.5",
     defaultThinkingLevel: "medium",
     transport: "websocket",
     steeringMode: "one-at-a-time",

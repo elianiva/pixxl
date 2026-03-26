@@ -21,10 +21,10 @@ function createInteractionsCollection(projectId: string, agentId: string) {
       queryKey: ["agent-interactions", projectId, agentId],
       getKey: (item: AgentInteraction) => item.id,
       queryFn: async () => {
-        const history = (await rpc.agent.getAgentHistory({
+        const history = await rpc.agent.getAgentHistory({
           projectId,
           agentId,
-        })) as AgentHistory | null;
+        });
         if (!history) return [];
 
         return history.entries.map((entry, order) => {

@@ -22,7 +22,7 @@ export const isRpcErrorInORPCError = (
   error: unknown,
 ): error is ORPCError<string, { data: RpcErrorResponse }> => {
   if (!(error instanceof ORPCError)) return false;
-  const data = (error as ORPCError<string, unknown>).data;
+  const data = error.data;
   return (
     typeof data === "object" &&
     data !== null &&

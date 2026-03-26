@@ -1,6 +1,7 @@
 import { Effect, Option, Stream } from "effect";
 import { os } from "@/contract";
 import { AgentService } from "./service";
+import { ConfigService } from "@/features/config/service";
 import { mapToOrpcError } from "@/lib/error";
 import { AgentNotFoundError } from "./error";
 
@@ -145,15 +146,18 @@ export const getAgentHistoryRpc = os.agent.getAgentHistory.handler(({ input }) =
         if (!header) return null;
 
         const sessionName = instance.sessionManager.getSessionName();
+        const entries = instance.sessionManager.getEntries();
+        const leafId = instance.sessionManager.getLeafId();
+
         return {
           agentId: input.agentId,
           projectId: input.projectId,
           sessionFile: instance.metadata.pi.sessionFile,
           sessionId: header.id,
           cwd: header.cwd,
-          ...(sessionName ? { sessionName } : {}),
-          leafId: instance.sessionManager.getLeafId(),
-          entries: instance.sessionManager.getEntries(),
+          sessionName,
+          leafId,
+          entries,
         };
       },
     });
@@ -186,18 +190,24 @@ export const configureAgentSessionRpc = os.agent.configureAgentSession.handler((
 
 export const getAgentFrontendConfigRpc = os.agent.getAgentFrontendConfig.handler(() =>
   Effect.gen(function* () {
-    // Return defaults for now
+    const configService = yield* ConfigService;
+    const config = yield* configService.loadConfig();
     return {
-      availableModels: [] as {
-        provider: string;
-        id: string;
-        name: string;
-        fullId: string;
-      }[],
-      defaultProvider: "openai",
-      defaultModel: "gpt-4o",
-      defaultThinkingLevel: "off" as const,
+      defaultProvider: config.agent.defaultProvider,
+      defaultModel: config.agent.defaultModel,
+      defaultThinkingLevel: config.agent.defaultThinkingLevel,
     };
+  }).pipe(
+    Effect.provide(ConfigService.live),
+    mapToOrpcError({ feature: "agent" }),
+    Effect.runPromise,
+  ),
+);
+
+export const listAvailableModelsRpc = os.agent.listAvailableModels.handler(() =>
+  Effect.gen(function* () {
+    const service = yield* AgentService;
+    return yield* service.listAvailableModels();
   }).pipe(
     Effect.provide(AgentService.layer),
     mapToOrpcError({ feature: "agent" }),

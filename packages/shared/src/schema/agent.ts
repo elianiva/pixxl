@@ -1,11 +1,12 @@
 import { Schema } from "effect";
 import type { SessionEntry, SessionInfo } from "@mariozechner/pi-coding-agent";
-import { PiSessionInfoSchema } from "./pi";
+import { PiSessionEntrySchema, PiSessionInfoSchema } from "./pi";
 
 export const CreateAgentInputSchema = Schema.Struct({
   id: Schema.String,
   projectId: Schema.String,
   name: Schema.NonEmptyString,
+  sessionFile: Schema.optionalKey(Schema.String),
 });
 
 export const UpdateAgentInputSchema = Schema.Struct({
@@ -84,8 +85,9 @@ export const PiAvailableModelSchema = Schema.Struct({
   fullId: Schema.String,
 });
 
+export const PiAvailableModelListSchema = Schema.Array(PiAvailableModelSchema);
+
 export const AgentFrontendConfigSchema = Schema.Struct({
-  availableModels: Schema.Array(PiAvailableModelSchema),
   defaultProvider: Schema.String,
   defaultModel: Schema.String,
   defaultThinkingLevel: AgentThinkingLevelSchema,
@@ -155,7 +157,7 @@ export const AgentHistorySchema = Schema.Struct({
   cwd: Schema.String,
   sessionName: Schema.optionalKey(Schema.String),
   leafId: Schema.NullOr(Schema.String),
-  entries: Schema.Array(Schema.Unknown),
+  entries: Schema.Array(PiSessionEntrySchema),
 });
 
 // Streaming event schemas for the web UI (local to our app, not from Pi)
@@ -239,6 +241,7 @@ export type ListAttachableSessionsInput = typeof ListAttachableSessionsInputSche
 export type AgentThinkingLevel = typeof AgentThinkingLevelSchema.Type;
 export type AgentModel = typeof AgentModelSchema.Type;
 export type PiAvailableModel = typeof PiAvailableModelSchema.Type;
+export type PiAvailableModelList = typeof PiAvailableModelListSchema.Type;
 export type AgentFrontendConfig = typeof AgentFrontendConfigSchema.Type;
 export type PromptAgentInput = typeof PromptAgentInputSchema.Type;
 export type ConfigureAgentSessionInput = typeof ConfigureAgentSessionInputSchema.Type;

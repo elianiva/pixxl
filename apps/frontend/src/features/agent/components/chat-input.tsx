@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffectEvent, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { RiAddLine, RiArrowUpLine, RiStopLine } from "@remixicon/react";
@@ -23,11 +23,10 @@ interface ChatInputProps {
   placeholder?: string;
   queuedMessages?: QueuedMessage[];
   onQueueClick?: (message: QueuedMessage) => void;
-  models: ReadonlyArray<ModelOption>;
-  initialModel?: ModelOption;
-  initialThinkingLevel?: ThinkingLevel;
-  onModelChange?: (model: ModelOption) => void;
-  onThinkingLevelChange?: (level: ThinkingLevel) => void;
+  model: ModelOption;
+  thinkingLevel: ThinkingLevel;
+  onModelChange: (model: ModelOption) => void;
+  onThinkingLevelChange: (level: ThinkingLevel) => void;
 }
 
 export function ChatInput({
@@ -38,60 +37,28 @@ export function ChatInput({
   placeholder = "Ask anything...",
   queuedMessages = [],
   onQueueClick,
-  models,
-  initialModel,
-  initialThinkingLevel = "medium",
+  model,
+  thinkingLevel,
   onModelChange,
   onThinkingLevelChange,
 }: ChatInputProps) {
   const [inputText, setInputText] = useState("");
-  const [selectedModel, setSelectedModel] = useState<ModelOption | undefined>(
-    initialModel ?? models[0],
-  );
-  const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(initialThinkingLevel);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    setSelectedModel(initialModel ?? models[0]);
-  }, [initialModel, models]);
-
-  useEffect(() => {
-    setThinkingLevel(initialThinkingLevel);
-  }, [initialThinkingLevel]);
-
-  const handleModelChange = useCallback(
-    (model: ModelOption) => {
-      setSelectedModel(model);
-      onModelChange?.(model);
-    },
-    [onModelChange],
-  );
-
-  const handleThinkingLevelChange = useCallback(
-    (level: ThinkingLevel) => {
-      setThinkingLevel(level);
-      onThinkingLevelChange?.(level);
-    },
-    [onThinkingLevelChange],
-  );
-
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useEffectEvent(() => {
     const trimmed = inputText.trim();
-    if (!trimmed || isStreaming || !selectedModel) return;
-    onSubmit(trimmed, { model: selectedModel, thinkingLevel });
+    if (!trimmed || isStreaming) return;
+    onSubmit(trimmed, { model, thinkingLevel });
     setInputText("");
     textareaRef.current?.focus();
-  }, [inputText, isStreaming, onSubmit, selectedModel, thinkingLevel]);
+  });
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSubmit();
-      }
-    },
-    [handleSubmit],
-  );
+  const handleKeyDown = useEffectEvent((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  });
 
   const steerCount = queuedMessages.filter((m) => m.type === "steer").length;
   const followUpCount = queuedMessages.filter((m) => m.type === "followUp").length;
@@ -174,7 +141,7 @@ export function ChatInput({
                 type="button"
                 size="icon"
                 onClick={handleSubmit}
-                disabled={!inputText.trim() || isStreaming || !selectedModel}
+                disabled={!inputText.trim() || isStreaming}
                 title="Send message"
               >
                 <RiArrowUpLine className="size-4" />
@@ -186,14 +153,13 @@ export function ChatInput({
 
       <div className="flex items-center gap-1 bg-mauve-100 px-3 py-2 text-xs">
         <ModelSelector
-          models={models}
-          selectedModel={selectedModel}
-          onSelect={handleModelChange}
+          selectedModel={model}
+          onSelect={onModelChange}
           disabled={disabled || isStreaming}
         />
         <ThinkingLevelSelector
           thinkingLevel={thinkingLevel}
-          onSelect={handleThinkingLevelChange}
+          onSelect={onThinkingLevelChange}
           disabled={disabled || isStreaming}
         />
       </div>

@@ -49,7 +49,7 @@ const handler = new RPCHandler(router, {
       }
 
       // For unhandled errors, log and throw generic error
-      console.error("Unhandled error:", error);
+      // console.error("Unhandled error:", error);
       throw new ORPCError("INTERNAL_SERVER_ERROR", {
         message: error instanceof Error ? error.message : "An unexpected error occurred",
       });

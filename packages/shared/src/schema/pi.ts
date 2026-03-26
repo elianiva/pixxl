@@ -134,7 +134,7 @@ const PiLabelEntrySchema = Schema.Struct({
   ...SessionEntryBase,
   type: Schema.Literal("label"),
   targetId: Schema.String,
-  label: Schema.NullOr(Schema.String),
+  label: Schema.optionalKey(Schema.String),
 });
 
 /** Pi SessionInfoEntry schema - exact match */

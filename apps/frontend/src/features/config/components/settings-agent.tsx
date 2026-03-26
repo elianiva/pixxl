@@ -8,11 +8,10 @@ import {
 } from "@/components/ui/select";
 import type { SelectEntry } from "@/components/ui/select";
 import { DEFAULT_CONFIG, type Agent } from "@pixxl/shared/schema/config";
-import type { PiAvailableModel } from "@pixxl/shared";
+import { useModels } from "@/features/agent/hooks";
 
 interface AgentSettingsProps {
   agent: Agent;
-  availableModels: ReadonlyArray<PiAvailableModel>;
   onUpdate: (agent: Partial<Agent>) => void;
 }
 
@@ -43,7 +42,9 @@ function providerLabel(provider: string) {
     .join(" ");
 }
 
-export function AgentSettings({ agent, availableModels, onUpdate }: AgentSettingsProps) {
+export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
+  const availableModels = useModels();
+
   const providerOptions = Array.from(new Set(availableModels.map((model) => model.provider))).map(
     (provider) => ({ value: provider, label: providerLabel(provider) }),
   );

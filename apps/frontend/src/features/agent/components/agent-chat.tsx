@@ -7,6 +7,10 @@ import { ChatScrollContainer } from "./chat/chat-scroll-container";
 import { type ModelOption } from "./model-selector";
 import { type ThinkingLevel } from "./thinking-level-selector";
 import { useAgentActions, useMessages, useIsStreaming } from "../hooks";
+import { useAgentFrontendConfig } from "@/features/config/hooks/use-config";
+import { EmptyChatState } from "./chat/empty-chat-state";
+import { useLiveQuery } from "@tanstack/react-db";
+import { getModelsCollection } from "@/features/config/models-collection";
 
 interface AgentChatProps {
   projectId: string;
@@ -18,7 +22,7 @@ interface QueuedMessage {
   type: "steer" | "followUp";
 }
 
-function pickFallbackModel(
+function pickInitialModel(
   models: ReadonlyArray<ModelOption>,
   runtimeModel?: ModelOption | null,
   defaults?: { defaultProvider: string; defaultModel: string },
@@ -28,28 +32,22 @@ function pickFallbackModel(
   const configured = models.find(
     (model) => model.provider === defaults?.defaultProvider && model.id === defaults?.defaultModel,
   );
-  if (configured) return configured;
-
-  return models[0];
+  return configured;
 }
 
+const modelsCollection = getModelsCollection();
 export function AgentChat({ projectId, agentId }: AgentChatProps) {
   const messages = useMessages(agentId);
   const { sendMessage, abortMessage, configureSession } = useAgentActions(projectId, agentId);
   const isStreaming = useIsStreaming(agentId);
+  const { data: models = [] } = useLiveQuery(modelsCollection);
 
   const { data: runtimeState } = useQuery({
     queryKey: ["agent-runtime", projectId, agentId],
     queryFn: () => rpc.agent.getAgentRuntime({ projectId, agentId }),
   });
 
-  const { data: frontendConfig } = useQuery({
-    queryKey: ["agent-frontend-config"],
-    queryFn: () => rpc.agent.getAgentFrontendConfig(),
-    staleTime: Infinity,
-  });
-
-  const models = frontendConfig?.availableModels ?? [];
+  const { data: frontendConfig } = useAgentFrontendConfig();
 
   const queuedMessages: QueuedMessage[] = [
     ...(runtimeState?.queuedSteering ?? []).map((text: string) => ({
@@ -63,26 +61,15 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
   ];
 
   const initialModel = useMemo(
-    () =>
-      pickFallbackModel(
-        models,
-        runtimeState?.model,
-        frontendConfig
-          ? {
-              defaultProvider: frontendConfig.defaultProvider,
-              defaultModel: frontendConfig.defaultModel,
-            }
-          : undefined,
-      ),
+    () => pickInitialModel(models, runtimeState?.model, frontendConfig),
     [frontendConfig, models, runtimeState?.model],
   );
 
   const initialThinkingLevel =
     runtimeState?.thinkingLevel ?? frontendConfig?.defaultThinkingLevel ?? "medium";
 
-  const handleSubmit = (text: string, options: ChatSubmitOptions) => {
-    void sendMessage(text, "immediate", options);
-  };
+  const handleSubmit = (text: string, options: ChatSubmitOptions) =>
+    sendMessage(text, "immediate", options);
 
   const handleQueueClick = (message: QueuedMessage) => {
     if (!initialModel) return;
@@ -101,13 +88,8 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
     console.log("implement this", content);
   };
 
-  const handleAbort = () => {
-    void abortMessage();
-  };
-
-  const handleModelChange = (model: ModelOption) => {
-    void configureSession(agentId, { model, thinkingLevel: initialThinkingLevel });
-  };
+  const handleModelChange = (model: ModelOption) =>
+    configureSession(agentId, { model, thinkingLevel: initialThinkingLevel });
 
   const handleThinkingLevelChange = (thinkingLevel: ThinkingLevel) => {
     if (!initialModel) return;
@@ -116,18 +98,21 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
 
   return (
     <div className="flex-1 flex flex-col w-full">
-      <ChatScrollContainer className="flex-1 overflow-y-auto py-4 max-w-3xl w-full mx-auto">
-        <MessageList messages={messages} isStreaming={isStreaming} onFork={handleFork} />
-      </ChatScrollContainer>
+      {messages.length < 1 ? (
+        <EmptyChatState />
+      ) : (
+        <ChatScrollContainer className="flex-1 overflow-y-auto py-4 max-w-3xl w-full mx-auto">
+          <MessageList messages={messages} isStreaming={isStreaming} onFork={handleFork} />
+        </ChatScrollContainer>
+      )}
       <ChatInput
         onSubmit={handleSubmit}
-        onAbort={handleAbort}
+        onAbort={abortMessage}
         isStreaming={isStreaming}
         queuedMessages={queuedMessages}
         onQueueClick={handleQueueClick}
-        models={models}
-        initialModel={initialModel}
-        initialThinkingLevel={initialThinkingLevel}
+        model={initialModel}
+        thinkingLevel={initialThinkingLevel}
         onModelChange={handleModelChange}
         onThinkingLevelChange={handleThinkingLevelChange}
         placeholder="Ask anything..."

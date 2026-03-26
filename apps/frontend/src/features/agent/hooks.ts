@@ -5,6 +5,7 @@ import { projectStore } from "@/lib/project-store";
 import { rpc } from "@/lib/rpc";
 import { queryClient } from "@/lib/query-client";
 import { getInteractionsCollection } from "./interactions-collection";
+import { getModelsCollection } from "@/features/config/models-collection";
 import { agentStore, selectAgent } from "./store";
 import {
   applyAgentEvent,
@@ -16,6 +17,7 @@ import {
   type StreamMessage,
 } from "./stream-store";
 import type { ChatSubmitOptions } from "./components/chat-input";
+import type { PiAvailableModel } from "@pixxl/shared";
 
 export type MessageBlock =
   | { type: "text"; text: string }

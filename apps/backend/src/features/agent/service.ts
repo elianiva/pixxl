@@ -1,5 +1,10 @@
-import { Effect, Layer, Option, ServiceMap, FileSystem } from "effect";
-import type { AgentMetadata, CreateAgentInput, UpdateAgentInput } from "@pixxl/shared";
+import { Effect, Layer, Option, ServiceMap, FileSystem, Match, Result } from "effect";
+import type {
+  AgentMetadata,
+  CreateAgentInput,
+  PiAvailableModel,
+  UpdateAgentInput,
+} from "@pixxl/shared";
 import { AgentMetadataSchema, EntityService } from "@pixxl/shared";
 import { SessionManager, createAgentSession, ModelRegistry } from "@mariozechner/pi-coding-agent";
 import { AuthStorage } from "@mariozechner/pi-coding-agent";
@@ -16,17 +21,14 @@ type AgentServiceShape = {
   readonly updateAgent: (input: UpdateAgentInput) => Effect.Effect<AgentMetadata, AgentUpdateError>;
   readonly deleteAgent: (input: { agentId: string }) => Effect.Effect<void, AgentDeleteError>;
   readonly listAgents: (input: { projectId: string }) => Effect.Effect<AgentMetadata[]>;
-
-  // Instance access
   readonly getInstance: (input: { agentId: string }) => Effect.Effect<Option.Option<AgentInstance>>;
   readonly removeInstance: (input: { agentId: string }) => Effect.Effect<void>;
-
-  // Session operations
   readonly attachSession: (input: {
     agentId: string;
     sessionFile: string;
   }) => Effect.Effect<AgentMetadata, AgentUpdateError>;
   readonly listSessions: (input: { projectPath: string }) => Effect.Effect<SessionInfo[]>;
+  readonly listAvailableModels: () => Effect.Effect<PiAvailableModel[]>;
 };
 
 export class AgentService extends ServiceMap.Service<AgentService, AgentServiceShape>()(
@@ -37,20 +39,21 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
       const project = yield* ProjectService;
       const fs = yield* FileSystem.FileSystem;
 
-      // Simple in-memory cache of agent instances
+      const authStorage = AuthStorage.create();
+      const modelRegistry = new ModelRegistry(authStorage);
+
       const instances = new Map<string, AgentInstance>();
 
-      // Entity CRUD for agent metadata
       const agents = entity.forEntity<AgentMetadata, CreateAgentInput, UpdateAgentInput>({
         directoryName: "agents",
         schema: AgentMetadataSchema,
-        create: ({ id, now, name, projectId }) => ({
+        create: ({ id, now, name, projectId, sessionFile }) => ({
           id,
           projectId,
           name,
           createdAt: now,
           updatedAt: now,
-          pi: { sessionFile: "" },
+          pi: { sessionFile: sessionFile ?? "" },
         }),
         update: (current, { name, sessionFile, now }) => ({
           ...current,
@@ -82,7 +85,6 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
           });
         }
 
-        // Create session
         const sessionManager = SessionManager.create(projectPath);
         const sessionId = sessionManager.newSession();
         if (!sessionId) {
@@ -100,31 +102,16 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
           });
         }
 
-        // Create metadata (without session file initially)
         let metadata = yield* agents
           .create({
             id: input.id,
             name: input.name,
             projectId: input.projectId,
             projectPath,
+            sessionFile: input.sessionFile,
           })
           .pipe(Effect.mapError((cause) => new AgentCreateError({ name: input.name, cause })));
 
-        // Update with session file
-        metadata = yield* agents
-          .update({
-            id: input.id,
-            projectId: input.projectId,
-            projectPath,
-            name: input.name,
-            sessionFile,
-          })
-          .pipe(
-            Effect.mapError((cause) => new AgentCreateError({ name: input.name, cause })),
-            Effect.map(Option.getOrElse(() => metadata)),
-          );
-
-        // Create and cache instance
         yield* getOrCreateInstance({ metadata, projectPath });
 
         return metadata;
@@ -137,31 +124,44 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
         const existing = instances.get(input.metadata.id);
         if (existing) return existing;
 
-        // Check if session file exists
-        const sessionExists = yield* fs.exists(input.metadata.pi.sessionFile);
-        let sessionManager: SessionManager;
+        const sessionExists = yield* fs.exists(input.metadata.pi.sessionFile).pipe(
+          Effect.mapError(
+            (cause) =>
+              new AgentCreateError({
+                name: input.metadata.name,
+                cause,
+              }),
+          ),
+        );
 
-        if (sessionExists) {
-          sessionManager = SessionManager.open(input.metadata.pi.sessionFile);
-        } else {
-          // Recreate session
-          sessionManager = SessionManager.create(input.projectPath);
-          const newSessionId = sessionManager.newSession();
-          if (!newSessionId) {
-            return yield* new AgentCreateError({
-              name: input.metadata.name,
-              cause: "Failed to recreate session",
-            });
-          }
+        let sessionManager = Match.value(sessionExists).pipe(
+          Match.when(true, () =>
+            Result.succeed(SessionManager.open(input.metadata.pi.sessionFile)),
+          ),
+          Match.when(false, () => {
+            const manager = SessionManager.create(input.projectPath);
+            const newSessionId = manager.newSession();
+            if (!newSessionId) {
+              return Result.fail(
+                new AgentCreateError({
+                  name: input.metadata.name,
+                  cause: "Failed to recreate session",
+                }),
+              );
+            }
+            return Result.succeed(manager);
+          }),
+          Match.exhaustive,
+        );
+
+        if (Result.isFailure(sessionManager)) {
+          return sessionManager.failure;
         }
 
-        // Create Pi session
-        const authStorage = AuthStorage.create();
-        const modelRegistry = new ModelRegistry(authStorage);
         const result = yield* Effect.tryPromise({
           try: () =>
             createAgentSession({
-              sessionManager,
+              sessionManager: sessionManager.success,
               authStorage,
               modelRegistry,
             }),
@@ -172,7 +172,7 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
             }),
         });
 
-        const instance = new AgentInstance(input.metadata, sessionManager, result.session);
+        const instance = new AgentInstance(input.metadata, sessionManager.success, result.session);
         instances.set(input.metadata.id, instance);
         return instance;
       });
@@ -326,6 +326,17 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
         });
       });
 
+      // oxlint-disable-next-line require-yield
+      const listAvailableModels = Effect.fn("AgentService.listAvailableModels")(function* () {
+        const availableModels = modelRegistry.getAvailable();
+        return availableModels.map((model) => ({
+          provider: model.provider,
+          id: model.id,
+          name: model.name,
+          fullId: `${model.provider}/${model.id}`,
+        }));
+      });
+
       return {
         createAgent,
         getAgent,
@@ -336,7 +347,8 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
         removeInstance,
         attachSession,
         listSessions,
-      } as unknown as AgentServiceShape;
+        listAvailableModels,
+      } as const;
     }),
   },
 ) {

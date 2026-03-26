@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ilike, or, useLiveQuery } from "@tanstack/react-db";
 import {
   Command,
   CommandEmpty,
@@ -9,6 +10,8 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RiArrowDownSLine, RiGlobalLine } from "@remixicon/react";
+import { getModelsCollection } from "@/features/config/models-collection";
+import type { PiAvailableModel } from "@pixxl/shared";
 
 export type ModelOption = {
   provider: string;
@@ -19,10 +22,11 @@ export type ModelOption = {
 
 interface ModelSelectorProps {
   selectedModel?: ModelOption;
-  models: ReadonlyArray<ModelOption>;
   onSelect: (model: ModelOption) => void;
   disabled?: boolean;
 }
+
+const modelsCollection = getModelsCollection();
 
 function providerLabel(provider: string) {
   return provider
@@ -31,35 +35,41 @@ function providerLabel(provider: string) {
     .join(" ");
 }
 
-export function ModelSelector({
-  selectedModel,
-  models,
-  onSelect,
-  disabled = false,
-}: ModelSelectorProps) {
+export function ModelSelector({ selectedModel, onSelect, disabled = false }: ModelSelectorProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // scroll to top when opening or when search changes
+  useEffect(() => {
+    if (open && listRef.current) {
+      listRef.current.scrollTop = 0;
+    }
+  }, [open, search]);
+
+  const { data: models = [] } = useLiveQuery(
+    (q) => {
+      let query = q.from({ model: modelsCollection });
+      if (search) {
+        const term = `%${search.toLowerCase()}%`;
+        query = query.where(({ model }) =>
+          or(ilike(model.name, term), ilike(model.provider, term)),
+        );
+      }
+      return query;
+    },
+    [search],
+  );
 
   const groupedModels = useMemo(() => {
-    const query = search.toLowerCase();
-
-    // filter first (by model name or provider), then group (avoids empty groups)
-    const filtered =
-      query.length === 0
-        ? models
-        : models.filter(
-            (m) => m.name.toLowerCase().includes(query) || m.provider.toLowerCase().includes(query),
-          );
-
-    const groups = new Map<string, ModelOption[]>();
-    for (const model of filtered) {
+    const groups = new Map<string, PiAvailableModel[]>();
+    for (const model of models as PiAvailableModel[]) {
       const existing = groups.get(model.provider);
       if (existing) existing.push(model);
       else groups.set(model.provider, [model]);
     }
-
     return Array.from(groups.entries());
-  }, [models, search]);
+  }, [models]);
 
   const selectedLabel = selectedModel?.name ?? "Select model";
 
@@ -67,7 +77,7 @@ export function ModelSelector({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         type="button"
-        disabled={disabled || models.length === 0}
+        disabled={disabled || (models as PiAvailableModel[]).length === 0}
         className="group/button inline-flex h-6 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-none border border-transparent bg-clip-padding px-2 text-xs font-medium whitespace-nowrap text-muted-foreground transition-all outline-none select-none hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 active:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-expanded:bg-muted aria-expanded:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3"
       >
         <RiGlobalLine className="size-3.5" />
@@ -86,7 +96,7 @@ export function ModelSelector({
             value={search}
             onValueChange={setSearch}
           />
-          <CommandList className="max-h-80">
+          <CommandList ref={listRef} className="max-h-80">
             <CommandEmpty>No authenticated models found.</CommandEmpty>
             {groupedModels.map(([provider, providerModels]) => (
               <CommandGroup key={provider} heading={providerLabel(provider)}>

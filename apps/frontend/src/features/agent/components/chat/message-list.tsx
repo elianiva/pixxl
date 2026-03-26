@@ -1,6 +1,5 @@
 import { MessageBubble } from "./message-bubble";
 import { StreamingIndicator } from "./streaming-indicator";
-import { EmptyChatState } from "./empty-chat-state";
 import type { MessageBlock } from "../../hooks";
 
 interface Message {
@@ -113,10 +112,6 @@ function mergeMessagesIntoSingleChain(messages: Message[]): Message[] {
 }
 
 export function MessageList({ messages, isStreaming, onFork }: MessageListProps) {
-  if (messages.length === 0) {
-    return <EmptyChatState />;
-  }
-
   const mergedMessages = mergeMessagesIntoSingleChain(messages);
 
   return (
