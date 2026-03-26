@@ -79,7 +79,6 @@ export const AgentSchema = Schema.Struct({
   terminal: TerminalSettingsSchema,
   images: ImageSettingsSchema,
   markdown: MarkdownSettingsSchema,
-  enabledModels: Schema.Array(Schema.String),
   doubleEscapeAction: Schema.Literals(["fork", "tree", "none"]),
   treeFilterMode: Schema.Literals(["default", "no-tools", "user-only", "labeled-only", "all"]),
 });
@@ -204,7 +203,6 @@ export const DEFAULT_CONFIG: AppConfig = {
     markdown: {
       codeBlockIndent: "  ",
     },
-    enabledModels: [],
     doubleEscapeAction: "none",
     treeFilterMode: "default",
   },

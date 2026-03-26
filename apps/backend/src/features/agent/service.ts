@@ -1,120 +1,58 @@
-import { Effect, Layer, Option, ServiceMap } from "effect";
-import { AuthStorage, ModelRegistry } from "@mariozechner/pi-coding-agent";
-import {
-  AgentMetadata,
-  AgentMetadataSchema,
-  CreateAgentInput,
-  EntityService,
-  type AgentRuntimeState,
-  type PiSessionInfo,
-  type AgentHistory,
-  type ConfigureAgentSessionInput,
-  type AgentFrontendConfig,
-  type PiAvailableModel,
-} from "@pixxl/shared";
-import {
-  AgentNotFoundError,
-  AgentCreateError,
-  AgentUpdateError,
-  AgentDeleteError,
-  AgentAttachError,
-  PiSessionCreateError,
-  PiSessionValidationError,
-} from "./error";
-import { ProjectService } from "../project/service";
-import { ProjectReadError, WorkspaceError } from "../project/error";
-import { ConfigService } from "../config/service";
+import { Effect, Layer, Option, ServiceMap, FileSystem } from "effect";
+import type { AgentMetadata, CreateAgentInput, UpdateAgentInput } from "@pixxl/shared";
+import { AgentMetadataSchema, EntityService } from "@pixxl/shared";
+import { SessionManager, createAgentSession, ModelRegistry } from "@mariozechner/pi-coding-agent";
+import { AuthStorage } from "@mariozechner/pi-coding-agent";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
-import { createPiSession, openPiSession, listPiSessions, deletePiSessionFile } from "./pi";
-import { agentManager } from "./manager";
-import { configureActorSession, getActorRuntimeState } from "./actor";
+import type { SessionInfo } from "@mariozechner/pi-coding-agent";
+import { AgentCreateError, AgentUpdateError, AgentDeleteError } from "./error";
+import { AgentInstance } from "./instance";
+import { ConfigService } from "../config/service";
+import { ProjectService } from "../project/service";
 
-export type AgentServiceError =
-  | AgentNotFoundError
-  | AgentCreateError
-  | AgentUpdateError
-  | AgentDeleteError
-  | AgentAttachError
-  | PiSessionCreateError
-  | PiSessionValidationError
-  | ProjectReadError
-  | WorkspaceError;
+type AgentServiceShape = {
+  readonly createAgent: (input: CreateAgentInput) => Effect.Effect<AgentMetadata, AgentCreateError>;
+  readonly getAgent: (input: { agentId: string }) => Effect.Effect<Option.Option<AgentMetadata>>;
+  readonly updateAgent: (input: UpdateAgentInput) => Effect.Effect<AgentMetadata, AgentUpdateError>;
+  readonly deleteAgent: (input: { agentId: string }) => Effect.Effect<void, AgentDeleteError>;
+  readonly listAgents: (input: { projectId: string }) => Effect.Effect<AgentMetadata[]>;
 
-export type AgentServiceApi = {
-  readonly createAgent: (
-    input: CreateAgentInput,
-  ) => Effect.Effect<Option.Option<AgentMetadata>, AgentServiceError>;
-  readonly getAgent: (input: {
-    projectId: string;
-    id: string;
-  }) => Effect.Effect<Option.Option<AgentMetadata>, AgentServiceError>;
-  readonly updateAgent: (input: {
-    projectId: string;
-    id: string;
-    name: string;
-  }) => Effect.Effect<Option.Option<AgentMetadata>, AgentServiceError>;
-  readonly deleteAgent: (input: {
-    projectId: string;
-    id: string;
-  }) => Effect.Effect<Option.Option<boolean>, AgentServiceError>;
-  readonly listAgents: (input: { projectId: string }) => Effect.Effect<AgentMetadata[], never>;
-  readonly ensureAgentActor: (input: {
-    projectId: string;
-    agentId: string;
-  }) => Effect.Effect<Option.Option<boolean>, AgentServiceError>;
+  // Instance access
+  readonly getInstance: (input: { agentId: string }) => Effect.Effect<Option.Option<AgentInstance>>;
+  readonly removeInstance: (input: { agentId: string }) => Effect.Effect<void>;
+
+  // Session operations
   readonly attachSession: (input: {
-    projectId: string;
     agentId: string;
     sessionFile: string;
-  }) => Effect.Effect<Option.Option<AgentMetadata>, AgentServiceError>;
-  readonly switchSession: (input: {
-    projectId: string;
-    agentId: string;
-    sessionFile: string;
-  }) => Effect.Effect<Option.Option<AgentMetadata>, AgentServiceError>;
-  readonly listAttachableSessions: (input: {
-    projectId: string;
-  }) => Effect.Effect<PiSessionInfo[], AgentServiceError>;
-  readonly getAgentRuntime: (input: {
-    projectId: string;
-    agentId: string;
-  }) => Effect.Effect<Option.Option<AgentRuntimeState>, AgentServiceError>;
-  readonly getAgentHistory: (input: {
-    projectId: string;
-    agentId: string;
-  }) => Effect.Effect<Option.Option<AgentHistory>, AgentServiceError>;
-  readonly configureAgentSession: (
-    input: ConfigureAgentSessionInput,
-  ) => Effect.Effect<null, AgentServiceError>;
-  readonly getAgentFrontendConfig: () => Effect.Effect<AgentFrontendConfig, never>;
+  }) => Effect.Effect<AgentMetadata, AgentUpdateError>;
+  readonly listSessions: (input: { projectPath: string }) => Effect.Effect<SessionInfo[]>;
 };
 
-export class AgentService extends ServiceMap.Service<AgentService, AgentServiceApi>()(
+export class AgentService extends ServiceMap.Service<AgentService, AgentServiceShape>()(
   "@pixxl/AgentService",
   {
     make: Effect.gen(function* () {
       const entity = yield* EntityService;
       const project = yield* ProjectService;
-      const config = yield* ConfigService;
+      const fs = yield* FileSystem.FileSystem;
 
-      const agents = entity.forEntity<
-        AgentMetadata,
-        { name: string; projectId: string; sessionFile: string },
-        { name: string; sessionFile?: string }
-      >({
+      // Simple in-memory cache of agent instances
+      const instances = new Map<string, AgentInstance>();
+
+      // Entity CRUD for agent metadata
+      const agents = entity.forEntity<AgentMetadata, CreateAgentInput, UpdateAgentInput>({
         directoryName: "agents",
         schema: AgentMetadataSchema,
-        create: ({ id, now, name, projectId, sessionFile }) => ({
+        create: ({ id, now, name, projectId }) => ({
           id,
           projectId,
           name,
           createdAt: now,
           updatedAt: now,
-          pi: {
-            sessionFile,
-          },
+          pi: { sessionFile: "" },
         }),
-        update: (current, { now, name, sessionFile }) => ({
+        update: (current, { name, sessionFile, now }) => ({
           ...current,
           name,
           updatedAt: now,
@@ -125,489 +63,267 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceA
         }),
       });
 
+      const getProjectPath = Effect.fn("getProjectPath")(function* (projectId: string) {
+        const result = yield* project.getProjectDetail({ id: projectId });
+        return Option.match(result, {
+          onNone: () => null,
+          onSome: (p) => p.path,
+        });
+      });
+
       const createAgent = Effect.fn("AgentService.createAgent")(function* (
         input: CreateAgentInput,
       ) {
-        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
-
-        if (Option.isNone(projectResult)) {
-          return Option.none();
+        const projectPath = yield* getProjectPath(input.projectId);
+        if (!projectPath) {
+          return yield* new AgentCreateError({
+            name: input.name,
+            cause: "Project not found",
+          });
         }
 
-        const projectPath = projectResult.value.path;
+        // Create session
+        const sessionManager = SessionManager.create(projectPath);
+        const sessionId = sessionManager.newSession();
+        if (!sessionId) {
+          return yield* new AgentCreateError({
+            name: input.name,
+            cause: "Failed to create session",
+          });
+        }
 
-        const { sessionFile, sessionManager } = yield* createPiSession(projectPath);
+        const sessionFile = sessionManager.getSessionFile();
+        if (!sessionFile) {
+          return yield* new AgentCreateError({
+            name: input.name,
+            cause: "SessionManager did not return file path",
+          });
+        }
 
-        const metadataResult = yield* Effect.option(
-          agents.create({
+        // Create metadata (without session file initially)
+        let metadata = yield* agents
+          .create({
             id: input.id,
             name: input.name,
             projectId: input.projectId,
             projectPath,
-            sessionFile,
-          }),
-        );
+          })
+          .pipe(Effect.mapError((cause) => new AgentCreateError({ name: input.name, cause })));
 
-        // Step 3: Compensating cleanup if metadata creation failed
-        if (Option.isNone(metadataResult)) {
-          yield* deletePiSessionFile(sessionFile);
-          return yield* new AgentCreateError({
-            name: input.name,
+        // Update with session file
+        metadata = yield* agents
+          .update({
+            id: input.id,
             projectId: input.projectId,
-            cause: "Metadata creation failed",
+            projectPath,
+            name: input.name,
+            sessionFile,
+          })
+          .pipe(
+            Effect.mapError((cause) => new AgentCreateError({ name: input.name, cause })),
+            Effect.map(Option.getOrElse(() => metadata)),
+          );
+
+        // Create and cache instance
+        yield* getOrCreateInstance({ metadata, projectPath });
+
+        return metadata;
+      });
+
+      const getOrCreateInstance = Effect.fn("AgentService.getOrCreateInstance")(function* (input: {
+        metadata: AgentMetadata;
+        projectPath: string;
+      }) {
+        const existing = instances.get(input.metadata.id);
+        if (existing) return existing;
+
+        // Check if session file exists
+        const sessionExists = yield* fs.exists(input.metadata.pi.sessionFile);
+        let sessionManager: SessionManager;
+
+        if (sessionExists) {
+          sessionManager = SessionManager.open(input.metadata.pi.sessionFile);
+        } else {
+          // Recreate session
+          sessionManager = SessionManager.create(input.projectPath);
+          const newSessionId = sessionManager.newSession();
+          if (!newSessionId) {
+            return yield* new AgentCreateError({
+              name: input.metadata.name,
+              cause: "Failed to recreate session",
+            });
+          }
+        }
+
+        // Create Pi session
+        const authStorage = AuthStorage.create();
+        const modelRegistry = new ModelRegistry(authStorage);
+        const result = yield* Effect.tryPromise({
+          try: () =>
+            createAgentSession({
+              sessionManager,
+              authStorage,
+              modelRegistry,
+            }),
+          catch: (cause) =>
+            new AgentCreateError({
+              name: input.metadata.name,
+              cause,
+            }),
+        });
+
+        const instance = new AgentInstance(input.metadata, sessionManager, result.session);
+        instances.set(input.metadata.id, instance);
+        return instance;
+      });
+
+      const getAgent = Effect.fn("AgentService.getAgent")(function* (input: { agentId: string }) {
+        const projects = yield* project.listProjects();
+
+        for (const p of projects) {
+          const result = yield* agents.get({ projectPath: p.path, id: input.agentId });
+          return result;
+        }
+        return Option.none<AgentMetadata>();
+      });
+
+      const updateAgent = Effect.fn("AgentService.updateAgent")(function* (
+        input: UpdateAgentInput,
+      ) {
+        const projectPath = yield* getProjectPath(input.projectId);
+        if (!projectPath) {
+          return yield* new AgentUpdateError({
+            agentId: input.id,
+            cause: "Project not found",
           });
         }
 
-        // Success - create and cache the actor with existing sessionManager
-        const metadata = metadataResult.value;
-
-        agentManager.getOrCreate({
-          agentId: metadata.id,
-          projectId: input.projectId,
-          projectPath,
-          metadata,
-          sessionManager,
-        });
-
-        return Option.some(metadata);
-      });
-
-      const getAgent = Effect.fn("AgentService.getAgent")(function* (input: {
-        projectId: string;
-        id: string;
-      }) {
-        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
-
-        if (Option.isNone(projectResult)) {
-          return Option.none();
-        }
-
-        return yield* agents
-          .get({
-            projectPath: projectResult.value.path,
-            id: input.id,
-          })
-          .pipe(
-            Effect.mapError(
-              (cause) =>
-                new AgentNotFoundError({
-                  agentId: input.id,
-                  projectId: input.projectId,
-                  cause,
-                }),
-            ),
-          );
-      });
-
-      const updateAgent = Effect.fn("AgentService.updateAgent")(function* (input: {
-        projectId: string;
-        id: string;
-        name: string;
-      }) {
-        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
-
-        if (Option.isNone(projectResult)) {
-          return Option.none();
-        }
-
-        return yield* agents
+        const metadata = yield* agents
           .update({
             id: input.id,
             name: input.name,
-            projectPath: projectResult.value.path,
+            projectId: input.projectId,
+            projectPath,
+            sessionFile: input.sessionFile,
           })
-          .pipe(
-            Effect.mapError(
-              (cause) =>
-                new AgentUpdateError({
-                  agentId: input.id,
-                  projectId: input.projectId,
-                  cause,
-                }),
-            ),
-          );
+          .pipe(Effect.mapError((cause) => new AgentUpdateError({ agentId: input.id, cause })));
+
+        return metadata;
       });
 
       const deleteAgent = Effect.fn("AgentService.deleteAgent")(function* (input: {
-        projectId: string;
-        id: string;
+        agentId: string;
       }) {
-        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
-
-        if (Option.isNone(projectResult)) {
+        const agentMetadata = yield* getAgent({ agentId: input.agentId });
+        if (!Option.isSome(agentMetadata)) {
           return yield* new AgentDeleteError({
-            agentId: input.id,
-            projectId: input.projectId,
+            agentId: input.agentId,
+            cause: "Agent not found",
           });
         }
 
-        // Stop and remove the actor runtime for this agent
-        agentManager.remove(input.id);
+        const projectPath = yield* getProjectPath(agentMetadata.value.projectId);
+        if (!projectPath) {
+          return yield* new AgentDeleteError({
+            agentId: input.agentId,
+            cause: "Project not found",
+          });
+        }
 
-        return yield* agents
-          .delete({
-            projectPath: projectResult.value.path,
-            id: input.id,
-          })
+        // Dispose instance
+        instances.get(input.agentId)?.dispose();
+        instances.delete(input.agentId);
+
+        yield* agents
+          .delete({ projectPath, id: input.agentId })
           .pipe(
-            Effect.mapError(
-              (cause) =>
-                new AgentDeleteError({
-                  agentId: input.id,
-                  projectId: input.projectId,
-                  cause,
-                }),
-            ),
+            Effect.mapError((cause) => new AgentDeleteError({ agentId: input.agentId, cause })),
           );
       });
 
       const listAgents = Effect.fn("AgentService.listAgents")(function* (input: {
         projectId: string;
       }) {
-        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
-
-        if (Option.isNone(projectResult)) return [];
-
-        const listResult = yield* Effect.option(
-          agents.list({
-            projectPath: projectResult.value.path,
-          }),
-        );
-
-        return Option.getOrElse(listResult, () => [] as AgentMetadata[]);
+        const projectPath = yield* getProjectPath(input.projectId);
+        if (!projectPath) return [];
+        return yield* agents.list({ projectPath });
       });
 
-      const ensureAgentActor = Effect.fn("AgentService.ensureAgentActor")(function* (input: {
-        projectId: string;
+      const getInstance = Effect.fn("AgentService.getInstance")(function* (input: {
         agentId: string;
       }) {
-        const existingActor = agentManager.get(input.agentId);
-        if (existingActor) {
-          return Option.some(true);
+        // Check cache first
+        const cached = instances.get(input.agentId);
+        if (cached) return Option.some(cached);
+
+        // Load metadata and create instance
+        const metadataOpt = yield* getAgent({ agentId: input.agentId });
+        if (Option.isNone(metadataOpt)) {
+          return Option.none<AgentInstance>();
         }
 
-        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
-
-        if (Option.isNone(projectResult)) {
-          return Option.none();
+        const metadata = metadataOpt.value;
+        const projectPath = yield* getProjectPath(metadata.projectId);
+        if (!projectPath) {
+          return Option.none<AgentInstance>();
         }
 
-        const projectPath = projectResult.value.path;
-
-        const agentResult = yield* agents
-          .get({
-            projectPath,
-            id: input.agentId,
-          })
-          .pipe(
-            Effect.mapError(
-              (cause) =>
-                new AgentNotFoundError({
-                  agentId: input.agentId,
-                  projectId: input.projectId,
-                  cause,
-                }),
-            ),
-          );
-
-        if (Option.isNone(agentResult)) {
-          return Option.none();
-        }
-
-        const metadata = agentResult.value;
-
-        const sessionManager = yield* openPiSession(metadata.pi.sessionFile, projectPath);
-
-        agentManager.getOrCreate({
-          agentId: input.agentId,
-          projectId: input.projectId,
-          projectPath,
-          metadata,
-          sessionManager,
-        });
-
-        return Option.some(true);
+        const instance = yield* getOrCreateInstance({ metadata, projectPath });
+        return Option.some(instance);
       });
 
+      const removeInstance = (input: { agentId: string }): void => {
+        const instance = instances.get(input.agentId);
+        if (instance) {
+          instance.dispose();
+          instances.delete(input.agentId);
+        }
+      };
+
       const attachSession = Effect.fn("AgentService.attachSession")(function* (input: {
-        projectId: string;
         agentId: string;
         sessionFile: string;
       }) {
-        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
-
-        if (Option.isNone(projectResult)) {
-          return yield* new AgentAttachError({
+        const metadataOpt = yield* getAgent({ agentId: input.agentId });
+        if (Option.isNone(metadataOpt)) {
+          return yield* new AgentUpdateError({
             agentId: input.agentId,
-            projectId: input.projectId,
-            cause: "Project not found",
+            cause: "Agent not found",
           });
         }
 
-        const projectPath = projectResult.value.path;
+        const metadata = metadataOpt.value;
 
-        // Validate and open the session file
-        const _sessionManager = yield* openPiSession(input.sessionFile, projectPath);
-
-        // Update agent metadata with new session file
-        const agentResult = yield* agents.get({
-          projectPath,
-          id: input.agentId,
-        });
-
-        if (Option.isNone(agentResult)) {
-          return yield* new AgentNotFoundError({
+        // Validate session file exists
+        const exists = yield* fs.exists(input.sessionFile);
+        if (!exists) {
+          return yield* new AgentUpdateError({
             agentId: input.agentId,
-            projectId: input.projectId,
+            cause: `Session file not found: ${input.sessionFile}`,
           });
         }
 
-        const current = agentResult.value;
-        const updated: AgentMetadata = {
-          ...current,
-          updatedAt: new Date().toISOString(),
-        };
+        // Remove old instance
+        removeInstance({ agentId: input.agentId });
 
-        // Persist the update
-        yield* agents.update({
+        // Update metadata
+        const updated = yield* updateAgent({
+          projectId: metadata.projectId,
           id: input.agentId,
-          projectPath,
-          name: updated.name,
+          name: metadata.name,
           sessionFile: input.sessionFile,
         });
 
-        // Notify actor about session switch
-        const actor = agentManager.get(input.agentId);
-        if (actor) {
-          actor.send({ type: "ATTACH_SESSION", sessionManager: _sessionManager });
-        }
-
-        return Option.some(updated);
+        return updated;
       });
 
-      const switchSession = Effect.fn("AgentService.switchSession")(function* (input: {
-        projectId: string;
-        agentId: string;
-        sessionFile: string;
+      const listSessions = Effect.fn("AgentService.listSessions")(function* (input: {
+        projectPath: string;
       }) {
-        return yield* attachSession(input);
-      });
-
-      const listAttachableSessions = Effect.fn("AgentService.listAttachableSessions")(
-        function* (input: { projectId: string }) {
-          const projectResult = yield* project.getProjectDetail({ id: input.projectId });
-
-          if (Option.isNone(projectResult)) {
-            return yield* new AgentNotFoundError({
-              agentId: "",
-              projectId: input.projectId,
-              cause: "Project not found",
-            });
-          }
-
-          const sessions = yield* listPiSessions(projectResult.value.path);
-
-          return sessions.map((s) => ({
-            path: s.path,
-            id: s.id,
-            cwd: s.cwd,
-            name: s.name,
-            parentSessionPath: s.parentSessionPath,
-            created: s.created,
-            modified: s.modified,
-            messageCount: s.messageCount,
-            firstMessage: s.firstMessage,
-          }));
-        },
-      );
-
-      const getAgentFrontendConfig = Effect.fn("AgentService.getAgentFrontendConfig")(function* () {
-        const appConfig = yield* config.loadConfig();
-        const modelRegistry = new ModelRegistry(AuthStorage.create());
-
-        const availableModels = modelRegistry.getAvailable().map(
-          (model) =>
-            ({
-              provider: model.provider,
-              id: model.id,
-              name: model.name,
-              fullId: `${model.provider}/${model.id}`,
-            }) satisfies PiAvailableModel,
-        );
-
-        const enabledOrder = new Map(appConfig.agent.enabledModels.map((id, index) => [id, index]));
-
-        availableModels.sort((a, b) => {
-          const aOrder = enabledOrder.get(a.fullId);
-          const bOrder = enabledOrder.get(b.fullId);
-
-          if (aOrder !== undefined && bOrder !== undefined) return aOrder - bOrder;
-          if (aOrder !== undefined) return -1;
-          if (bOrder !== undefined) return 1;
-          if (a.provider !== b.provider) return a.provider.localeCompare(b.provider);
-          return a.name.localeCompare(b.name);
+        return yield* Effect.tryPromise({
+          try: () => SessionManager.list(input.projectPath),
+          catch: () => [] as SessionInfo[],
         });
-
-        return {
-          availableModels,
-          defaultProvider: appConfig.agent.defaultProvider,
-          defaultModel: appConfig.agent.defaultModel,
-          defaultThinkingLevel: appConfig.agent.defaultThinkingLevel,
-          enabledModels: appConfig.agent.enabledModels,
-        } satisfies AgentFrontendConfig;
-      });
-
-      const getAgentRuntime = Effect.fn("AgentService.getAgentRuntime")(function* (input: {
-        projectId: string;
-        agentId: string;
-      }) {
-        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
-
-        if (Option.isNone(projectResult)) {
-          return Option.none();
-        }
-
-        const actor = agentManager.get(input.agentId);
-
-        if (!actor) {
-          return Option.none();
-        }
-
-        const actorState = getActorRuntimeState(actor);
-
-        return Option.some({
-          agentId: input.agentId,
-          projectId: input.projectId,
-          status: actorState.status,
-          queuedSteering: actorState.queuedSteering,
-          queuedFollowUp: actorState.queuedFollowUp,
-          currentSessionFile: actorState.currentSessionFile,
-          ...(actorState.model ? { model: actorState.model } : {}),
-          thinkingLevel: actorState.thinkingLevel,
-        });
-      });
-
-      const configureAgentSession = Effect.fn("AgentService.configureAgentSession")(function* (
-        input: ConfigureAgentSessionInput,
-      ) {
-        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
-
-        if (Option.isNone(projectResult)) {
-          return yield* new AgentNotFoundError({
-            agentId: input.agentId,
-            projectId: input.projectId,
-            cause: "Project not found",
-          });
-        }
-
-        yield* ensureAgentActor({
-          projectId: input.projectId,
-          agentId: input.agentId,
-        });
-
-        const actor = agentManager.get(input.agentId);
-
-        if (!actor) {
-          return yield* new AgentNotFoundError({
-            agentId: input.agentId,
-            projectId: input.projectId,
-            cause: "Agent actor not found",
-          });
-        }
-
-        yield* Effect.tryPromise({
-          try: () => configureActorSession(actor, input),
-          catch: (cause) =>
-            new AgentUpdateError({
-              agentId: input.agentId,
-              projectId: input.projectId,
-              cause: cause instanceof Error ? cause.message : "Failed to configure session",
-            }),
-        });
-
-        return null;
-      });
-
-      const getAgentHistory = Effect.fn("AgentService.getAgentHistory")(function* (input: {
-        projectId: string;
-        agentId: string;
-      }) {
-        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
-
-        if (Option.isNone(projectResult)) {
-          return Option.none();
-        }
-
-        const agentResult = yield* agents
-          .get({
-            projectPath: projectResult.value.path,
-            id: input.agentId,
-          })
-          .pipe(
-            Effect.mapError(
-              (cause) =>
-                new AgentNotFoundError({
-                  agentId: input.agentId,
-                  projectId: input.projectId,
-                  cause,
-                }),
-            ),
-          );
-
-        if (Option.isNone(agentResult)) {
-          return Option.none();
-        }
-
-        const metadata = agentResult.value;
-        const sessionManager = yield* openPiSession(
-          metadata.pi.sessionFile,
-          projectResult.value.path,
-        ).pipe(
-          Effect.catchTag("PiSessionValidationError", () =>
-            Effect.gen(function* () {
-              const { sessionFile, sessionManager } = yield* createPiSession(
-                projectResult.value.path,
-              );
-
-              yield* agents.update({
-                id: input.agentId,
-                projectPath: projectResult.value.path,
-                name: metadata.name,
-                sessionFile,
-              });
-
-              const actor = agentManager.get(input.agentId);
-              if (actor) {
-                actor.send({ type: "ATTACH_SESSION", sessionManager });
-              }
-
-              return sessionManager;
-            }),
-          ),
-        );
-
-        const resolvedSessionFile = sessionManager.getSessionFile() ?? metadata.pi.sessionFile;
-        const header = sessionManager.getHeader();
-
-        if (!header) {
-          return yield* new PiSessionValidationError({
-            sessionFile: metadata.pi.sessionFile,
-            cause: "Session header missing",
-          });
-        }
-
-        const sessionName = sessionManager.getSessionName();
-
-        return Option.some({
-          agentId: input.agentId,
-          projectId: input.projectId,
-          sessionFile: resolvedSessionFile,
-          sessionId: header.id,
-          cwd: header.cwd,
-          ...(sessionName !== undefined ? { sessionName } : {}),
-          leafId: sessionManager.getLeafId(),
-          entries: sessionManager.getEntries(),
-        } satisfies AgentHistory);
       });
 
       return {
@@ -616,15 +332,11 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceA
         updateAgent,
         deleteAgent,
         listAgents,
-        ensureAgentActor,
+        getInstance,
+        removeInstance,
         attachSession,
-        switchSession,
-        listAttachableSessions,
-        getAgentRuntime,
-        getAgentHistory,
-        configureAgentSession,
-        getAgentFrontendConfig,
-      } as unknown as AgentServiceApi;
+        listSessions,
+      } as unknown as AgentServiceShape;
     }),
   },
 ) {

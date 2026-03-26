@@ -1,17 +1,6 @@
 import { Schema } from "effect";
 
 /**
- * Entity file not found
- */
-export class EntityNotFoundError extends Schema.TaggedErrorClass<EntityNotFoundError>()(
-  "EntityNotFoundError",
-  {
-    entityId: Schema.String,
-    directory: Schema.String,
-  },
-) {}
-
-/**
  * Failed to decode entity from JSON
  */
 export class EntityDecodeError extends Schema.TaggedErrorClass<EntityDecodeError>()(
@@ -68,7 +57,6 @@ export class EntityFileWriteError extends Schema.TaggedErrorClass<EntityFileWrit
  * Union of all entity service errors
  */
 export type EntityServiceError =
-  | EntityNotFoundError
   | EntityDecodeError
   | EntityEncodeError
   | EntityDirectoryError

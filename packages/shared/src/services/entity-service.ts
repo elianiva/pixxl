@@ -67,9 +67,7 @@ export type EntityOperations<TEntity, TCreate extends object, TUpdate extends ob
   readonly update: (
     input: TUpdate & UpdateEntityInput,
   ) => Effect.Effect<Option.Option<TEntity>, EntityServiceError>;
-  readonly delete: (
-    input: DeleteEntityInput,
-  ) => Effect.Effect<Option.Option<boolean>, EntityServiceError>;
+  readonly delete: (input: DeleteEntityInput) => Effect.Effect<boolean, EntityServiceError>;
   readonly list: (input: ListEntityInput) => Effect.Effect<Array<TEntity>, EntityServiceError>;
 };
 
@@ -262,9 +260,7 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
               ),
             );
 
-          if (!fileExists) {
-            return Option.none<boolean>();
-          }
+          if (!fileExists) return false;
 
           yield* fs
             .remove(fp)
@@ -274,7 +270,7 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
               ),
             );
 
-          return Option.some(true);
+          return true;
         });
 
         const list = Effect.fn("EntityService.list")(function* (input: ListEntityInput) {

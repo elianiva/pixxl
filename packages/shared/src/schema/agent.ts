@@ -12,6 +12,7 @@ export const UpdateAgentInputSchema = Schema.Struct({
   projectId: Schema.String,
   id: Schema.String,
   name: Schema.String,
+  sessionFile: Schema.optionalKey(Schema.String),
 });
 
 export const DeleteAgentInputSchema = Schema.Struct({
@@ -30,6 +31,7 @@ export const PiMetadataSchema = Schema.Struct({
 
 export const AgentMetadataSchema = Schema.Struct({
   id: Schema.String,
+  projectId: Schema.String,
   name: Schema.String,
   createdAt: Schema.String,
   updatedAt: Schema.String,
@@ -87,7 +89,6 @@ export const AgentFrontendConfigSchema = Schema.Struct({
   defaultProvider: Schema.String,
   defaultModel: Schema.String,
   defaultThinkingLevel: AgentThinkingLevelSchema,
-  enabledModels: Schema.Array(Schema.String),
 });
 
 export const PromptAgentInputSchema = Schema.Struct({

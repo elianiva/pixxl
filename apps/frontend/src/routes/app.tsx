@@ -61,6 +61,7 @@ function RouteComponent() {
     if (!projectId) return;
     getAgentsCollection(projectId).insert({
       id: generateId(),
+      projectId,
       name,
       pi: { sessionFile: "" },
       createdAt: new Date().toISOString(),

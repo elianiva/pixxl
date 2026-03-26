@@ -104,6 +104,7 @@ function DashboardPage() {
   function handleCreateAgent() {
     agentsCollection.insert({
       id: generateId(),
+      projectId,
       name: `Agent ${(agentsAll.data?.length ?? 0) + 1}`,
       pi: { sessionFile: "" },
       createdAt: new Date().toISOString(),
