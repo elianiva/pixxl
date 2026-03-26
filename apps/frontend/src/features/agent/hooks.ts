@@ -138,8 +138,6 @@ export function useMessages(agentId?: string): Message[] {
     getInteractionsCollection(projectId as string, targetAgentId as string),
   );
 
-  console.log("historyMessages", historyMessages);
-
   return useMemo(() => {
     const persisted = historyMessages
       .toSorted((a, b) => a.order - b.order)
@@ -297,11 +295,9 @@ export function useAgentActions(projectId: string, agentId?: string) {
         let eventCount = 0;
         for await (const event of stream) {
           eventCount++;
-          console.log(`[Frontend] EVENT #${eventCount}:`, event.type, event);
           applyAgentEvent(resolvedAgentId, requestId, event);
         }
 
-        console.log(`[Frontend] STREAM ENDED (total events=${eventCount})`);
         finishAgentStream(resolvedAgentId, requestId);
       } catch (error) {
         if (requestId) {

@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, ServiceMap, FileSystem, Match, Result } from "effect";
+import { Effect, Layer, Option, ServiceMap, FileSystem, Schedule } from "effect";
 import type {
   AgentMetadata,
   CreateAgentInput,
@@ -117,6 +117,51 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
         return metadata;
       });
 
+      const ensureSessionFile = Effect.fn("AgentService.ensureSessionFile")(function* (
+        sessionFile: string,
+        agentName: string,
+      ) {
+        const exists = yield* fs.exists(sessionFile).pipe(
+          Effect.mapError(
+            (cause) =>
+              new AgentCreateError({
+                name: agentName,
+                cause,
+              }),
+          ),
+        );
+        if (exists) return true;
+
+        yield* fs.writeFileString(sessionFile, "").pipe(
+          Effect.mapError(
+            (cause) =>
+              new AgentCreateError({
+                name: agentName,
+                cause,
+              }),
+          ),
+        );
+
+        const verified = yield* fs.exists(sessionFile).pipe(
+          Effect.mapError(
+            (cause) =>
+              new AgentCreateError({
+                name: agentName,
+                cause,
+              }),
+          ),
+        );
+
+        if (!verified) {
+          return yield* new AgentCreateError({
+            name: agentName,
+            cause: "Session file creation failed verification",
+          });
+        }
+
+        return true;
+      });
+
       const getOrCreateInstance = Effect.fn("AgentService.getOrCreateInstance")(function* (input: {
         metadata: AgentMetadata;
         projectPath: string;
@@ -124,44 +169,21 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
         const existing = instances.get(input.metadata.id);
         if (existing) return existing;
 
-        const sessionExists = yield* fs.exists(input.metadata.pi.sessionFile).pipe(
-          Effect.mapError(
-            (cause) =>
-              new AgentCreateError({
-                name: input.metadata.name,
-                cause,
-              }),
-          ),
-        );
-
-        let sessionManager = Match.value(sessionExists).pipe(
-          Match.when(true, () =>
-            Result.succeed(SessionManager.open(input.metadata.pi.sessionFile)),
-          ),
-          Match.when(false, () => {
-            const manager = SessionManager.create(input.projectPath);
-            const newSessionId = manager.newSession();
-            if (!newSessionId) {
-              return Result.fail(
-                new AgentCreateError({
-                  name: input.metadata.name,
-                  cause: "Failed to recreate session",
-                }),
-              );
-            }
-            return Result.succeed(manager);
+        // Ensure session file exists with retry
+        yield* ensureSessionFile(input.metadata.pi.sessionFile, input.metadata.name).pipe(
+          Effect.retry({
+            schedule: Schedule.exponential("50 millis"),
+            times: 3,
+            until: (err) => err._tag !== "AgentCreateError",
           }),
-          Match.exhaustive,
         );
 
-        if (Result.isFailure(sessionManager)) {
-          return sessionManager.failure;
-        }
+        const sessionManager = SessionManager.open(input.metadata.pi.sessionFile);
 
         const result = yield* Effect.tryPromise({
           try: () =>
             createAgentSession({
-              sessionManager: sessionManager.success,
+              sessionManager,
               authStorage,
               modelRegistry,
             }),
@@ -172,7 +194,7 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
             }),
         });
 
-        const instance = new AgentInstance(input.metadata, sessionManager.success, result.session);
+        const instance = new AgentInstance(input.metadata, sessionManager, result.session);
         instances.set(input.metadata.id, instance);
         return instance;
       });
@@ -252,23 +274,20 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
       const getInstance = Effect.fn("AgentService.getInstance")(function* (input: {
         agentId: string;
       }) {
-        // Check cache first
         const cached = instances.get(input.agentId);
         if (cached) return Option.some(cached);
 
-        // Load metadata and create instance
-        const metadataOpt = yield* getAgent({ agentId: input.agentId });
-        if (Option.isNone(metadataOpt)) {
+        const metadata = yield* getAgent({ agentId: input.agentId });
+        if (Option.isNone(metadata)) {
           return Option.none<AgentInstance>();
         }
 
-        const metadata = metadataOpt.value;
-        const projectPath = yield* getProjectPath(metadata.projectId);
+        const projectPath = yield* getProjectPath(metadata.value.projectId);
         if (!projectPath) {
           return Option.none<AgentInstance>();
         }
 
-        const instance = yield* getOrCreateInstance({ metadata, projectPath });
+        const instance = yield* getOrCreateInstance({ metadata: metadata.value, projectPath });
         return Option.some(instance);
       });
 
