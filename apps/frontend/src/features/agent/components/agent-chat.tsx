@@ -69,9 +69,9 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
         runtimeState?.model,
         frontendConfig
           ? {
-              defaultProvider: frontendConfig.defaultProvider,
-              defaultModel: frontendConfig.defaultModel,
-            }
+            defaultProvider: frontendConfig.defaultProvider,
+            defaultModel: frontendConfig.defaultModel,
+          }
           : undefined,
       ),
     [frontendConfig, models, runtimeState?.model],
@@ -93,6 +93,14 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
     });
   };
 
+  const handleFork = (content: string) => {
+    // Fork creates a follow-up request with the response content as context
+    // This allows getting an alternative response
+    if (!initialModel) return;
+
+    console.log("implement this", content);
+  };
+
   const handleAbort = () => {
     void abortMessage();
   };
@@ -107,9 +115,9 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
   };
 
   return (
-    <div className="flex h-full flex-col">
-      <ChatScrollContainer className="flex-1 overflow-y-auto px-4 py-4">
-        <MessageList messages={messages} isStreaming={isStreaming} />
+    <div className="flex h-full flex-col w-full">
+      <ChatScrollContainer className="flex-1 overflow-y-auto py-4 max-w-3xl w-full mx-auto">
+        <MessageList messages={messages} isStreaming={isStreaming} onFork={handleFork} />
       </ChatScrollContainer>
 
       <ChatInput

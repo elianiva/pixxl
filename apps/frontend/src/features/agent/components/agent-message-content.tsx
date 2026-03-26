@@ -1,5 +1,7 @@
-import { memo } from "react";
-import { cn } from "@/lib/utils";
+import { memo, useCallback } from "react";
+import { MessageResponse, MessageActions, MessageAction } from "@/components/ai-elements/message";
+import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning";
+import { RiFileCopyLine, RiGitBranchLine } from "@remixicon/react";
 import { ToolCallDisplay } from "./tool-call-display";
 
 interface AgentMessageContentProps {
@@ -18,34 +20,29 @@ interface AgentMessageContentProps {
       error?: string;
     }>;
   };
+  onFork?: (content: string) => void;
 }
 
 export const AgentMessageContent = memo(function AgentMessageContent({
   message,
+  onFork,
 }: AgentMessageContentProps) {
+  const handleCopy = useCallback(() => {
+    void navigator.clipboard.writeText(message.content);
+  }, [message.content]);
+
+  const handleFork = useCallback(() => {
+    onFork?.(message.content);
+  }, [message.content, onFork]);
+
   return (
-    <div className="prose prose-xs dark:prose-invert max-w-none">
-      {/* Reasoning block */}
+    <div className="max-w-none">
+      {/* Reasoning block with collapsible UI */}
       {message.reasoning && (
-        <div className="mb-2 rounded-md border border-muted bg-muted/50 p-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5 font-medium text-muted-foreground/70">
-            <svg
-              className="size-3 animate-pulse"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-              />
-            </svg>
-            Thinking
-          </div>
-          <div className="mt-1 whitespace-pre-wrap">{message.reasoning}</div>
-        </div>
+        <Reasoning isStreaming={message.isStreaming ?? false}>
+          <ReasoningTrigger />
+          <ReasoningContent>{message.reasoning}</ReasoningContent>
+        </Reasoning>
       )}
 
       {/* Tool calls */}
@@ -57,16 +54,29 @@ export const AgentMessageContent = memo(function AgentMessageContent({
         </div>
       )}
 
-      {/* Main content with streaming indicator */}
-      <div
-        className={cn(
-          "whitespace-pre-wrap",
-          message.isStreaming &&
-            "after:content-[▊] after:animate-pulse after:text-muted-foreground",
-        )}
-      >
-        {message.content}
+      {/* Main content with MessageResponse (uses Streamdown with all plugins) */}
+      <div className="text-sm leading-relaxed">
+        <MessageResponse
+          mode={message.isStreaming ? "streaming" : "static"}
+          isAnimating={message.isStreaming}
+        >
+          {message.content}
+        </MessageResponse>
       </div>
+
+      {/* Actions - only show for completed assistant messages */}
+      {!message.isStreaming && message.role === "assistant" && (
+        <MessageActions className="mt-2 opacity-20 transition-opacity group-hover:opacity-100">
+          <MessageAction label="Copy" tooltip="Copy to clipboard" onClick={handleCopy}>
+            <RiFileCopyLine className="size-4" />
+          </MessageAction>
+          {onFork && (
+            <MessageAction label="Fork" tooltip="Fork this response" onClick={handleFork}>
+              <RiGitBranchLine className="size-4" />
+            </MessageAction>
+          )}
+        </MessageActions>
+      )}
     </div>
   );
 });

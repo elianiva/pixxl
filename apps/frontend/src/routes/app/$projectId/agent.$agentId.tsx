@@ -1,14 +1,10 @@
 import { useEffect } from "react";
-import { useStore } from "@tanstack/react-store";
 import { useLiveQuery } from "@tanstack/react-db";
 import { createFileRoute } from "@tanstack/react-router";
 import { AgentChat } from "@/features/agent/components/agent-chat";
-import { ConnectionStatus } from "@/features/agent/components/connection-status";
-import { Button } from "@/components/ui/button";
 import { RiRobot2Line } from "@remixicon/react";
 import { getAgentsCollection } from "@/features/agent/agents-collection";
 import { selectAgent } from "@/features/agent/store";
-import { getStreamStateForAgent, streamStore } from "@/features/agent/stream-store";
 import type { AgentMetadata } from "@pixxl/shared";
 
 export const Route = createFileRoute("/app/$projectId/agent/$agentId")({
@@ -22,61 +18,15 @@ function AgentRoute() {
   const agents = useLiveQuery(projectId ? getAgentsCollection(projectId) : (null as any));
   const activeAgent =
     ((agents.data as AgentMetadata[]) ?? []).find((agent) => agent.id === agentId) ?? null;
-  const streamState = useStore(streamStore, (state) => getStreamStateForAgent(state, agentId));
-  const connectionStatus = streamState.error
-    ? "error"
-    : streamState.isStreaming
-      ? "streaming"
-      : "idle";
 
   useEffect(() => {
     selectAgent(agentId);
-
-    return () => {
-      selectAgent(null);
-    };
+    return () => selectAgent(null);
   }, [agentId]);
 
   return (
     <div className="flex h-full">
-      <div className="flex flex-1 flex-col min-w-0">
-        <AgentHeader agentName={activeAgent?.name} connectionStatus={connectionStatus} />
-        <div className="flex-1 overflow-hidden">
-          {activeAgent ? <AgentChat projectId={projectId} agentId={agentId} /> : <EmptyState />}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface AgentHeaderProps {
-  agentName?: string;
-  connectionStatus: "idle" | "streaming" | "error";
-}
-
-function AgentHeader({ agentName, connectionStatus }: AgentHeaderProps) {
-  const isStreaming = connectionStatus === "streaming";
-
-  return (
-    <div className="flex items-center justify-between border-b px-4 py-3">
-      <div className="flex items-center gap-3">
-        <RiRobot2Line className="size-5 text-muted-foreground" />
-        <h2 className="font-semibold">{agentName || "No agent selected"}</h2>
-      </div>
-      <div className="flex items-center gap-2">
-        <ConnectionStatus status={connectionStatus} />
-        {isStreaming && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              // Abort streaming is handled in chat input controls
-            }}
-          >
-            Stop
-          </Button>
-        )}
-      </div>
+      {activeAgent ? <AgentChat projectId={projectId} agentId={agentId} /> : <EmptyState />}
     </div>
   );
 }

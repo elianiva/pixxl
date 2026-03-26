@@ -21,9 +21,10 @@ interface Message {
 interface MessageListProps {
   messages: Message[];
   isStreaming: boolean;
+  onFork?: (content: string) => void;
 }
 
-export function MessageList({ messages, isStreaming }: MessageListProps) {
+export function MessageList({ messages, isStreaming, onFork }: MessageListProps) {
   if (messages.length === 0) {
     return <EmptyChatState />;
   }
@@ -31,7 +32,7 @@ export function MessageList({ messages, isStreaming }: MessageListProps) {
   return (
     <div className="space-y-4">
       {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} />
+        <MessageBubble key={message.id} message={message} onFork={onFork} />
       ))}
       {isStreaming && <StreamingIndicator />}
     </div>

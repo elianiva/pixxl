@@ -19,21 +19,22 @@ interface Message {
 
 interface MessageBubbleProps {
   message: Message;
+  onFork?: (content: string) => void;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, onFork }: MessageBubbleProps) {
   return (
     <div className={cn("group flex", message.role === "user" ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "max-w-[85%] px-3 py-2",
+          "max-w-[85%]",
           message.role === "user"
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted text-foreground",
+            ? "bg-primary px-3 py-2 text-primary-foreground"
+            : "px-0 py-1 text-foreground",
         )}
       >
         {message.role === "assistant" ? (
-          <AgentMessageContent message={message} />
+          <AgentMessageContent message={message} onFork={onFork} />
         ) : (
           <p className="whitespace-pre-wrap text-sm">{message.content}</p>
         )}
