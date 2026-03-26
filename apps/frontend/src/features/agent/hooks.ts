@@ -17,66 +17,10 @@ import {
 } from "./stream-store";
 import type { ChatSubmitOptions } from "./components/chat-input";
 
-interface ContentBlock {
-  type?: string;
-  text?: string;
-  thinking?: string;
-  id?: string;
-  name?: string;
-  arguments?: Record<string, unknown>;
-}
-
-interface ExtractedContent {
-  text: string;
-  thinking: string | undefined;
-  toolCalls: Array<{
-    id: string;
-    name: string;
-    params: unknown;
-    status: "running" | "complete" | "error";
-    output?: string;
-    error?: string;
-  }>;
-}
-
-function extractFromContentBlocks(content: unknown): ExtractedContent {
-  if (typeof content === "string") return { text: content, thinking: undefined, toolCalls: [] };
-  if (!Array.isArray(content)) return { text: "", thinking: undefined, toolCalls: [] };
-
-  let text = "";
-  let thinking: string | undefined;
-  const toolCalls: ExtractedContent["toolCalls"] = [];
-
-  for (const item of content) {
-    if (!item || typeof item !== "object") continue;
-    const block = item as ContentBlock;
-
-    if (block.type === "text" && typeof block.text === "string") {
-      text += block.text;
-    }
-    if (block.type === "thinking" && typeof block.thinking === "string") {
-      thinking = (thinking ?? "") + block.thinking;
-    }
-    if (
-      block.type === "toolCall" &&
-      typeof block.id === "string" &&
-      typeof block.name === "string"
-    ) {
-      toolCalls.push({
-        id: block.id,
-        name: block.name,
-        params: block.arguments ?? {},
-        status: "complete",
-      });
-    }
-  }
-
-  return { text, thinking, toolCalls };
-}
-
-export function useActiveAgentId(): string | null {
-  return useStore(agentStore, (state) => state.activeAgentId);
-}
+export type MessageBlock =
+  | { type: "text"; text: string }
+  | { type: "thinking"; thinking: string }
+  | { type: "toolCall"; id: string; name: string; arguments: Record<string, unknown> };
 
 export type Message = {
   id: string;
@@ -92,7 +36,46 @@ export type Message = {
     output?: string;
     error?: string;
   }>;
+  blocks?: MessageBlock[];
 };
+
+function extractBlocksFromContent(content: unknown): MessageBlock[] {
+  if (typeof content === "string") return [{ type: "text", text: content }];
+  if (!Array.isArray(content)) return [];
+
+  const blocks: MessageBlock[] = [];
+
+  for (const item of content) {
+    if (!item || typeof item !== "object") continue;
+    const block = item as { type?: string };
+
+    if (block.type === "text" && typeof (item as { text?: string }).text === "string") {
+      blocks.push({ type: "text", text: (item as { text: string }).text });
+    } else if (
+      block.type === "thinking" &&
+      typeof (item as { thinking?: string }).thinking === "string"
+    ) {
+      blocks.push({ type: "thinking", thinking: (item as { thinking: string }).thinking });
+    } else if (
+      block.type === "toolCall" &&
+      typeof (item as { id?: string }).id === "string" &&
+      typeof (item as { name?: string }).name === "string"
+    ) {
+      blocks.push({
+        type: "toolCall",
+        id: (item as { id: string }).id,
+        name: (item as { name: string }).name,
+        arguments: (item as { arguments?: Record<string, unknown> }).arguments ?? {},
+      });
+    }
+  }
+
+  return blocks;
+}
+
+export function useActiveAgentId(): string | null {
+  return useStore(agentStore, (state) => state.activeAgentId);
+}
 
 function toMessage(message: StreamMessage): Message {
   return {
@@ -137,7 +120,32 @@ export function useMessages(agentId?: string): Message[] {
         if (entry.message.role === "toolResult") return acc;
 
         const message = entry.message;
-        const { text, thinking, toolCalls } = extractFromContentBlocks(message.content);
+        const blocks = extractBlocksFromContent(message.content);
+
+        // For backward compatibility, also extract text, thinking, and toolCalls
+        let text = "";
+        let thinking: string | undefined;
+        const toolCalls: Array<{
+          id: string;
+          name: string;
+          params: unknown;
+          status: "running" | "complete" | "error";
+          output?: string;
+          error?: string;
+        }> = [];
+
+        for (const block of blocks) {
+          if (block.type === "text") text += block.text;
+          else if (block.type === "thinking") thinking = (thinking ?? "") + block.thinking;
+          else if (block.type === "toolCall") {
+            toolCalls.push({
+              id: block.id,
+              name: block.name,
+              params: block.arguments,
+              status: "complete",
+            });
+          }
+        }
 
         acc.push({
           id: entry.id,
@@ -145,6 +153,7 @@ export function useMessages(agentId?: string): Message[] {
           content: text,
           reasoning: thinking,
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+          blocks,
         });
 
         return acc;

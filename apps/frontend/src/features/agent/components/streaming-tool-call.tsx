@@ -1,12 +1,18 @@
 "use client";
 
 import { memo } from "react";
+import {
+  Task,
+  TaskTrigger,
+  TaskContent,
+  TaskItem,
+  TaskItemFile,
+} from "@/components/ai-elements/task";
 import { cn } from "@/lib/utils";
-import { TaskContent, TaskItem, TaskItemFile, Task } from "@/components/ai-elements/task";
 import { Loader2Icon } from "lucide-react";
 import { RiFileTextLine, RiFileAddLine, RiFileEditLine, RiTerminalBoxLine } from "@remixicon/react";
 
-interface StreamingToolCallProps {
+interface ToolCallItemProps {
   tool: {
     id: string;
     name: string;
@@ -20,79 +26,71 @@ interface StreamingToolCallProps {
 function getToolIcon(name: string) {
   switch (name) {
     case "read":
-      return <RiFileTextLine className="size-4" />;
+      return <RiFileTextLine className="size-4 text-blue-500" />;
     case "write":
-      return <RiFileAddLine className="size-4" />;
+      return <RiFileAddLine className="size-4 text-green-500" />;
     case "edit":
-      return <RiFileEditLine className="size-4" />;
+      return <RiFileEditLine className="size-4 text-yellow-500" />;
     case "bash":
-      return <RiTerminalBoxLine className="size-4" />;
+      return <RiTerminalBoxLine className="size-4 text-slate-500" />;
     default:
       return null;
   }
 }
 
-function getToolDescription(tool: StreamingToolCallProps["tool"]): React.ReactNode {
-  const params = tool.params as Record<string, unknown> | undefined;
-  const name = tool.name;
-
-  switch (name) {
-    case "read": {
-      const path = (params?.path as string) ?? "unknown file";
-      return (
-        <span className="inline-flex items-center gap-1">
-          Read
-          <TaskItemFile>
-            {getToolIcon(name)} <span>{path}</span>
-          </TaskItemFile>
-        </span>
-      );
-    }
-    case "write": {
-      const path = (params?.path as string) ?? "unknown file";
-      return (
-        <span className="inline-flex items-center gap-1">
-          Write
-          <TaskItemFile>
-            {getToolIcon(name)} <span>{path}</span>
-          </TaskItemFile>
-        </span>
-      );
-    }
-    case "edit": {
-      const path = (params?.path as string) ?? "unknown file";
-      return (
-        <span className="inline-flex items-center gap-1">
-          Edit
-          <TaskItemFile>
-            {getToolIcon(name)} <span>{path}</span>
-          </TaskItemFile>
-        </span>
-      );
-    }
-    case "bash": {
-      const command = (params?.command as string) ?? (params?.cmd as string) ?? "...";
-      const truncated = command.length > 40 ? command.slice(0, 40) + "..." : command;
-      return (
-        <span className="inline-flex items-center gap-1">
-          Run <code className="text-xs bg-muted px-1 py-0.5 rounded">{truncated}</code>
-        </span>
-      );
-    }
-    default: {
-      const toolName = name.charAt(0).toUpperCase() + name.slice(1);
-      return <span>{toolName}</span>;
-    }
-  }
+function getPathFromParams(params: Record<string, unknown>): string {
+  const path = params.path as string | undefined;
+  return path ?? "unknown";
 }
 
-export const StreamingToolCall = memo(function StreamingToolCall({ tool }: StreamingToolCallProps) {
+function truncate(str: string, len: number): string {
+  return str.length > len ? str.slice(0, len) + "..." : str;
+}
+
+const ToolCallItem = memo(function ToolCallItem({ tool }: ToolCallItemProps) {
+  const params = tool.params as Record<string, unknown> | undefined;
   const isRunning = tool.status === "running";
 
+  let content: React.ReactNode;
+
+  switch (tool.name) {
+    case "read":
+    case "write":
+    case "edit": {
+      const path = getPathFromParams(params ?? {});
+      content = (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="capitalize">{tool.name}</span>
+          <TaskItemFile>
+            {getToolIcon(tool.name)}
+            <span>{truncate(path, 30)}</span>
+          </TaskItemFile>
+        </span>
+      );
+      break;
+    }
+    case "bash": {
+      const command = (params?.command as string) ?? (params?.cmd as string) ?? "";
+      content = (
+        <span className="inline-flex items-center gap-1.5">
+          <span>Run</span>
+          <TaskItemFile>
+            {getToolIcon(tool.name)}
+            <span>{truncate(command, 30)}</span>
+          </TaskItemFile>
+        </span>
+      );
+      break;
+    }
+    default: {
+      content = <span>{tool.name}</span>;
+    }
+  }
+
   return (
-    <div className={cn("flex items-center gap-2 py-0.5", isRunning && "text-primary")}>
+    <TaskItem className={cn("flex items-center gap-2 py-0.5", isRunning && "text-foreground")}>
       {isRunning ? (
-        <Loader2Icon className="size-3.5 animate-spin" />
+        <Loader2Icon className="size-3.5 animate-spin text-primary" />
       ) : tool.status === "complete" ? (
         <svg
           className="size-3.5 text-green-500"
@@ -117,8 +115,8 @@ export const StreamingToolCall = memo(function StreamingToolCall({ tool }: Strea
           />
         </svg>
       )}
-      <span className="text-sm">{getToolDescription(tool)}</span>
-    </div>
+      {content}
+    </TaskItem>
   );
 });
 
@@ -138,14 +136,26 @@ export const StreamingToolCallGroup = memo(function StreamingToolCallGroup({
 }: StreamingToolCallGroupProps) {
   if (tools.length === 0) return null;
 
+  const hasRunningTool = tools.some((t) => t.status === "running");
+  const completedCount = tools.filter((t) => t.status === "complete").length;
+  const errorCount = tools.filter((t) => t.status === "error").length;
+
+  let title: string;
+  if (hasRunningTool) {
+    title = "Running tools...";
+  } else if (errorCount > 0) {
+    title = `${completedCount} completed, ${errorCount} failed`;
+  } else {
+    title = `${tools.length} tool${tools.length > 1 ? "s" : ""} completed`;
+  }
+
   return (
     <div className="mb-4">
-      <Task>
+      <Task defaultOpen>
+        <TaskTrigger title={title} />
         <TaskContent>
           {tools.map((tool) => (
-            <TaskItem key={tool.id}>
-              <StreamingToolCall tool={tool} />
-            </TaskItem>
+            <ToolCallItem key={tool.id} tool={tool} />
           ))}
         </TaskContent>
       </Task>
