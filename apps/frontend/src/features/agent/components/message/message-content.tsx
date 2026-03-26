@@ -48,7 +48,7 @@ export const MessageContent = memo(function MessageContent({
         </ChainOfThought>
       )}
 
-      <div className="leading-relaxed">
+      <div className="leading-tight">
         <MessageResponse
           mode={message.isStreaming ? "streaming" : "static"}
           isAnimating={message.isStreaming}

@@ -161,7 +161,7 @@ export const ChainOfThoughtContent = memo(
     const { isOpen } = useChainOfThought();
 
     return (
-      <Collapsible open={isOpen} className={cn(isOpen && "p-2 pb-4")}>
+      <Collapsible open={isOpen} className={cn(isOpen && "p-2 pb-2")}>
         <CollapsibleContent
           className={cn(
             "mt-2 space-y-3",
