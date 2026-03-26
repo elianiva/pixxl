@@ -44,23 +44,37 @@ function extractBlocksFromContent(content: unknown): MessageBlock[] {
   if (!Array.isArray(content)) return [];
 
   const blocks: MessageBlock[] = [];
+  let currentThinking = "";
 
   for (const item of content) {
     if (!item || typeof item !== "object") continue;
     const block = item as { type?: string };
 
     if (block.type === "text" && typeof (item as { text?: string }).text === "string") {
+      // Flush any accumulated thinking before adding text
+      if (currentThinking) {
+        blocks.push({ type: "thinking", thinking: currentThinking });
+        currentThinking = "";
+      }
       blocks.push({ type: "text", text: (item as { text: string }).text });
     } else if (
       block.type === "thinking" &&
       typeof (item as { thinking?: string }).thinking === "string"
     ) {
-      blocks.push({ type: "thinking", thinking: (item as { thinking: string }).thinking });
+      // Accumulate consecutive thinking blocks into a single chain
+      currentThinking += (item as { thinking: string }).thinking;
     } else if (
       block.type === "toolCall" &&
       typeof (item as { id?: string }).id === "string" &&
       typeof (item as { name?: string }).name === "string"
     ) {
+      // Flush thinking BEFORE tool calls (not after)
+      // This ensures: [thinking_before_tool] [tool] [thinking_after_tool] [text]
+      // becomes: [thinking_before + thinking_after] [tool] [text]
+      if (currentThinking) {
+        blocks.push({ type: "thinking", thinking: currentThinking });
+        currentThinking = "";
+      }
       blocks.push({
         type: "toolCall",
         id: (item as { id: string }).id,
@@ -70,7 +84,29 @@ function extractBlocksFromContent(content: unknown): MessageBlock[] {
     }
   }
 
-  return blocks;
+  // Flush any remaining thinking at the end
+  if (currentThinking) {
+    blocks.push({ type: "thinking", thinking: currentThinking });
+  }
+
+  // Post-process: merge consecutive thinking blocks
+  // (can happen when thinking is split across tool calls)
+  const mergedBlocks: MessageBlock[] = [];
+  for (const block of blocks) {
+    if (block.type === "thinking") {
+      // Merge consecutive thinking blocks
+      const lastBlock = mergedBlocks.at(-1);
+      if (lastBlock?.type === "thinking") {
+        lastBlock.thinking += block.thinking;
+      } else {
+        mergedBlocks.push(block);
+      }
+    } else {
+      mergedBlocks.push(block);
+    }
+  }
+
+  return mergedBlocks;
 }
 
 export function useActiveAgentId(): string | null {

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { AgentMessageContent } from "../agent-message-content";
+import { AgentMessageContent } from "../message";
 
 interface Message {
   id: string;

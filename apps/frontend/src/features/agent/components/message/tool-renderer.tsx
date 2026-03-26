@@ -7,18 +7,18 @@ import {
 } from "@remixicon/react";
 import { TaskItem, TaskItemFile } from "@/components/ai-elements/task";
 import type { ToolCallFromBlock } from "./message-types";
-import { getPathFromParams, truncate } from "./message-utils";
+import { getPathFromParams } from "./message-utils";
 
 export function getToolIcon(name: string) {
   switch (name) {
     case "read":
-      return <RiFileTextLine className="size-4 text-blue-500" />;
+      return <RiFileTextLine className="size-4 text-mauve-500" />;
     case "write":
-      return <RiFileAddLine className="size-4 text-green-500" />;
+      return <RiFileAddLine className="size-4 text-mauve-500" />;
     case "edit":
-      return <RiFileEditLine className="size-4 text-yellow-500" />;
+      return <RiFileEditLine className="size-4 text-mauve-500" />;
     case "bash":
-      return <RiTerminalBoxLine className="size-4 text-slate-500" />;
+      return <RiTerminalBoxLine className="size-4 text-mauve-500" />;
     default:
       return <RiWrenchLine className="size-4" />;
   }
@@ -41,7 +41,7 @@ export function ToolCallItem({ tool }: ToolCallItemProps) {
           <span className="capitalize">{tool.name}</span>
           <TaskItemFile>
             {getToolIcon(tool.name)}
-            <span>{truncate(getPathFromParams(params ?? {}), 40)}</span>
+            <span>{getPathFromParams(params ?? {})}</span>
           </TaskItemFile>
         </span>
       );
@@ -52,13 +52,22 @@ export function ToolCallItem({ tool }: ToolCallItemProps) {
           <span>Run</span>
           <TaskItemFile>
             {getToolIcon(tool.name)}
-            <span>{truncate((params?.command as string) ?? "", 40)}</span>
+            <span>{(params?.command as string) ?? ""}</span>
           </TaskItemFile>
         </span>
       );
       break;
+    // TODO: these are mostly mcps
     default:
-      content = <span>{tool.name}</span>;
+      content = (
+        <span className="inline-flex items-center gap-1.5">
+          <span>Run</span>
+          <TaskItemFile>
+            {getToolIcon(tool.name)}
+            <span>{tool.name}</span>
+          </TaskItemFile>
+        </span>
+      );
   }
 
   return <TaskItem className="flex items-center gap-2 py-0.5">{content}</TaskItem>;
@@ -83,7 +92,7 @@ export function ToolCallsGroup({ calls }: ToolCallsGroupProps) {
   } else if (errorCount > 0) {
     label = `${completedCount} completed, ${errorCount} failed`;
   } else {
-    label = `${calls.length} tool${calls.length > 1 ? "s" : ""}`;
+    label = `Used ${calls.length} tool${calls.length > 1 ? "s" : ""}`;
   }
 
   return { label, status, calls };

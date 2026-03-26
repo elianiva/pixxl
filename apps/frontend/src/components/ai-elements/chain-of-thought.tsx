@@ -4,8 +4,8 @@ import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import type { LucideIcon } from "lucide-react";
-import { BrainIcon, ChevronDownIcon, DotIcon } from "lucide-react";
+import type { RemixiconComponentType } from "@remixicon/react";
+import { RiBrainLine, RiArrowDownSLine, RiCheckboxBlankCircleFill } from "@remixicon/react";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, memo, useContext, useMemo } from "react";
 
@@ -64,7 +64,11 @@ export const ChainOfThoughtHeader = memo(
     const { isOpen, setIsOpen } = useChainOfThought();
 
     return (
-      <Collapsible onOpenChange={setIsOpen} open={isOpen}>
+      <Collapsible
+        onOpenChange={setIsOpen}
+        open={isOpen}
+        className={cn("mb-0 p-3 border-accent", isOpen && "border-b")}
+      >
         <CollapsibleTrigger
           className={cn(
             "flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground",
@@ -72,9 +76,9 @@ export const ChainOfThoughtHeader = memo(
           )}
           {...props}
         >
-          <BrainIcon className="size-4" />
+          <RiBrainLine className="size-4" />
           <span className="flex-1 text-left">{children ?? "Chain of Thought"}</span>
-          <ChevronDownIcon
+          <RiArrowDownSLine
             className={cn("size-4 transition-transform", isOpen ? "rotate-180" : "rotate-0")}
           />
         </CollapsibleTrigger>
@@ -84,7 +88,7 @@ export const ChainOfThoughtHeader = memo(
 );
 
 export type ChainOfThoughtStepProps = ComponentProps<"div"> & {
-  icon?: LucideIcon;
+  icon?: RemixiconComponentType;
   label: ReactNode;
   description?: ReactNode;
   status?: "complete" | "active" | "pending";
@@ -99,7 +103,7 @@ const stepStatusStyles = {
 export const ChainOfThoughtStep = memo(
   ({
     className,
-    icon: Icon = DotIcon,
+    icon: Icon = RiCheckboxBlankCircleFill,
     label,
     description,
     status = "complete",
@@ -108,7 +112,7 @@ export const ChainOfThoughtStep = memo(
   }: ChainOfThoughtStepProps) => (
     <div
       className={cn(
-        "flex gap-2 text-sm",
+        "flex gap-2 text-sm pl-2 mb-3",
         stepStatusStyles[status],
         "fade-in-0 slide-in-from-top-2 animate-in",
         className,
@@ -157,7 +161,7 @@ export const ChainOfThoughtContent = memo(
     const { isOpen } = useChainOfThought();
 
     return (
-      <Collapsible open={isOpen}>
+      <Collapsible open={isOpen} className={cn(isOpen && "p-2 pb-4")}>
         <CollapsibleContent
           className={cn(
             "mt-2 space-y-3",

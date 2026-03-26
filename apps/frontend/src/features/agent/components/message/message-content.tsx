@@ -1,17 +1,15 @@
 import { memo, useCallback } from "react";
-import { RiFileCopyLine, RiGitBranchLine, RiBrainLine, RiWrenchLine } from "@remixicon/react";
+import { RiFileCopyLine, RiGitBranchLine } from "@remixicon/react";
 import {
   ChainOfThought,
   ChainOfThoughtHeader,
   ChainOfThoughtContent,
-  ChainOfThoughtStep,
 } from "@/components/ai-elements/chain-of-thought";
 import { MessageResponse, MessageActions, MessageAction } from "@/components/ai-elements/message";
 
 import type { AgentMessageContentProps } from "./message-types";
 import { stepsFromBlocks } from "./message-utils";
 import { ChainSteps } from "./message-steps";
-import { ToolCallItem } from "./tool-renderer";
 
 export const MessageContent = memo(function MessageContent({
   message,
@@ -25,50 +23,27 @@ export const MessageContent = memo(function MessageContent({
     onFork?.(message.content);
   }, [message.content, onFork]);
 
+  // Build steps from blocks for proper interleaving
+  // This gives us: thinking → tool → thinking → tool → text in correct order
   const steps = message.blocks ? stepsFromBlocks(message.blocks, message.isStreaming ?? false) : [];
 
+  // All steps except final text response become CoT chain
   const chainSteps = steps.slice(0, -1);
   const finalStep = steps.at(-1);
   const finalContent = finalStep?.type === "text" ? finalStep.content : message.content;
 
-  const hasChainContent =
-    chainSteps.length > 0 ||
-    message.reasoning ||
-    (message.toolCalls && message.toolCalls.length > 0);
+  // Show CoT if we have chain steps
+  const hasChainContent = chainSteps.length > 0;
 
   return (
     <div className="max-w-none">
       {hasChainContent && (
-        <ChainOfThought defaultOpen className="mb-4">
+        <ChainOfThought defaultOpen className="mb-4 bg-accent/20 border border-accent">
           <ChainOfThoughtHeader>
             {message.isStreaming ? "Processing..." : "Chain of Thought"}
           </ChainOfThoughtHeader>
           <ChainOfThoughtContent>
-            {message.reasoning && (
-              <ChainOfThoughtStep
-                icon={RiBrainLine}
-                label={message.isStreaming ? "Thinking..." : "Thought"}
-                status={message.isStreaming ? "active" : "complete"}
-              >
-                <div className="text-muted-foreground">
-                  <MessageResponse mode="static">{message.reasoning}</MessageResponse>
-                </div>
-              </ChainOfThoughtStep>
-            )}
-            {message.toolCalls && message.toolCalls.length > 0 && (
-              <ChainOfThoughtStep
-                icon={RiWrenchLine}
-                label={`${message.toolCalls.length} tool${message.toolCalls.length > 1 ? "s" : ""}`}
-                status="complete"
-              >
-                <div className="space-y-1">
-                  {message.toolCalls.map((tool) => (
-                    <ToolCallItem key={tool.id} tool={tool} />
-                  ))}
-                </div>
-              </ChainOfThoughtStep>
-            )}
-            {chainSteps.length > 0 && <ChainSteps steps={chainSteps} />}
+            <ChainSteps steps={chainSteps} />
           </ChainOfThoughtContent>
         </ChainOfThought>
       )}

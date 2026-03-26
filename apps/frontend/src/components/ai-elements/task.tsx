@@ -2,7 +2,7 @@
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { ChevronDownIcon, SearchIcon } from "lucide-react";
+import { RiArrowDownSLine, RiSearchLine } from "@remixicon/react";
 import type { ComponentProps } from "react";
 
 export type TaskItemFileProps = ComponentProps<"div">;
@@ -10,7 +10,7 @@ export type TaskItemFileProps = ComponentProps<"div">;
 export const TaskItemFile = ({ children, className, ...props }: TaskItemFileProps) => (
   <div
     className={cn(
-      "inline-flex items-center gap-1 rounded-md border bg-secondary px-1.5 py-0.5 text-foreground text-xs",
+      "inline-flex items-center gap-1 border bg-secondary/70 px-1.5 py-0.5 text-foreground text-xs",
       className,
     )}
     {...props}
@@ -41,9 +41,9 @@ export const TaskTrigger = ({ children, className, title, ...props }: TaskTrigge
   <CollapsibleTrigger className={cn("group", className)} {...props}>
     {children ?? (
       <div className="flex w-full cursor-pointer items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground">
-        <SearchIcon className="size-4" />
+        <RiSearchLine className="size-4" />
         <p className="text-sm">{title}</p>
-        <ChevronDownIcon className="size-4 transition-transform group-data-[state=open]:rotate-180" />
+        <RiArrowDownSLine className="size-4 transition-transform group-data-[state=open]:rotate-180" />
       </div>
     )}
   </CollapsibleTrigger>

@@ -1,11 +1,52 @@
-import { RiBrainLine, RiWrenchLine } from "@remixicon/react";
+import { useState } from "react";
+import { RiBrainLine, RiWrenchLine, RiArrowDownSLine } from "@remixicon/react";
 import { ChainOfThoughtStep } from "@/components/ai-elements/chain-of-thought";
 import { MessageResponse } from "@/components/ai-elements/message";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 import type { StepType } from "./message-types";
 import { ToolCallItem, ToolCallsGroup } from "./tool-renderer";
 
 interface ChainStepsProps {
   steps: StepType[];
+}
+
+function CollapsibleStep({
+  icon: Icon,
+  label,
+  status = "complete",
+  children,
+}: {
+  icon: typeof RiBrainLine;
+  label: string;
+  status?: "complete" | "active" | "pending";
+  children: React.ReactNode;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <ChainOfThoughtStep
+      icon={Icon}
+      label={
+        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+          <CollapsibleTrigger className="flex w-full items-center gap-4 text-left hover:text-foreground">
+            <span className="shrink-0">{label}</span>
+            <span className="flex-1 border-t border-accent" />
+            <RiArrowDownSLine
+              className={cn(
+                "size-4 shrink-0 transition-transform",
+                isOpen ? "rotate-180" : "rotate-0",
+              )}
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="mt-2">{children}</div>
+          </CollapsibleContent>
+        </Collapsible>
+      }
+      status={status}
+    />
+  );
 }
 
 export function ChainSteps({ steps }: ChainStepsProps) {
@@ -17,7 +58,7 @@ export function ChainSteps({ steps }: ChainStepsProps) {
         switch (step.type) {
           case "thinking":
             return (
-              <ChainOfThoughtStep
+              <CollapsibleStep
                 key={key}
                 icon={RiBrainLine}
                 label={step.isStreaming ? "Thinking..." : "Thought"}
@@ -28,13 +69,13 @@ export function ChainSteps({ steps }: ChainStepsProps) {
                     <MessageResponse mode="static">{step.content}</MessageResponse>
                   </div>
                 )}
-              </ChainOfThoughtStep>
+              </CollapsibleStep>
             );
 
           case "toolCalls": {
             const group = ToolCallsGroup({ calls: step.calls });
             return (
-              <ChainOfThoughtStep
+              <CollapsibleStep
                 key={key}
                 icon={RiWrenchLine}
                 label={group.label}
@@ -45,7 +86,7 @@ export function ChainSteps({ steps }: ChainStepsProps) {
                     <ToolCallItem key={tool.id} tool={tool} />
                   ))}
                 </div>
-              </ChainOfThoughtStep>
+              </CollapsibleStep>
             );
           }
 

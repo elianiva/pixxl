@@ -9,8 +9,13 @@ import {
   TaskItemFile,
 } from "@/components/ai-elements/task";
 import { cn } from "@/lib/utils";
-import { Loader2Icon } from "lucide-react";
-import { RiFileTextLine, RiFileAddLine, RiFileEditLine, RiTerminalBoxLine } from "@remixicon/react";
+import {
+  RiFileTextLine,
+  RiFileAddLine,
+  RiFileEditLine,
+  RiTerminalBoxLine,
+  RiLoader2Line,
+} from "@remixicon/react";
 
 interface ToolCallItemProps {
   tool: {
@@ -90,7 +95,7 @@ const ToolCallItem = memo(function ToolCallItem({ tool }: ToolCallItemProps) {
   return (
     <TaskItem className={cn("flex items-center gap-2 py-0.5", isRunning && "text-foreground")}>
       {isRunning ? (
-        <Loader2Icon className="size-3.5 animate-spin text-primary" />
+        <RiLoader2Line className="size-3.5 animate-spin text-primary" />
       ) : tool.status === "complete" ? (
         <svg
           className="size-3.5 text-green-500"
