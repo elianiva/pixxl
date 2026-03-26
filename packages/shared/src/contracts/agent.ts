@@ -21,6 +21,7 @@ import {
   PiSessionInfoListSchema,
   AgentHistorySchema,
   AgentEventSchema,
+  AgentFrontendConfigSchema,
 } from "../schema/agent";
 
 // Agent metadata contracts
@@ -81,3 +82,7 @@ export const enqueueAgentPromptContract = oc
 export const abortAgentContract = oc
   .input(Schema.toStandardSchemaV1(AbortAgentInputSchema))
   .output(Schema.toStandardSchemaV1(Schema.Null));
+
+export const getAgentFrontendConfigContract = oc
+  .input(Schema.toStandardSchemaV1(Schema.Void))
+  .output(Schema.toStandardSchemaV1(AgentFrontendConfigSchema));

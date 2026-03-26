@@ -227,6 +227,7 @@ export function useAgentActions(projectId: string, agentId?: string) {
     selectAgent: select,
     sendMessage,
     abortMessage,
+    configureSession,
     activeAgentId: targetAgentId,
   };
 }

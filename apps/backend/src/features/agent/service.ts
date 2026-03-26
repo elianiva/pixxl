@@ -1,4 +1,5 @@
 import { Effect, Layer, Option, ServiceMap } from "effect";
+import { AuthStorage, ModelRegistry } from "@mariozechner/pi-coding-agent";
 import {
   AgentMetadata,
   AgentMetadataSchema,
@@ -8,6 +9,8 @@ import {
   type PiSessionInfo,
   type AgentHistory,
   type ConfigureAgentSessionInput,
+  type AgentFrontendConfig,
+  type PiAvailableModel,
 } from "@pixxl/shared";
 import {
   AgentNotFoundError,
@@ -83,6 +86,7 @@ export type AgentServiceApi = {
   readonly configureAgentSession: (
     input: ConfigureAgentSessionInput,
   ) => Effect.Effect<null, AgentServiceError>;
+  readonly getAgentFrontendConfig: () => Effect.Effect<AgentFrontendConfig, never>;
 };
 
 export class AgentService extends ServiceMap.Service<AgentService, AgentServiceApi>()(
@@ -91,6 +95,7 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceA
     make: Effect.gen(function* () {
       const entity = yield* EntityService;
       const project = yield* ProjectService;
+      const config = yield* ConfigService;
 
       const agents = entity.forEntity<
         AgentMetadata,
@@ -416,6 +421,42 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceA
         },
       );
 
+      const getAgentFrontendConfig = Effect.fn("AgentService.getAgentFrontendConfig")(function* () {
+        const appConfig = yield* config.loadConfig();
+        const modelRegistry = new ModelRegistry(AuthStorage.create());
+
+        const availableModels = modelRegistry.getAvailable().map(
+          (model) =>
+            ({
+              provider: model.provider,
+              id: model.id,
+              name: model.name,
+              fullId: `${model.provider}/${model.id}`,
+            }) satisfies PiAvailableModel,
+        );
+
+        const enabledOrder = new Map(appConfig.agent.enabledModels.map((id, index) => [id, index]));
+
+        availableModels.sort((a, b) => {
+          const aOrder = enabledOrder.get(a.fullId);
+          const bOrder = enabledOrder.get(b.fullId);
+
+          if (aOrder !== undefined && bOrder !== undefined) return aOrder - bOrder;
+          if (aOrder !== undefined) return -1;
+          if (bOrder !== undefined) return 1;
+          if (a.provider !== b.provider) return a.provider.localeCompare(b.provider);
+          return a.name.localeCompare(b.name);
+        });
+
+        return {
+          availableModels,
+          defaultProvider: appConfig.agent.defaultProvider,
+          defaultModel: appConfig.agent.defaultModel,
+          defaultThinkingLevel: appConfig.agent.defaultThinkingLevel,
+          enabledModels: appConfig.agent.enabledModels,
+        } satisfies AgentFrontendConfig;
+      });
+
       const getAgentRuntime = Effect.fn("AgentService.getAgentRuntime")(function* (input: {
         projectId: string;
         agentId: string;
@@ -582,6 +623,7 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceA
         getAgentRuntime,
         getAgentHistory,
         configureAgentSession,
+        getAgentFrontendConfig,
       } as unknown as AgentServiceApi;
     }),
   },

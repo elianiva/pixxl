@@ -8,9 +8,11 @@ import {
 } from "@/components/ui/select";
 import type { SelectEntry } from "@/components/ui/select";
 import { DEFAULT_CONFIG, type Agent } from "@pixxl/shared/schema/config";
+import type { PiAvailableModel } from "@pixxl/shared";
 
 interface AgentSettingsProps {
   agent: Agent;
+  availableModels: ReadonlyArray<PiAvailableModel>;
   onUpdate: (agent: Partial<Agent>) => void;
 }
 
@@ -34,52 +36,62 @@ const steeringModes: SelectEntry[] = [
   { value: "all", label: "All at Once" },
 ];
 
-const providers: SelectEntry[] = [
-  { value: "anthropic", label: "Anthropic" },
-  { value: "openai", label: "OpenAI" },
-  { value: "google", label: "Google" },
-];
+function providerLabel(provider: string) {
+  return provider
+    .split(/[-_]/g)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
 
-const modelsByProvider: Record<string, SelectEntry[]> = {
-  anthropic: [
-    { value: "claude-sonnet-4-20250514", label: "Claude Sonnet 4" },
-    { value: "claude-opus-4-20250514", label: "Claude Opus 4" },
-    { value: "claude-3-5-sonnet-20241022", label: "Claude 3.5 Sonnet" },
-    { value: "claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku" },
-  ],
-  openai: [
-    { value: "gpt-4o", label: "GPT-4o" },
-    { value: "gpt-4o-mini", label: "GPT-4o Mini" },
-    { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
-  ],
-  google: [
-    { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
-    { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash Exp" },
-  ],
-};
+export function AgentSettings({ agent, availableModels, onUpdate }: AgentSettingsProps) {
+  const providerOptions = Array.from(new Set(availableModels.map((model) => model.provider))).map(
+    (provider) => ({ value: provider, label: providerLabel(provider) }),
+  );
 
-export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
-  const provider = agent.defaultProvider ?? DEFAULT_CONFIG.agent.defaultProvider;
+  const fallbackProvider = providerOptions[0]?.value ?? DEFAULT_CONFIG.agent.defaultProvider;
+  const provider =
+    providerOptions.find((entry) => entry.value === agent.defaultProvider)?.value ??
+    fallbackProvider;
+
+  const modelOptions = availableModels
+    .filter((model) => model.provider === provider)
+    .map((model) => ({ value: model.id, label: model.name }));
+
   const thinkingLevel = agent.defaultThinkingLevel ?? DEFAULT_CONFIG.agent.defaultThinkingLevel;
   const transport = agent.transport ?? DEFAULT_CONFIG.agent.transport;
   const steeringMode = agent.steeringMode ?? DEFAULT_CONFIG.agent.steeringMode;
+  const selectedModel =
+    modelOptions.find((entry) => entry.value === agent.defaultModel)?.value ??
+    modelOptions[0]?.value ??
+    "";
 
   return (
     <div>
-      <h3 className="text-base font-semibold mb-4">Agent</h3>
-      <p className="text-muted-foreground text-sm mb-4">
+      <h3 className="mb-4 text-base font-semibold">Agent</h3>
+      <p className="mb-4 text-sm text-muted-foreground">
         Global default settings. Configure per-agent in the chat UI via the agent menu.
       </p>
       <div className="border border-border">
         <SettingRow label="Provider" description="AI provider for model selection">
-          <Select value={provider} onValueChange={(v) => v && onUpdate({ defaultProvider: v })}>
-            <SelectTrigger className="w-36">
+          <Select
+            value={provider}
+            onValueChange={(nextProvider) => {
+              if (!nextProvider) return;
+
+              const nextModel = availableModels.find((model) => model.provider === nextProvider);
+              onUpdate({
+                defaultProvider: nextProvider,
+                ...(nextModel ? { defaultModel: nextModel.id } : {}),
+              });
+            }}
+          >
+            <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {providers.map((p) => (
-                <SelectItem key={p.value} value={p.value}>
-                  {p.label}
+              {providerOptions.map((entry) => (
+                <SelectItem key={entry.value} value={entry.value}>
+                  {entry.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -87,17 +99,14 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
         </SettingRow>
 
         <SettingRow label="Model" description="Default AI model">
-          <Select
-            value={agent.defaultModel ?? DEFAULT_CONFIG.agent.defaultModel}
-            onValueChange={(v) => v && onUpdate({ defaultModel: v })}
-          >
-            <SelectTrigger className="w-48">
+          <Select value={selectedModel} onValueChange={(v) => v && onUpdate({ defaultModel: v })}>
+            <SelectTrigger className="w-56">
               <SelectValue placeholder="Select model" />
             </SelectTrigger>
             <SelectContent>
-              {modelsByProvider[provider]?.map((m) => (
-                <SelectItem key={m.value} value={m.value}>
-                  {m.label}
+              {modelOptions.map((entry) => (
+                <SelectItem key={entry.value} value={entry.value}>
+                  {entry.label}
                 </SelectItem>
               ))}
             </SelectContent>

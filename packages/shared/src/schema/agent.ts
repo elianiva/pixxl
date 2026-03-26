@@ -75,6 +75,21 @@ export const AgentModelSchema = Schema.Struct({
   name: Schema.String,
 });
 
+export const PiAvailableModelSchema = Schema.Struct({
+  provider: Schema.String,
+  id: Schema.String,
+  name: Schema.String,
+  fullId: Schema.String,
+});
+
+export const AgentFrontendConfigSchema = Schema.Struct({
+  availableModels: Schema.Array(PiAvailableModelSchema),
+  defaultProvider: Schema.String,
+  defaultModel: Schema.String,
+  defaultThinkingLevel: AgentThinkingLevelSchema,
+  enabledModels: Schema.Array(Schema.String),
+});
+
 export const PromptAgentInputSchema = Schema.Struct({
   projectId: Schema.String,
   agentId: Schema.String,
@@ -222,6 +237,8 @@ export type SwitchSessionInput = typeof SwitchSessionInputSchema.Type;
 export type ListAttachableSessionsInput = typeof ListAttachableSessionsInputSchema.Type;
 export type AgentThinkingLevel = typeof AgentThinkingLevelSchema.Type;
 export type AgentModel = typeof AgentModelSchema.Type;
+export type PiAvailableModel = typeof PiAvailableModelSchema.Type;
+export type AgentFrontendConfig = typeof AgentFrontendConfigSchema.Type;
 export type PromptAgentInput = typeof PromptAgentInputSchema.Type;
 export type ConfigureAgentSessionInput = typeof ConfigureAgentSessionInputSchema.Type;
 export type EnqueuePromptMode = typeof EnqueuePromptModeSchema.Type;

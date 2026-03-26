@@ -1,68 +1,108 @@
+import { useMemo, useState } from "react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RiArrowDownSLine, RiGlobalLine } from "@remixicon/react";
 
 export type ModelOption = {
   provider: string;
   id: string;
   name: string;
+  fullId?: string;
 };
 
-export const MODELS: ModelOption[] = [
-  {
-    provider: "anthropic",
-    id: "claude-sonnet-4-20250514",
-    name: "Claude Sonnet 4",
-  },
-  {
-    provider: "anthropic",
-    id: "claude-opus-4-20250514",
-    name: "Claude Opus 4",
-  },
-  {
-    provider: "openai",
-    id: "gpt-4o",
-    name: "GPT-4o",
-  },
-  {
-    provider: "openai",
-    id: "o3-mini",
-    name: "o3-mini",
-  },
-];
-
 interface ModelSelectorProps {
-  selectedModel: ModelOption;
+  selectedModel?: ModelOption;
+  models: ReadonlyArray<ModelOption>;
   onSelect: (model: ModelOption) => void;
   disabled?: boolean;
 }
 
-export function ModelSelector({ selectedModel, onSelect, disabled = false }: ModelSelectorProps) {
+function providerLabel(provider: string) {
+  return provider
+    .split(/[-_]/g)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+export function ModelSelector({
+  selectedModel,
+  models,
+  onSelect,
+  disabled = false,
+}: ModelSelectorProps) {
+  const [open, setOpen] = useState(false);
+
+  const groupedModels = useMemo(() => {
+    const groups = new Map<string, ModelOption[]>();
+
+    for (const model of models) {
+      const existing = groups.get(model.provider);
+      if (existing) existing.push(model);
+      else groups.set(model.provider, [model]);
+    }
+
+    return Array.from(groups.entries());
+  }, [models]);
+
+  const selectedLabel = selectedModel?.name ?? "Select model";
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        disabled={disabled}
-        className="inline-flex h-6 items-center gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        type="button"
+        disabled={disabled || models.length === 0}
+        className="group/button inline-flex h-6 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-none border border-transparent bg-clip-padding px-2 text-xs font-medium whitespace-nowrap text-muted-foreground transition-all outline-none select-none hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 active:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-expanded:bg-muted aria-expanded:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3"
       >
         <RiGlobalLine className="size-3.5" />
-        <span>{selectedModel.name}</span>
+        <span>{selectedLabel}</span>
         <RiArrowDownSLine className="size-3" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-48">
-        {MODELS.map((model) => (
-          <DropdownMenuItem
-            key={`${model.provider}:${model.id}`}
-            onClick={() => onSelect(model)}
-            className="text-xs"
-          >
-            {model.name}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="start"
+        className="w-80 overflow-hidden rounded-none bg-popover/70 p-0 text-popover-foreground shadow-md ring-1 ring-foreground/10 backdrop-blur-2xl backdrop-saturate-150"
+      >
+        <Command shouldFilter>
+          <CommandInput autoFocus placeholder="Search models or providers..." />
+          <CommandList className="max-h-80">
+            <CommandEmpty>No authenticated models found.</CommandEmpty>
+            {groupedModels.map(([provider, providerModels]) => (
+              <CommandGroup key={provider} heading={providerLabel(provider)}>
+                {providerModels.map((model) => {
+                  const key = model.fullId ?? `${model.provider}/${model.id}`;
+                  const checked =
+                    selectedModel?.provider === model.provider && selectedModel?.id === model.id;
+
+                  return (
+                    <CommandItem
+                      key={key}
+                      value={`${model.name} ${model.id} ${model.provider}`}
+                      data-checked={checked}
+                      onSelect={() => {
+                        onSelect(model);
+                        setOpen(false);
+                      }}
+                      className="items-start"
+                    >
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate">{model.name}</span>
+                        <span className="text-[11px] text-muted-foreground">{model.id}</span>
+                      </div>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }

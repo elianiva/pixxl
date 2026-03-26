@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { RiAddLine, RiArrowUpLine, RiStopLine } from "@remixicon/react";
-import { ModelSelector, MODELS, type ModelOption } from "./model-selector";
+import { ModelSelector, type ModelOption } from "./model-selector";
 import { ThinkingLevelSelector, type ThinkingLevel } from "./thinking-level-selector";
 
 interface QueuedMessage {
@@ -23,8 +23,11 @@ interface ChatInputProps {
   placeholder?: string;
   queuedMessages?: QueuedMessage[];
   onQueueClick?: (message: QueuedMessage) => void;
+  models: ReadonlyArray<ModelOption>;
   initialModel?: ModelOption;
   initialThinkingLevel?: ThinkingLevel;
+  onModelChange?: (model: ModelOption) => void;
+  onThinkingLevelChange?: (level: ThinkingLevel) => void;
 }
 
 export function ChatInput({
@@ -35,25 +38,46 @@ export function ChatInput({
   placeholder = "Ask anything...",
   queuedMessages = [],
   onQueueClick,
-  initialModel = MODELS[0],
+  models,
+  initialModel,
   initialThinkingLevel = "medium",
+  onModelChange,
+  onThinkingLevelChange,
 }: ChatInputProps) {
   const [inputText, setInputText] = useState("");
-  const [selectedModel, setSelectedModel] = useState<ModelOption>(initialModel);
+  const [selectedModel, setSelectedModel] = useState<ModelOption | undefined>(
+    initialModel ?? models[0],
+  );
   const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(initialThinkingLevel);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    setSelectedModel(initialModel);
-  }, [initialModel]);
+    setSelectedModel(initialModel ?? models[0]);
+  }, [initialModel, models]);
 
   useEffect(() => {
     setThinkingLevel(initialThinkingLevel);
   }, [initialThinkingLevel]);
 
+  const handleModelChange = useCallback(
+    (model: ModelOption) => {
+      setSelectedModel(model);
+      onModelChange?.(model);
+    },
+    [onModelChange],
+  );
+
+  const handleThinkingLevelChange = useCallback(
+    (level: ThinkingLevel) => {
+      setThinkingLevel(level);
+      onThinkingLevelChange?.(level);
+    },
+    [onThinkingLevelChange],
+  );
+
   const handleSubmit = useCallback(() => {
     const trimmed = inputText.trim();
-    if (!trimmed || isStreaming) return;
+    if (!trimmed || isStreaming || !selectedModel) return;
     onSubmit(trimmed, { model: selectedModel, thinkingLevel });
     setInputText("");
     textareaRef.current?.focus();
@@ -150,7 +174,7 @@ export function ChatInput({
                 type="button"
                 size="icon"
                 onClick={handleSubmit}
-                disabled={!inputText.trim() || isStreaming}
+                disabled={!inputText.trim() || isStreaming || !selectedModel}
                 title="Send message"
               >
                 <RiArrowUpLine className="size-4" />
@@ -160,15 +184,16 @@ export function ChatInput({
         </div>
       </div>
 
-      <div className="flex items-center gap-1 px-3 py-2 text-xs bg-mauve-100">
+      <div className="flex items-center gap-1 bg-mauve-100 px-3 py-2 text-xs">
         <ModelSelector
+          models={models}
           selectedModel={selectedModel}
-          onSelect={setSelectedModel}
+          onSelect={handleModelChange}
           disabled={disabled || isStreaming}
         />
         <ThinkingLevelSelector
           thinkingLevel={thinkingLevel}
-          onSelect={setThinkingLevel}
+          onSelect={handleThinkingLevelChange}
           disabled={disabled || isStreaming}
         />
       </div>

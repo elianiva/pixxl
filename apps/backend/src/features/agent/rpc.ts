@@ -158,6 +158,17 @@ export const configureAgentSessionRpc = os.agent.configureAgentSession.handler((
   ),
 );
 
+export const getAgentFrontendConfigRpc = os.agent.getAgentFrontendConfig.handler(() =>
+  Effect.gen(function* () {
+    const service = yield* AgentService;
+    return yield* service.getAgentFrontendConfig();
+  }).pipe(
+    Effect.provide(AgentService.layer),
+    mapToOrpcError({ feature: "agent" }),
+    Effect.runPromise,
+  ),
+);
+
 class AsyncEventQueue<T> {
   private items: T[] = [];
   private resolvers: Array<(value: T | null) => void> = [];
