@@ -17,6 +17,7 @@ import {
   getAgentRuntimeContract,
   getAgentHistoryContract,
   promptAgentContract,
+  enqueueAgentPromptContract,
 } from "./contracts/agent";
 import {
   createTerminalContract,
@@ -54,6 +55,7 @@ export const routerContract = {
     getAgentRuntime: getAgentRuntimeContract,
     getAgentHistory: getAgentHistoryContract,
     promptAgent: promptAgentContract,
+    enqueueAgentPrompt: enqueueAgentPromptContract,
   },
   terminal: {
     createTerminal: createTerminalContract,

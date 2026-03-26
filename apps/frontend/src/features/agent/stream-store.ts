@@ -22,7 +22,6 @@ export interface StreamMessage {
 export interface AgentStreamState {
   requestId: string | null;
   isStreaming: boolean;
-  currentEvent: AgentEvent | null;
   optimisticUserMessage: StreamMessage | null;
   draftAssistantMessage: StreamMessage | null;
   error: string | null;
@@ -35,7 +34,6 @@ export interface StreamState {
 const initialAgentState = (): AgentStreamState => ({
   requestId: null,
   isStreaming: false,
-  currentEvent: null,
   optimisticUserMessage: null,
   draftAssistantMessage: null,
   error: null,
@@ -67,7 +65,6 @@ export function beginAgentStream(agentId: string, userText: string): string {
   updateAgentState(agentId, () => ({
     requestId,
     isStreaming: true,
-    currentEvent: null,
     error: null,
     optimisticUserMessage: {
       id: `optimistic-user-${requestId}`,
@@ -100,7 +97,6 @@ export function failAgentStream(agentId: string, requestId: string, message: str
     return {
       ...state,
       isStreaming: false,
-      currentEvent: null,
       draftAssistantMessage: state.draftAssistantMessage
         ? {
             ...state.draftAssistantMessage,
@@ -166,7 +162,6 @@ export function applyAgentEvent(agentId: string, requestId: string, event: Agent
         return {
           ...state,
           isStreaming: false,
-          currentEvent: event,
           draftAssistantMessage: {
             ...draftAssistantMessage,
             isStreaming: false,
@@ -182,7 +177,6 @@ export function applyAgentEvent(agentId: string, requestId: string, event: Agent
 
     return {
       ...state,
-      currentEvent: event,
       isStreaming:
         event.type === "status_change" ? event.status === "streaming" : state.isStreaming,
       draftAssistantMessage,

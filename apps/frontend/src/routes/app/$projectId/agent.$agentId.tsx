@@ -7,7 +7,8 @@ import { ConnectionStatus } from "@/features/agent/components/connection-status"
 import { Button } from "@/components/ui/button";
 import { RiRobot2Line } from "@remixicon/react";
 import { getAgentsCollection } from "@/features/agent/agents-collection";
-import { agentStore, selectAgent } from "@/features/agent/store";
+import { selectAgent } from "@/features/agent/store";
+import { getStreamStateForAgent, streamStore } from "@/features/agent/stream-store";
 import type { AgentMetadata } from "@pixxl/shared";
 
 export const Route = createFileRoute("/app/$projectId/agent/$agentId")({
@@ -21,7 +22,12 @@ function AgentRoute() {
   const agents = useLiveQuery(projectId ? getAgentsCollection(projectId) : (null as any));
   const activeAgent =
     ((agents.data as AgentMetadata[]) ?? []).find((agent) => agent.id === agentId) ?? null;
-  const connectionStatus = useStore(agentStore, (state) => state.connectionStatus);
+  const streamState = useStore(streamStore, (state) => getStreamStateForAgent(state, agentId));
+  const connectionStatus = streamState.error
+    ? "error"
+    : streamState.isStreaming
+      ? "streaming"
+      : "idle";
 
   useEffect(() => {
     selectAgent(agentId);
@@ -45,7 +51,7 @@ function AgentRoute() {
 
 interface AgentHeaderProps {
   agentName?: string;
-  connectionStatus: "idle" | "connecting" | "streaming" | "error";
+  connectionStatus: "idle" | "streaming" | "error";
 }
 
 function AgentHeader({ agentName, connectionStatus }: AgentHeaderProps) {

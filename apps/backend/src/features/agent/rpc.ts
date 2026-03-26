@@ -194,8 +194,7 @@ function isTerminalEvent(event: AgentEvent): boolean {
   );
 }
 
-// Prompt handler - sends through actor with mode
-export const promptAgentRpc = os.agent.promptAgent.handler(async function* ({ input }) {
+async function getReadyActor(projectId: string, agentId: string) {
   const service = await Effect.gen(function* () {
     return yield* AgentService;
   })
@@ -204,34 +203,57 @@ export const promptAgentRpc = os.agent.promptAgent.handler(async function* ({ in
 
   if (service) {
     await Effect.gen(function* () {
-      yield* service.ensureAgentActor({
-        projectId: input.projectId,
-        agentId: input.agentId,
-      });
+      yield* service.ensureAgentActor({ projectId, agentId });
     })
       .pipe(Effect.runPromise)
       .catch(() => null);
   }
 
-  const actor = agentManager.get(input.agentId);
+  const actor = agentManager.get(agentId);
 
   if (!actor) {
-    yield { type: "error" as const, sessionId: input.agentId, message: "Agent actor not found" };
-    return;
+    return {
+      ok: false as const,
+      error: { type: "error" as const, sessionId: agentId, message: "Agent actor not found" },
+    };
   }
 
   const state = actor.getSnapshot();
   if (state.matches("deleted") || state.matches("deleting")) {
-    yield { type: "error" as const, sessionId: input.agentId, message: "Agent is being deleted" };
-    return;
+    return {
+      ok: false as const,
+      error: { type: "error" as const, sessionId: agentId, message: "Agent is being deleted" },
+    };
   }
 
-  // Wait for actor to be ready (not initializing)
   if (state.matches("initializing")) {
-    yield { type: "error" as const, sessionId: input.agentId, message: "Agent is initializing" };
+    return {
+      ok: false as const,
+      error: { type: "error" as const, sessionId: agentId, message: "Agent is initializing" },
+    };
+  }
+
+  return { ok: true as const, actor };
+}
+
+export const enqueueAgentPromptRpc = os.agent.enqueueAgentPrompt.handler(async ({ input }) => {
+  const result = await getReadyActor(input.projectId, input.agentId);
+  if (!result.ok) {
+    throw new Error(result.error.message);
+  }
+
+  result.actor.send({ type: "PROMPT", text: input.text, mode: input.mode });
+  return null;
+});
+
+export const promptAgentRpc = os.agent.promptAgent.handler(async function* ({ input }) {
+  const result = await getReadyActor(input.projectId, input.agentId);
+  if (!result.ok) {
+    yield result.error;
     return;
   }
 
+  const actor = result.actor;
   const queue = new AsyncEventQueue<AgentEvent>();
   let terminalSeen = false;
 
@@ -248,7 +270,7 @@ export const promptAgentRpc = os.agent.promptAgent.handler(async function* ({ in
   };
 
   actor.send({ type: "CLIENT_CONNECT", client });
-  actor.send({ type: "PROMPT", text: input.text, mode: input.mode ?? "immediate" });
+  actor.send({ type: "PROMPT", text: input.text, mode: "immediate" });
 
   try {
     while (true) {

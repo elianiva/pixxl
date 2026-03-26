@@ -12,6 +12,7 @@ import {
   SwitchSessionInputSchema,
   ListAttachableSessionsInputSchema,
   PromptAgentInputSchema,
+  EnqueueAgentPromptInputSchema,
   GetAgentRuntimeInputSchema,
   GetAgentHistoryInputSchema,
   AgentRuntimeStateSchema,
@@ -63,7 +64,10 @@ export const getAgentHistoryContract = oc
   .input(Schema.toStandardSchemaV1(GetAgentHistoryInputSchema))
   .output(Schema.toStandardSchemaV1(Schema.NullOr(AgentHistorySchema)));
 
-// Prompt contract - mode is now integrated (immediate | steer | followUp)
 export const promptAgentContract = oc
   .input(Schema.toStandardSchemaV1(PromptAgentInputSchema))
   .output(eventIterator(Schema.toStandardSchemaV1(AgentEventSchema)));
+
+export const enqueueAgentPromptContract = oc
+  .input(Schema.toStandardSchemaV1(EnqueueAgentPromptInputSchema))
+  .output(Schema.toStandardSchemaV1(Schema.Null));

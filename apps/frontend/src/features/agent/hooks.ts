@@ -129,15 +129,12 @@ export function useAgentActions(projectId: string, agentId?: string) {
       if (!resolvedAgentId) return;
 
       if (mode !== "immediate") {
-        const stream = await rpc.agent.promptAgent({
+        await rpc.agent.enqueueAgentPrompt({
           projectId,
           agentId: resolvedAgentId,
           text,
           mode,
         });
-
-        for await (const _ of stream) {
-        }
 
         await queryClient.invalidateQueries({
           queryKey: ["agent-runtime", projectId, resolvedAgentId],
@@ -155,7 +152,6 @@ export function useAgentActions(projectId: string, agentId?: string) {
           projectId,
           agentId: resolvedAgentId,
           text,
-          mode,
         });
 
         for await (const event of stream) {

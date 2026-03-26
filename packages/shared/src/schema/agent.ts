@@ -59,15 +59,20 @@ export const ListAttachableSessionsInputSchema = Schema.Struct({
   projectId: Schema.String,
 });
 
-// Prompt mode: how to handle if agent is already streaming
-export const PromptModeSchema = Schema.Literals(["immediate", "steer", "followUp"]);
-
-// Prompt schema - mode integrated into prompt
+// Immediate prompt schema
 export const PromptAgentInputSchema = Schema.Struct({
   projectId: Schema.String,
   agentId: Schema.String,
   text: Schema.String,
-  mode: Schema.optionalKey(PromptModeSchema),
+});
+
+export const EnqueuePromptModeSchema = Schema.Literals(["steer", "followUp"]);
+
+export const EnqueueAgentPromptInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+  text: Schema.String,
+  mode: EnqueuePromptModeSchema,
 });
 
 export const GetAgentRuntimeInputSchema = Schema.Struct({
@@ -186,8 +191,9 @@ export type ListAgentsInput = typeof ListAgentsInputSchema.Type;
 export type AttachSessionInput = typeof AttachSessionInputSchema.Type;
 export type SwitchSessionInput = typeof SwitchSessionInputSchema.Type;
 export type ListAttachableSessionsInput = typeof ListAttachableSessionsInputSchema.Type;
-export type PromptMode = typeof PromptModeSchema.Type;
 export type PromptAgentInput = typeof PromptAgentInputSchema.Type;
+export type EnqueuePromptMode = typeof EnqueuePromptModeSchema.Type;
+export type EnqueueAgentPromptInput = typeof EnqueueAgentPromptInputSchema.Type;
 export type GetAgentRuntimeInput = typeof GetAgentRuntimeInputSchema.Type;
 export type GetAgentHistoryInput = typeof GetAgentHistoryInputSchema.Type;
 export type PiSessionInfoList = typeof PiSessionInfoListSchema.Type;

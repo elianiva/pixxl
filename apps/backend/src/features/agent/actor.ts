@@ -39,7 +39,6 @@ export type AgentActorEvents =
   | { type: "CLIENT_CONNECT"; client: AgentClient }
   | { type: "CLIENT_DISCONNECT"; client: AgentClient }
   | { type: "PROMPT"; text: string; mode: PromptMode }
-  | { type: "ABORT" }
   | { type: "DELETE_METADATA" }
   | { type: "HYDRATE"; metadata: AgentMetadata; sessionManager: SessionManager }
   | { type: "ATTACH_SESSION"; sessionManager: SessionManager }
@@ -129,20 +128,6 @@ export const agentMachine = setup({
         return newClients;
       },
     }),
-    restoreQueuesToEditor: ({ context }) => {
-      const steering = context.session?.getSteeringMessages() ?? [];
-      const followUp = context.session?.getFollowUpMessages() ?? [];
-      const allQueued = [...steering, ...followUp];
-      context.clients.forEach((client) => {
-        if (!client.closed) {
-          client.send({
-            type: "error",
-            sessionId: context.agentId,
-            message: `Restored queued messages: ${allQueued.join("\n")}`,
-          });
-        }
-      });
-    },
     updateMetadata: assign({
       metadata: ({ context, event }) => {
         if (event.type !== "HYDRATE") return context.metadata;
@@ -212,6 +197,12 @@ export const agentMachine = setup({
           client.send(sessionEvent);
         }
       });
+    },
+    runQueuedPrompt: ({ context, event }) => {
+      if (event.type !== "PROMPT") return;
+      if (!context.session) return;
+      if (event.mode === "immediate") return;
+      void context.session.prompt(event.text, { streamingBehavior: event.mode });
     },
   },
   actors: {
@@ -399,10 +390,16 @@ export const agentMachine = setup({
         CLIENT_DISCONNECT: {
           actions: "removeClient",
         },
-        PROMPT: {
-          target: "streaming",
-          actions: "notifyClientsStreaming",
-        },
+        PROMPT: [
+          {
+            guard: ({ event }) => event.type === "PROMPT" && event.mode === "immediate",
+            target: "streaming",
+            actions: "notifyClientsStreaming",
+          },
+          {
+            actions: "runQueuedPrompt",
+          },
+        ],
         HYDRATE: {
           actions: "updateMetadata",
         },
@@ -493,10 +490,16 @@ export const agentMachine = setup({
         CLIENT_DISCONNECT: {
           actions: "removeClient",
         },
-        PROMPT: {
-          target: "streaming",
-          actions: ["clearError", "notifyClientsStreaming"],
-        },
+        PROMPT: [
+          {
+            guard: ({ event }) => event.type === "PROMPT" && event.mode === "immediate",
+            target: "streaming",
+            actions: ["clearError", "notifyClientsStreaming"],
+          },
+          {
+            actions: ["clearError", "runQueuedPrompt"],
+          },
+        ],
         HYDRATE: {
           target: "ready",
           actions: "updateMetadata",

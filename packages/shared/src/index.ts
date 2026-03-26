@@ -1,4 +1,5 @@
 export * from "./schema/agent";
+export * from "./contracts/agent";
 export * from "./schema/command";
 export * from "./schema/config";
 export * from "./schema/pi";
