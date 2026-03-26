@@ -38,18 +38,28 @@ export function ModelSelector({
   disabled = false,
 }: ModelSelectorProps) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
   const groupedModels = useMemo(() => {
-    const groups = new Map<string, ModelOption[]>();
+    const query = search.toLowerCase();
 
-    for (const model of models) {
+    // filter first (by model name or provider), then group (avoids empty groups)
+    const filtered =
+      query.length === 0
+        ? models
+        : models.filter(
+          (m) => m.name.toLowerCase().includes(query) || m.provider.toLowerCase().includes(query),
+        );
+
+    const groups = new Map<string, ModelOption[]>();
+    for (const model of filtered) {
       const existing = groups.get(model.provider);
       if (existing) existing.push(model);
       else groups.set(model.provider, [model]);
     }
 
     return Array.from(groups.entries());
-  }, [models]);
+  }, [models, search]);
 
   const selectedLabel = selectedModel?.name ?? "Select model";
 
@@ -69,8 +79,13 @@ export function ModelSelector({
         align="start"
         className="w-80 overflow-hidden rounded-none bg-popover/70 p-0 text-popover-foreground shadow-md ring-1 ring-foreground/10 backdrop-blur-2xl backdrop-saturate-150"
       >
-        <Command shouldFilter>
-          <CommandInput autoFocus placeholder="Search models or providers..." />
+        <Command shouldFilter={false}>
+          <CommandInput
+            autoFocus
+            placeholder="Search models or providers..."
+            value={search}
+            onValueChange={setSearch}
+          />
           <CommandList className="max-h-80">
             <CommandEmpty>No authenticated models found.</CommandEmpty>
             {groupedModels.map(([provider, providerModels]) => (

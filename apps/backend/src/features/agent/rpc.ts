@@ -210,7 +210,7 @@ class AsyncEventQueue<T> {
   }
 }
 
-function isTerminalEvent(event: AgentEvent): boolean {
+function isTerminatingEvent(event: AgentEvent): boolean {
   return (
     event.type === "error" ||
     (event.type === "status_change" && (event.status === "idle" || event.status === "error"))
@@ -294,15 +294,16 @@ export const promptAgentRpc = os.agent.promptAgent.handler(async function* ({ in
 
   const actor = result.actor;
   const queue = new AsyncEventQueue<AgentEvent>();
-  let terminalSeen = false;
+  let shouldEnd = false;
 
   const client = {
     closed: false,
     send: (event: AgentEvent) => {
+      console.log("sending event", event);
       queue.push(event);
 
-      if (isTerminalEvent(event) && !terminalSeen) {
-        terminalSeen = true;
+      if (isTerminatingEvent(event) && !shouldEnd) {
+        shouldEnd = true;
         queue.close();
       }
     },

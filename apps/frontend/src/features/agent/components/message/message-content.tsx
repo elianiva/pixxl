@@ -32,8 +32,8 @@ export const MessageContent = memo(function MessageContent({
   const finalStep = steps.at(-1);
   const finalContent = finalStep?.type === "text" ? finalStep.content : message.content;
 
-  // Show CoT if we have chain steps
-  const hasChainContent = chainSteps.length > 0;
+  // Show CoT if we have chain steps OR if streaming (to show thinking placeholder)
+  const hasChainContent = chainSteps.length > 0 || (message.isStreaming ?? false);
 
   return (
     <div className="max-w-none">
@@ -43,7 +43,11 @@ export const MessageContent = memo(function MessageContent({
             {message.isStreaming ? "Processing..." : "Chain of Thought"}
           </ChainOfThoughtHeader>
           <ChainOfThoughtContent>
-            <ChainSteps steps={chainSteps} />
+            <ChainSteps
+              steps={chainSteps}
+              isStreaming={message.isStreaming}
+              streamingReasoning={message.reasoning}
+            />
           </ChainOfThoughtContent>
         </ChainOfThought>
       )}

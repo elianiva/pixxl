@@ -1,8 +1,48 @@
 import { assign, createActor, fromPromise, setup } from "xstate";
 import type { AgentEvent, AgentMetadata, AgentModel, AgentThinkingLevel } from "@pixxl/shared";
 import { createAgentSession } from "@mariozechner/pi-coding-agent";
-import type { AgentSession, SessionManager } from "@mariozechner/pi-coding-agent";
+import type { AgentSession, SessionManager, SessionEntry } from "@mariozechner/pi-coding-agent";
 import { getModel } from "@mariozechner/pi-ai";
+
+// Entry types from pi session
+interface ModelChangeEntry {
+  type: "model_change";
+  provider: string;
+  modelId: string;
+}
+
+interface ThinkingLevelChangeEntry {
+  type: "thinking_level_change";
+  thinkingLevel: string;
+}
+
+function extractLastConfig(entries: SessionEntry[]): {
+  model?: { provider: string; id: string };
+  thinkingLevel?: string;
+} {
+  let model: { provider: string; id: string } | undefined;
+  let thinkingLevel: string | undefined;
+
+  // Process entries in reverse to find the last config changes
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i] as SessionEntry & { type?: string };
+
+    if (entry.type === "model_change" && !model) {
+      const modelEntry = entry as unknown as ModelChangeEntry;
+      model = { provider: modelEntry.provider, id: modelEntry.modelId };
+    }
+
+    if (entry.type === "thinking_level_change" && !thinkingLevel) {
+      const levelEntry = entry as unknown as ThinkingLevelChangeEntry;
+      thinkingLevel = levelEntry.thinkingLevel;
+    }
+
+    // Stop early if we found both
+    if (model && thinkingLevel) break;
+  }
+
+  return { model, thinkingLevel };
+}
 
 // Actor input
 export interface AgentActorInput {
@@ -368,6 +408,24 @@ export const agentMachine = setup({
             sessionManager,
             cwd: projectPath,
           });
+
+          // Apply last config from session entries (model_change, thinking_level_change)
+          const entries = sessionManager.getEntries();
+          const { model, thinkingLevel } = extractLastConfig(entries);
+
+          if (model) {
+            try {
+              const piModel = getModel(model.provider as never, model.id as never);
+              await session.setModel(piModel);
+            } catch {
+              // If model not available, keep default
+            }
+          }
+
+          if (thinkingLevel && session.supportsThinking()) {
+            session.setThinkingLevel(thinkingLevel as AgentThinkingLevel);
+          }
+
           return session;
         }),
         input: ({ context }) => ({
@@ -429,6 +487,24 @@ export const agentMachine = setup({
             sessionManager,
             cwd: projectPath,
           });
+
+          // Apply last config from session entries (model_change, thinking_level_change)
+          const entries = sessionManager.getEntries();
+          const { model, thinkingLevel } = extractLastConfig(entries);
+
+          if (model) {
+            try {
+              const piModel = getModel(model.provider as never, model.id as never);
+              await session.setModel(piModel);
+            } catch {
+              // If model not available, keep default
+            }
+          }
+
+          if (thinkingLevel && session.supportsThinking()) {
+            session.setThinkingLevel(thinkingLevel as AgentThinkingLevel);
+          }
+
           return session;
         }),
         input: ({ context }) => ({

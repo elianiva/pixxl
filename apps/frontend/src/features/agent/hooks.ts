@@ -246,6 +246,11 @@ export function useAgentActions(projectId: string, agentId?: string) {
         model: options.model,
         thinkingLevel: options.thinkingLevel,
       });
+
+      // Refetch runtime to get updated model/thinking level
+      await queryClient.invalidateQueries({
+        queryKey: ["agent-runtime", projectId, resolvedAgentId],
+      });
     },
     [projectId],
   );
@@ -286,6 +291,7 @@ export function useAgentActions(projectId: string, agentId?: string) {
         });
 
         for await (const event of stream) {
+          console.log("event", event);
           applyAgentEvent(resolvedAgentId, requestId, event);
         }
 

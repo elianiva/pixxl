@@ -9,6 +9,8 @@ import { ToolCallItem, ToolCallsGroup } from "./tool-renderer";
 
 interface ChainStepsProps {
   steps: StepType[];
+  isStreaming?: boolean;
+  streamingReasoning?: string;
 }
 
 function CollapsibleStep({
@@ -49,7 +51,25 @@ function CollapsibleStep({
   );
 }
 
-export function ChainSteps({ steps }: ChainStepsProps) {
+export function ChainSteps({ steps, isStreaming, streamingReasoning }: ChainStepsProps) {
+  // Show streaming reasoning when active (using streamdown for live rendering)
+  if (isStreaming && streamingReasoning) {
+    return (
+      <ChainOfThoughtStep icon={RiBrainLine} label="Thinking..." status="active">
+        <div className="text-muted-foreground">
+          <MessageResponse mode="streaming" isAnimating>
+            {streamingReasoning}
+          </MessageResponse>
+        </div>
+      </ChainOfThoughtStep>
+    );
+  }
+
+  // Show "Thinking..." placeholder when streaming but no content yet
+  if (steps.length === 0 && isStreaming) {
+    return <ChainOfThoughtStep icon={RiBrainLine} label="Thinking..." status="active" />;
+  }
+
   return (
     <>
       {steps.map((step, index) => {
