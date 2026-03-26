@@ -155,7 +155,7 @@ export const AgentHistorySchema = Schema.Struct({
   sessionFile: Schema.String,
   sessionId: Schema.String,
   cwd: Schema.String,
-  sessionName: Schema.optionalKey(Schema.String),
+  sessionName: Schema.optional(Schema.String),
   leafId: Schema.NullOr(Schema.String),
   entries: Schema.Array(PiSessionEntrySchema),
 });

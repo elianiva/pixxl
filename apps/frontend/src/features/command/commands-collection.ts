@@ -10,10 +10,7 @@ function getCommandsCollectionInternal(projectId: string) {
       queryClient,
       queryKey: ["commands", projectId],
       getKey: (item: CommandMetadata) => item.id,
-      queryFn: async () => {
-        const result = await rpc.command.listCommands({ projectId });
-        return [...result];
-      },
+      queryFn: async () => rpc.command.listCommands({ projectId }) as Promise<CommandMetadata[]>,
       onInsert: async ({ transaction }) => {
         for (const mutation of transaction.mutations) {
           const modified = mutation.modified;

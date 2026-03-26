@@ -138,6 +138,8 @@ export function useMessages(agentId?: string): Message[] {
     getInteractionsCollection(projectId as string, targetAgentId as string),
   );
 
+  console.log("historyMessages", historyMessages);
+
   return useMemo(() => {
     const persisted = historyMessages
       .toSorted((a, b) => a.order - b.order)

@@ -1,7 +1,6 @@
 import { RPCHandler } from "@orpc/server/bun-ws";
 import { onError, ORPCError } from "@orpc/server";
 import { router } from "./router";
-import { getRpcErrorResponse } from "./lib/error";
 import {
   handleTerminalConnection,
   handleTerminalMessage,
@@ -28,31 +27,22 @@ const PORT = Number.parseInt(process.env.HONO_PORT || "3000", 10);
 const handler = new RPCHandler(router, {
   interceptors: [
     onError((error) => {
-      // Check if it's our structured error response
-      const errorResponse = getRpcErrorResponse(error);
-
-      if (errorResponse) {
-        // Log structured error with context
-        console.error(
-          `[${errorResponse.error.feature}] ${errorResponse.error.code}: ${errorResponse.error.message}`,
-        );
-        if (errorResponse.error.details) {
-          console.error("Details:", errorResponse.error.details);
+      if (error instanceof ORPCError) {
+        // Log structured error with code and data
+        console.error(`[RPC Error] ${error.code}: ${error.message}`);
+        if (error.data) {
+          console.error("Data:", error.data);
+        } else if (error.cause) {
+          console.error(error.cause);
+        } else {
+          console.error(error);
         }
-
-        // Re-throw as ORPCError with the structured data
-        // orpc will serialize this to the frontend
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: errorResponse.error.message,
-          data: errorResponse,
-        });
+      } else {
+        // Log unexpected errors
+        console.error("[RPC Error] Unhandled error:", error);
       }
-
-      // For unhandled errors, log and throw generic error
-      // console.error("Unhandled error:", error);
-      throw new ORPCError("INTERNAL_SERVER_ERROR", {
-        message: error instanceof Error ? error.message : "An unexpected error occurred",
-      });
+      // Re-throw - orpc will serialize to client
+      throw error;
     }),
   ],
 });

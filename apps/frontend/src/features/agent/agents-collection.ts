@@ -10,10 +10,7 @@ function getAgentsCollectionInternal(projectId: string) {
       queryClient,
       queryKey: ["agents", projectId],
       getKey: (item: AgentMetadata) => item.id,
-      queryFn: async () => {
-        const result = await rpc.agent.listAgents({ projectId });
-        return [...result];
-      },
+      queryFn: async () => rpc.agent.listAgents({ projectId }) as Promise<AgentMetadata[]>,
       onInsert: async ({ transaction }) => {
         for (const mutation of transaction.mutations) {
           const modified = mutation.modified;

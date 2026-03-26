@@ -3,77 +3,67 @@ import { os } from "@/contract";
 import { TerminalService } from "./service";
 import { terminalManager } from "./manager";
 import { ConfigService } from "../config/service";
-import { mapToOrpcError } from "@/lib/error";
+import { runPromise } from "@/lib/error";
 
 export const createTerminalRpc = os.terminal.createTerminal.handler(({ input }) =>
-  Effect.gen(function* () {
-    const service = yield* TerminalService;
-    const terminal = yield* service.createTerminal(input);
-    return Option.match(terminal, {
-      onSome: (terminal) => terminal,
-      onNone: () => null,
-    });
-  }).pipe(
-    Effect.provide(TerminalService.layer),
-    mapToOrpcError({ feature: "terminal" }),
-    Effect.runPromise,
+  runPromise(
+    Effect.gen(function* () {
+      const service = yield* TerminalService;
+      const terminal = yield* service.createTerminal(input);
+      return Option.match(terminal, {
+        onSome: (terminal) => terminal,
+        onNone: () => null,
+      });
+    }).pipe(Effect.provide(TerminalService.layer)),
   ),
 );
 
 export const updateTerminalRpc = os.terminal.updateTerminal.handler(({ input }) =>
-  Effect.gen(function* () {
-    const service = yield* TerminalService;
-    const terminal = yield* service.updateTerminal(input);
-    return Option.match(terminal, {
-      onSome: (terminal) => terminal,
-      onNone: () => null,
-    });
-  }).pipe(
-    Effect.provide(TerminalService.layer),
-    mapToOrpcError({ feature: "terminal" }),
-    Effect.runPromise,
+  runPromise(
+    Effect.gen(function* () {
+      const service = yield* TerminalService;
+      const terminal = yield* service.updateTerminal(input);
+      return Option.match(terminal, {
+        onSome: (terminal) => terminal,
+        onNone: () => null,
+      });
+    }).pipe(Effect.provide(TerminalService.layer)),
   ),
 );
 
 export const deleteTerminalRpc = os.terminal.deleteTerminal.handler(({ input }) =>
-  Effect.gen(function* () {
-    const service = yield* TerminalService;
-    const result = yield* service.deleteTerminal(input);
-    return Option.getOrElse(result, () => false);
-  }).pipe(
-    Effect.provide(TerminalService.layer),
-    mapToOrpcError({ feature: "terminal" }),
-    Effect.runPromise,
+  runPromise(
+    Effect.gen(function* () {
+      const service = yield* TerminalService;
+      const result = yield* service.deleteTerminal(input);
+      return Option.getOrElse(result, () => false);
+    }).pipe(Effect.provide(TerminalService.layer)),
   ),
 );
 
 export const listTerminalsRpc = os.terminal.listTerminals.handler(({ input }) =>
-  Effect.gen(function* () {
-    const service = yield* TerminalService;
-    return yield* service.listTerminals(input);
-  }).pipe(
-    Effect.provide(TerminalService.layer),
-    mapToOrpcError({ feature: "terminal" }),
-    Effect.runPromise,
+  runPromise(
+    Effect.gen(function* () {
+      const service = yield* TerminalService;
+      return yield* service.listTerminals(input);
+    }).pipe(Effect.provide(TerminalService.layer)),
   ),
 );
 
 export const connectTerminalRpc = os.terminal.connectTerminal.handler(({ input }) =>
-  Effect.gen(function* () {
-    const configService = yield* ConfigService;
-    const config = yield* configService.loadConfig();
+  runPromise(
+    Effect.gen(function* () {
+      const configService = yield* ConfigService;
+      const config = yield* configService.loadConfig();
 
-    Console.log({ config });
+      Console.log({ config });
 
-    terminalManager.getOrCreate({
-      terminalId: input.id,
-      shell: config.terminal.shell,
-    });
+      terminalManager.getOrCreate({
+        terminalId: input.id,
+        shell: config.terminal.shell,
+      });
 
-    return { success: true, websocketUrl: `/terminal/${input.id}` };
-  }).pipe(
-    Effect.provide(ConfigService.live),
-    mapToOrpcError({ feature: "terminal" }),
-    Effect.runPromise,
+      return { success: true, websocketUrl: `/terminal/${input.id}` };
+    }).pipe(Effect.provide(ConfigService.live)),
   ),
 );

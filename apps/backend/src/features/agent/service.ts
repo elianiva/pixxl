@@ -108,7 +108,7 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
             name: input.name,
             projectId: input.projectId,
             projectPath,
-            sessionFile: input.sessionFile,
+            sessionFile,
           })
           .pipe(Effect.mapError((cause) => new AgentCreateError({ name: input.name, cause })));
 

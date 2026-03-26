@@ -25,19 +25,19 @@ function createInteractionsCollection(projectId: string, agentId: string) {
           projectId,
           agentId,
         });
-        if (!history) return [];
 
-        return history.entries.map((entry, order) => {
-          const typedEntry = entry as HistoryEntry & { id: string };
-
-          return {
-            id: `${projectId}:${agentId}:${typedEntry.id}`,
-            projectId,
-            agentId,
-            entry: typedEntry,
-            order,
-          } satisfies AgentInteraction;
-        });
+        return (
+          history?.entries.map(
+            (entry, order) =>
+              ({
+                id: entry.id,
+                projectId,
+                agentId,
+                entry,
+                order,
+              }) satisfies AgentInteraction,
+          ) ?? []
+        );
       },
     }),
   );
