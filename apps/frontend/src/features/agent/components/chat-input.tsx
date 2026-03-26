@@ -10,8 +10,13 @@ interface QueuedMessage {
   type: "steer" | "followUp";
 }
 
+export interface ChatSubmitOptions {
+  model: ModelOption;
+  thinkingLevel: ThinkingLevel;
+}
+
 interface ChatInputProps {
-  onSubmit: (text: string) => void;
+  onSubmit: (text: string, options: ChatSubmitOptions) => void;
   onAbort?: () => void;
   isStreaming?: boolean;
   disabled?: boolean;
@@ -37,10 +42,10 @@ export function ChatInput({
   const handleSubmit = useCallback(() => {
     const trimmed = inputText.trim();
     if (!trimmed || isStreaming) return;
-    onSubmit(trimmed);
+    onSubmit(trimmed, { model: selectedModel, thinkingLevel });
     setInputText("");
     textareaRef.current?.focus();
-  }, [inputText, isStreaming, onSubmit]);
+  }, [inputText, isStreaming, onSubmit, selectedModel, thinkingLevel]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -57,7 +62,6 @@ export function ChatInput({
 
   return (
     <div className="mx-auto w-3xl border bg-background">
-      {/* Queued messages bar */}
       {queuedMessages.length > 0 && (
         <div className="border-b px-4 py-2">
           <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -94,7 +98,6 @@ export function ChatInput({
         </div>
       )}
 
-      {/* Input area */}
       <div className="relative border-b">
         <Textarea
           ref={textareaRef}
@@ -107,9 +110,7 @@ export function ChatInput({
           rows={1}
         />
 
-        {/* Bottom toolbar */}
         <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-          {/* Left: Add media */}
           <Button
             type="button"
             variant="ghost"
@@ -121,7 +122,6 @@ export function ChatInput({
             <RiAddLine className="size-4" />
           </Button>
 
-          {/* Right: Send/Stop button */}
           <div className="flex items-center">
             {isStreaming && onAbort ? (
               <Button
@@ -148,7 +148,6 @@ export function ChatInput({
         </div>
       </div>
 
-      {/* Footer with model/thinking selectors */}
       <div className="flex items-center gap-1 px-3 py-2 text-xs bg-mauve-100">
         <ModelSelector
           selectedModel={selectedModel}

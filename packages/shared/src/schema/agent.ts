@@ -85,6 +85,11 @@ export const GetAgentHistoryInputSchema = Schema.Struct({
   agentId: Schema.String,
 });
 
+export const AbortAgentInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+});
+
 // Re-export Pi types (unprefixed - the actual types from Pi packages)
 export type PiSessionInfo = SessionInfo;
 export type PiSessionEntry = SessionEntry;
@@ -196,6 +201,7 @@ export type EnqueuePromptMode = typeof EnqueuePromptModeSchema.Type;
 export type EnqueueAgentPromptInput = typeof EnqueueAgentPromptInputSchema.Type;
 export type GetAgentRuntimeInput = typeof GetAgentRuntimeInputSchema.Type;
 export type GetAgentHistoryInput = typeof GetAgentHistoryInputSchema.Type;
+export type AbortAgentInput = typeof AbortAgentInputSchema.Type;
 export type PiSessionInfoList = typeof PiSessionInfoListSchema.Type;
 export type AgentRuntimeState = typeof AgentRuntimeStateSchema.Type;
 export type AgentHistory = typeof AgentHistorySchema.Type;

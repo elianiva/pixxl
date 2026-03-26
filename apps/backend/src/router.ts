@@ -19,6 +19,7 @@ import {
   getAgentHistoryRpc,
   promptAgentRpc,
   enqueueAgentPromptRpc,
+  abortAgentRpc,
 } from "./features/agent/rpc";
 import {
   createTerminalRpc,
@@ -53,6 +54,7 @@ export const router = os.router({
     getAgentHistory: getAgentHistoryRpc,
     promptAgent: promptAgentRpc,
     enqueueAgentPrompt: enqueueAgentPromptRpc,
+    abortAgent: abortAgentRpc,
   },
   terminal: {
     createTerminal: createTerminalRpc,

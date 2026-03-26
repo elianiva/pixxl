@@ -15,6 +15,7 @@ import {
   EnqueueAgentPromptInputSchema,
   GetAgentRuntimeInputSchema,
   GetAgentHistoryInputSchema,
+  AbortAgentInputSchema,
   AgentRuntimeStateSchema,
   PiSessionInfoListSchema,
   AgentHistorySchema,
@@ -70,4 +71,8 @@ export const promptAgentContract = oc
 
 export const enqueueAgentPromptContract = oc
   .input(Schema.toStandardSchemaV1(EnqueueAgentPromptInputSchema))
+  .output(Schema.toStandardSchemaV1(Schema.Null));
+
+export const abortAgentContract = oc
+  .input(Schema.toStandardSchemaV1(AbortAgentInputSchema))
   .output(Schema.toStandardSchemaV1(Schema.Null));

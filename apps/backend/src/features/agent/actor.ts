@@ -39,6 +39,7 @@ export type AgentActorEvents =
   | { type: "CLIENT_CONNECT"; client: AgentClient }
   | { type: "CLIENT_DISCONNECT"; client: AgentClient }
   | { type: "PROMPT"; text: string; mode: PromptMode }
+  | { type: "ABORT" }
   | { type: "DELETE_METADATA" }
   | { type: "HYDRATE"; metadata: AgentMetadata; sessionManager: SessionManager }
   | { type: "ATTACH_SESSION"; sessionManager: SessionManager }
@@ -204,6 +205,10 @@ export const agentMachine = setup({
       if (event.mode === "immediate") return;
       void context.session.prompt(event.text, { streamingBehavior: event.mode });
     },
+    abortPrompt: ({ context }) => {
+      if (!context.session) return;
+      void context.session.abort();
+    },
   },
   actors: {
     runPrompt: fromPromise(async ({ input, self }) => {
@@ -325,7 +330,6 @@ export const agentMachine = setup({
       });
 
       try {
-        // Use streamingBehavior based on mode when session is already streaming
         const options: { streamingBehavior?: "steer" | "followUp" } = {};
         if (mode !== "immediate") {
           options.streamingBehavior = mode;
@@ -473,6 +477,10 @@ export const agentMachine = setup({
         },
         AGENT_SESSION_EVENT: {
           actions: "forwardSessionEvent",
+        },
+        ABORT: {
+          target: "ready",
+          actions: ["abortPrompt", "notifyClientsIdle"],
         },
       },
     },

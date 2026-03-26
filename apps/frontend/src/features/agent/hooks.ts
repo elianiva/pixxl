@@ -15,6 +15,7 @@ import {
   streamStore,
   type StreamMessage,
 } from "./stream-store";
+import type { ChatSubmitOptions } from "./components/chat-input";
 
 function messageTextFromContent(content: unknown): string {
   if (typeof content === "string") return content;
@@ -124,7 +125,11 @@ export function useAgentActions(projectId: string, agentId?: string) {
   }, []);
 
   const sendMessage = useCallback(
-    async (text: string, mode: "immediate" | "steer" | "followUp" = "immediate") => {
+    async (
+      text: string,
+      mode: "immediate" | "steer" | "followUp" = "immediate",
+      options?: ChatSubmitOptions,
+    ) => {
       const resolvedAgentId = targetAgentId;
       if (!resolvedAgentId) return;
 
@@ -148,6 +153,8 @@ export function useAgentActions(projectId: string, agentId?: string) {
       const requestId = beginAgentStream(resolvedAgentId, text);
 
       try {
+        void options;
+
         const stream = await rpc.agent.promptAgent({
           projectId,
           agentId: resolvedAgentId,
@@ -177,9 +184,27 @@ export function useAgentActions(projectId: string, agentId?: string) {
     [projectId, targetAgentId],
   );
 
+  const abortMessage = useCallback(async () => {
+    const resolvedAgentId = targetAgentId;
+    if (!resolvedAgentId) return;
+
+    await rpc.agent.abortAgent({
+      projectId,
+      agentId: resolvedAgentId,
+    });
+
+    await queryClient.invalidateQueries({
+      queryKey: ["agent-runtime", projectId, resolvedAgentId],
+    });
+    await queryClient.invalidateQueries({
+      queryKey: ["agent-interactions", projectId, resolvedAgentId],
+    });
+  }, [projectId, targetAgentId]);
+
   return {
     selectAgent: select,
     sendMessage,
+    abortMessage,
     activeAgentId: targetAgentId,
   };
 }

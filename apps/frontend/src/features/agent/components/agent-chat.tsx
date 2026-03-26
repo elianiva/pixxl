@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { rpc } from "@/lib/rpc";
-import { ChatInput } from "./chat-input";
+import { ChatInput, type ChatSubmitOptions } from "./chat-input";
 import { MessageList } from "./chat/message-list";
 import { ChatScrollContainer } from "./chat/chat-scroll-container";
 import { useAgentActions, useMessages, useIsStreaming } from "../hooks";
@@ -17,7 +17,7 @@ interface QueuedMessage {
 
 export function AgentChat({ projectId, agentId }: AgentChatProps) {
   const messages = useMessages(agentId);
-  const { sendMessage } = useAgentActions(projectId, agentId);
+  const { sendMessage, abortMessage } = useAgentActions(projectId, agentId);
   const isStreaming = useIsStreaming(agentId);
 
   const { data: runtimeState } = useQuery({
@@ -37,12 +37,16 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
     })),
   ];
 
-  const handleSubmit = (text: string) => {
+  const handleSubmit = (text: string, _options: ChatSubmitOptions) => {
     void sendMessage(text, "immediate");
   };
 
   const handleQueueClick = (message: QueuedMessage) => {
     void sendMessage(message.text, message.type);
+  };
+
+  const handleAbort = () => {
+    void abortMessage();
   };
 
   return (
@@ -53,6 +57,7 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
 
       <ChatInput
         onSubmit={handleSubmit}
+        onAbort={handleAbort}
         isStreaming={isStreaming}
         queuedMessages={queuedMessages}
         onQueueClick={handleQueueClick}

@@ -246,6 +246,16 @@ export const enqueueAgentPromptRpc = os.agent.enqueueAgentPrompt.handler(async (
   return null;
 });
 
+export const abortAgentRpc = os.agent.abortAgent.handler(async ({ input }) => {
+  const result = await getReadyActor(input.projectId, input.agentId);
+  if (!result.ok) {
+    throw new Error(result.error.message);
+  }
+
+  result.actor.send({ type: "ABORT" });
+  return null;
+});
+
 export const promptAgentRpc = os.agent.promptAgent.handler(async function* ({ input }) {
   const result = await getReadyActor(input.projectId, input.agentId);
   if (!result.ok) {

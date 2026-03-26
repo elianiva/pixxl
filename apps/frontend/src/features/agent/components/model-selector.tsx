@@ -7,15 +7,32 @@ import {
 import { RiArrowDownSLine, RiGlobalLine } from "@remixicon/react";
 
 export type ModelOption = {
+  provider: string;
   id: string;
   name: string;
 };
 
 export const MODELS: ModelOption[] = [
-  { id: "claude-sonnet-4", name: "Claude Sonnet 4" },
-  { id: "claude-opus-4", name: "Claude Opus 4" },
-  { id: "gpt-4o", name: "GPT-4o" },
-  { id: "o3-mini", name: "o3-mini" },
+  {
+    provider: "anthropic",
+    id: "claude-sonnet-4-20250514",
+    name: "Claude Sonnet 4",
+  },
+  {
+    provider: "anthropic",
+    id: "claude-opus-4-20250514",
+    name: "Claude Opus 4",
+  },
+  {
+    provider: "openai",
+    id: "gpt-4o",
+    name: "GPT-4o",
+  },
+  {
+    provider: "openai",
+    id: "o3-mini",
+    name: "o3-mini",
+  },
 ];
 
 interface ModelSelectorProps {
@@ -37,7 +54,11 @@ export function ModelSelector({ selectedModel, onSelect, disabled = false }: Mod
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">
         {MODELS.map((model) => (
-          <DropdownMenuItem key={model.id} onClick={() => onSelect(model)} className="text-xs">
+          <DropdownMenuItem
+            key={`${model.provider}:${model.id}`}
+            onClick={() => onSelect(model)}
+            className="text-xs"
+          >
             {model.name}
           </DropdownMenuItem>
         ))}
