@@ -69,9 +69,9 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
         runtimeState?.model,
         frontendConfig
           ? {
-            defaultProvider: frontendConfig.defaultProvider,
-            defaultModel: frontendConfig.defaultModel,
-          }
+              defaultProvider: frontendConfig.defaultProvider,
+              defaultModel: frontendConfig.defaultModel,
+            }
           : undefined,
       ),
     [frontendConfig, models, runtimeState?.model],
@@ -115,11 +115,10 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
   };
 
   return (
-    <div className="flex h-full flex-col w-full">
+    <div className="flex-1 flex flex-col w-full">
       <ChatScrollContainer className="flex-1 overflow-y-auto py-4 max-w-3xl w-full mx-auto">
         <MessageList messages={messages} isStreaming={isStreaming} onFork={handleFork} />
       </ChatScrollContainer>
-
       <ChatInput
         onSubmit={handleSubmit}
         onAbort={handleAbort}

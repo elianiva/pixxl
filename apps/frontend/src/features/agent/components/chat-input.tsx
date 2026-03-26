@@ -97,7 +97,7 @@ export function ChatInput({
   const followUpCount = queuedMessages.filter((m) => m.type === "followUp").length;
 
   return (
-    <div className="mx-auto w-3xl border bg-background">
+    <div className="mx-auto w-full max-w-3xl border bg-background">
       {queuedMessages.length > 0 && (
         <div className="border-b px-4 py-2">
           <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -142,7 +142,7 @@ export function ChatInput({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled || isStreaming}
-          className="min-h-25 resize-none border-0 bg-transparent px-4 pt-4 pb-14 text-sm shadow-none focus-visible:ring-0"
+          className="min-h-25 resize-none border-0 bg-transparent px-4 pt-4 pb-14 text-sm! shadow-none focus-visible:ring-0"
           rows={1}
         />
 

@@ -121,12 +121,12 @@ function DashboardPage() {
   if (isLoading) return <DashboardSkeleton />;
 
   return (
-    <main className="flex flex-col gap-4 p-4">
+    <main className="flex flex-col gap-4 p-4 pt-16">
       <section className="flex items-baseline justify-between border-b border-border pb-3">
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
             <RiFolderOpenLine className="size-3" />
-            <span className="font-mono truncate max-w-[300px]">{projectId}</span>
+            <span className="font-mono truncate max-w-75">{projectId}</span>
           </div>
           <h1 className="text-lg font-heading font-medium">Dashboard</h1>
         </div>

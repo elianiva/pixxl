@@ -17,17 +17,35 @@ import {
 } from "./stream-store";
 import type { ChatSubmitOptions } from "./components/chat-input";
 
-function messageTextFromContent(content: unknown): string {
-  if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return "";
+interface ContentBlock {
+  type?: string;
+  text?: string;
+  thinking?: string;
+}
 
-  return content
-    .map((item) => {
-      if (!item || typeof item !== "object") return "";
-      const block = item as { type?: unknown; text?: unknown };
-      return block.type === "text" && typeof block.text === "string" ? block.text : "";
-    })
-    .join("");
+function extractFromContentBlocks(content: unknown): {
+  text: string;
+  thinking: string | undefined;
+} {
+  if (typeof content === "string") return { text: content, thinking: undefined };
+  if (!Array.isArray(content)) return { text: "", thinking: undefined };
+
+  let text = "";
+  let thinking: string | undefined;
+
+  for (const item of content) {
+    if (!item || typeof item !== "object") continue;
+    const block = item as ContentBlock;
+
+    if (block.type === "text" && typeof block.text === "string") {
+      text += block.text;
+    }
+    if (block.type === "thinking" && typeof block.thinking === "string") {
+      thinking = (thinking ?? "") + block.thinking;
+    }
+  }
+
+  return { text, thinking };
 }
 
 export function useActiveAgentId(): string | null {
@@ -90,12 +108,13 @@ export function useMessages(agentId?: string): Message[] {
         if (entry.type !== "message" || !entry.message) return acc;
 
         const message = entry.message;
+        const { text, thinking } = extractFromContentBlocks(message.content);
 
         acc.push({
           id: entry.id,
           role: message.role === "assistant" ? "assistant" : "user",
-          content: messageTextFromContent(message.content),
-          reasoning: message.thinking,
+          content: text,
+          reasoning: thinking,
         });
 
         return acc;

@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, type ReactNode } from "react";
+import { ScrollArea, ScrollAreaViewport } from "@/components/ui/scroll-area";
 import { ScrollToBottomButton } from "./scroll-to-bottom-button";
 
 interface ChatScrollContainerProps {
@@ -8,29 +9,30 @@ interface ChatScrollContainerProps {
 
 export function ChatScrollContainer({ children, className }: ChatScrollContainerProps) {
   const [isScrollButtonVisible, setIsScrollButtonVisible] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = useCallback(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    const viewport = viewportRef.current;
+    if (!viewport) return;
 
-    const isNearBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+    const isNearBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 100;
     setIsScrollButtonVisible(!isNearBottom);
   }, []);
 
   const scrollToBottom = useCallback(() => {
-    containerRef.current?.scrollTo({
-      top: containerRef.current.scrollHeight,
+    viewportRef.current?.scrollTo({
+      top: viewportRef.current.scrollHeight,
       behavior: "smooth",
     });
   }, []);
 
   return (
     <>
-      <div ref={containerRef} onScroll={handleScroll} className={className}>
-        {children}
-      </div>
+      <ScrollArea className={className}>
+        <ScrollAreaViewport ref={viewportRef} onScroll={handleScroll}>
+          {children}
+        </ScrollAreaViewport>
+      </ScrollArea>
       {isScrollButtonVisible && <ScrollToBottomButton onClick={scrollToBottom} />}
     </>
   );

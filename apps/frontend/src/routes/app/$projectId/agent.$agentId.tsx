@@ -24,16 +24,14 @@ function AgentRoute() {
     return () => selectAgent(null);
   }, [agentId]);
 
-  return (
-    <div className="flex h-full">
-      {activeAgent ? <AgentChat projectId={projectId} agentId={agentId} /> : <EmptyState />}
-    </div>
-  );
+  if (!activeAgent) return <EmptyState />;
+
+  return <AgentChat projectId={projectId} agentId={agentId} />;
 }
 
 function EmptyState() {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-4">
+    <div className="flex flex-1 flex-col items-center justify-center gap-4">
       <div className="rounded-full bg-muted p-4">
         <RiRobot2Line className="size-10 text-muted-foreground" />
       </div>
