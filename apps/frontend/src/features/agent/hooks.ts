@@ -41,6 +41,27 @@ export type Message = {
   blocks?: MessageBlock[];
 };
 
+// Action types for non-message entries in chat timeline
+export type ActionType =
+  | { type: "model_change"; provider: string; modelId: string }
+  | { type: "thinking_level_change"; thinkingLevel: string }
+  | { type: "compaction"; summary: string; firstKeptEntryId: string; tokensBefore: number }
+  | { type: "branch_summary"; fromId: string; summary: string }
+  | { type: "session_info"; name?: string }
+  | { type: "label"; targetId: string; label?: string }
+  | { type: "custom"; customType: string; data?: unknown }
+  | { type: "custom_message"; customType: string; content: unknown };
+
+export type ActionItem = {
+  id: string;
+  timestamp: string;
+  action: ActionType;
+};
+
+export type TimelineItem =
+  | { kind: "message"; data: Message }
+  | { kind: "action"; data: ActionItem };
+
 function extractBlocksFromContent(content: unknown): MessageBlock[] {
   if (typeof content === "string") return [{ type: "text", text: content }];
   if (!Array.isArray(content)) return [];
@@ -126,7 +147,7 @@ function toMessage(message: StreamMessage): Message {
   };
 }
 
-export function useMessages(agentId?: string): Message[] {
+export function useChatTimeline(agentId?: string): TimelineItem[] {
   const activeAgentId = useActiveAgentId();
   const targetAgentId = agentId ?? activeAgentId;
   const projectId = useStore(projectStore, (state) => state.currentProjectId);
@@ -195,81 +216,202 @@ export function useMessages(agentId?: string): Message[] {
       }
     }
 
-    // Second pass: process messages and merge tool results
-    const persisted = historyMessages
+    // Second pass: process all entries into timeline items
+    const timeline = historyMessages
       .toSorted((a, b) => a.order - b.order)
-      .reduce<Message[]>((acc, item) => {
+      .reduce<TimelineItem[]>((acc, item) => {
         const entry = item.entry as {
           type?: string;
           id: string;
+          timestamp: string;
           message?: {
             role?: "user" | "assistant" | "toolResult";
             content?: unknown;
             thinking?: string;
           };
+          // Action fields
+          provider?: string;
+          modelId?: string;
+          thinkingLevel?: string;
+          summary?: string;
+          firstKeptEntryId?: string;
+          tokensBefore?: number;
+          fromId?: string;
+          name?: string;
+          targetId?: string;
+          label?: string;
+          customType?: string;
+          data?: unknown;
+          content?: unknown;
+          display?: boolean;
         };
 
-        if (entry.type !== "message" || !entry.message) return acc;
+        if (!entry.type) return acc;
 
-        // Skip tool result messages - they're merged into tool calls
-        if (entry.message.role === "toolResult") return acc;
+        // Process message entries
+        if (entry.type === "message") {
+          if (!entry.message || entry.message.role === "toolResult") return acc;
 
-        const message = entry.message;
-        const blocks = extractBlocksFromContent(message.content);
+          const message = entry.message;
+          const blocks = extractBlocksFromContent(message.content);
 
-        // For backward compatibility, also extract text, thinking, and toolCalls
-        let text = "";
-        let thinking: string | undefined;
-        const toolCalls: Array<{
-          id: string;
-          name: string;
-          params: unknown;
-          status: "running" | "complete" | "error";
-          output?: string;
-          error?: string;
-        }> = [];
+          let text = "";
+          let thinking: string | undefined;
+          const toolCalls: Array<{
+            id: string;
+            name: string;
+            params: unknown;
+            status: "running" | "complete" | "error";
+            output?: string;
+            error?: string;
+          }> = [];
 
-        for (const block of blocks) {
-          if (block.type === "text") text += block.text;
-          else if (block.type === "thinking") thinking = (thinking ?? "") + block.thinking;
-          else if (block.type === "toolCall") {
-            // Look up result for this tool call using entry.id:block.id as key
-            const resultKey = `${entry.id}:${block.id}`;
-            const result = toolResults.get(resultKey);
+          for (const block of blocks) {
+            if (block.type === "text") text += block.text;
+            else if (block.type === "thinking") thinking = (thinking ?? "") + block.thinking;
+            else if (block.type === "toolCall") {
+              const resultKey = `${entry.id}:${block.id}`;
+              const result = toolResults.get(resultKey);
 
-            toolCalls.push({
-              id: block.id,
-              name: block.name,
-              params: block.arguments,
-              status: result ? (result.isError ? "error" : "complete") : "running",
-              output: result?.output,
-              error: result?.error,
-            });
+              toolCalls.push({
+                id: block.id,
+                name: block.name,
+                params: block.arguments,
+                status: result ? (result.isError ? "error" : "complete") : "running",
+                output: result?.output,
+                error: result?.error,
+              });
+            }
           }
+
+          acc.push({
+            kind: "message",
+            data: {
+              id: entry.id,
+              role: message.role === "assistant" ? "assistant" : "user",
+              content: text,
+              reasoning: thinking,
+              toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+              blocks,
+            },
+          });
+          return acc;
         }
 
-        acc.push({
-          id: entry.id,
-          role: message.role === "assistant" ? "assistant" : "user",
-          content: text,
-          reasoning: thinking,
-          toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-          blocks,
-        });
+        // Process action entries
+        let action: ActionType | undefined;
+
+        switch (entry.type) {
+          case "model_change":
+            if (entry.provider && entry.modelId) {
+              action = {
+                type: "model_change",
+                provider: entry.provider,
+                modelId: entry.modelId,
+              };
+            }
+            break;
+          case "thinking_level_change":
+            if (entry.thinkingLevel) {
+              action = {
+                type: "thinking_level_change",
+                thinkingLevel: entry.thinkingLevel,
+              };
+            }
+            break;
+          case "compaction":
+            if (entry.summary && entry.firstKeptEntryId) {
+              action = {
+                type: "compaction",
+                summary: entry.summary,
+                firstKeptEntryId: entry.firstKeptEntryId,
+                tokensBefore: entry.tokensBefore ?? 0,
+              };
+            }
+            break;
+          case "branch_summary":
+            if (entry.fromId && entry.summary) {
+              action = {
+                type: "branch_summary",
+                fromId: entry.fromId,
+                summary: entry.summary,
+              };
+            }
+            break;
+          case "session_info":
+            action = {
+              type: "session_info",
+              name: entry.name,
+            };
+            break;
+          case "label":
+            if (entry.targetId) {
+              action = {
+                type: "label",
+                targetId: entry.targetId,
+                label: entry.label,
+              };
+            }
+            break;
+          case "custom":
+            if (entry.customType) {
+              action = {
+                type: "custom",
+                customType: entry.customType,
+                data: entry.data,
+              };
+            }
+            break;
+          case "custom_message":
+            if (entry.customType && entry.display) {
+              action = {
+                type: "custom_message",
+                customType: entry.customType,
+                content: entry.content ?? {},
+              };
+            }
+            break;
+        }
+
+        if (action) {
+          acc.push({
+            kind: "action",
+            data: {
+              id: entry.id,
+              timestamp: entry.timestamp,
+              action,
+            },
+          });
+        }
 
         return acc;
       }, []);
 
-    if (!streamState) return persisted;
+    if (!streamState) return timeline;
 
-    const optimistic: Message[] = [];
-    if (streamState.optimisticUserMessage)
-      optimistic.push(toMessage(streamState.optimisticUserMessage));
-    if (streamState.draftAssistantMessage)
-      optimistic.push(toMessage(streamState.draftAssistantMessage));
+    // Add optimistic messages at the end
+    const optimistic: TimelineItem[] = [];
+    if (streamState.optimisticUserMessage) {
+      optimistic.push({ kind: "message", data: toMessage(streamState.optimisticUserMessage) });
+    }
+    if (streamState.draftAssistantMessage) {
+      optimistic.push({ kind: "message", data: toMessage(streamState.draftAssistantMessage) });
+    }
 
-    return [...persisted, ...optimistic];
+    return [...timeline, ...optimistic];
   }, [historyMessages, streamState]);
+}
+
+/** @deprecated Use useChatTimeline instead */
+export function useMessages(agentId?: string): Message[] {
+  const timeline = useChatTimeline(agentId);
+  return useMemo(
+    () =>
+      timeline
+        .filter((item): item is { kind: "message"; data: Message } => item.kind === "message")
+        .map((item) => item.data),
+    [timeline],
+  );
 }
 
 export function useIsStreaming(agentId?: string) {
