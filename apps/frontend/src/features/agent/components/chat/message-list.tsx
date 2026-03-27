@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { MessageBubble } from "./message-bubble";
 import { StreamingIndicator } from "./streaming-indicator";
 import type { MessageBlock } from "../../hooks";
@@ -23,6 +24,7 @@ interface MessageListProps {
   messages: Message[];
   isStreaming: boolean;
   onFork?: (content: string) => void;
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 /**
@@ -111,8 +113,37 @@ function mergeMessagesIntoSingleChain(messages: Message[]): Message[] {
   return result;
 }
 
-export function MessageList({ messages, isStreaming, onFork }: MessageListProps) {
+export function MessageList({
+  messages,
+  isStreaming,
+  onFork,
+  scrollContainerRef,
+}: MessageListProps) {
   const mergedMessages = mergeMessagesIntoSingleChain(messages);
+  const lastScrollKeyRef = useRef<string | null>(null);
+
+  // Track last message content to detect streaming updates
+  const lastMessage = mergedMessages.at(-1);
+  const scrollKey = lastMessage ? `${lastMessage.id}-${lastMessage.content.length}` : "empty";
+
+  // Scroll to bottom on mount, new messages, or streaming content changes
+  useEffect(() => {
+    if (lastScrollKeyRef.current === scrollKey) return;
+    lastScrollKeyRef.current = scrollKey;
+
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    // Use setTimeout to ensure DOM has fully updated with new content
+    const timeoutId = setTimeout(() => {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: "smooth",
+      });
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [scrollKey, scrollContainerRef]);
 
   return (
     <div className="space-y-4">

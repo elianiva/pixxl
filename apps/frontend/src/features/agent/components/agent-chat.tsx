@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { rpc } from "@/lib/rpc";
 import { ChatInput, type ChatSubmitOptions } from "./chat-input";
@@ -100,15 +100,22 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
     void configureSession(agentId, { model: initialModel, thinkingLevel });
   };
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   return (
     <div className="h-full flex flex-col">
       {/* Scrollable message area */}
-      <div className="flex-1 overflow-y-auto overscroll-y-none py-4 px-4">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overscroll-y-none py-4 px-4">
         {messages.length < 1 ? (
           <EmptyChatState />
         ) : (
           <div className="max-w-3xl mx-auto">
-            <MessageList messages={messages} isStreaming={isStreaming} onFork={handleFork} />
+            <MessageList
+              messages={messages}
+              isStreaming={isStreaming}
+              onFork={handleFork}
+              scrollContainerRef={scrollContainerRef}
+            />
           </div>
         )}
       </div>
