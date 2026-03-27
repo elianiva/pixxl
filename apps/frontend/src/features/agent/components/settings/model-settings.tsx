@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/select";
 import type { SelectEntry } from "@/components/ui/select";
 import type { AgentThinkingLevel } from "@pixxl/shared";
-import { useModels } from "../hooks";
+import { useModels } from "../../hooks";
 
 const thinkingLevels: SelectEntry[] = [
   { value: "off", label: "Off" },
@@ -26,7 +26,7 @@ function providerLabel(provider: string) {
     .join(" ");
 }
 
-interface AgentModelSettingsProps {
+interface ModelSettingsProps {
   provider: string;
   model: string;
   thinkingLevel: AgentThinkingLevel;
@@ -36,7 +36,7 @@ interface AgentModelSettingsProps {
   disabled?: boolean;
 }
 
-export function AgentModelSettings({
+export function ModelSettings({
   provider,
   model,
   thinkingLevel,
@@ -44,7 +44,7 @@ export function AgentModelSettings({
   onModelChange,
   onThinkingLevelChange,
   disabled = false,
-}: AgentModelSettingsProps) {
+}: ModelSettingsProps) {
   const availableModels = useModels();
 
   const providerOptions = Array.from(new Set(availableModels.map((m) => m.provider))).map((p) => ({

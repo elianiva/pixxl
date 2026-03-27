@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import { ScrollArea, ScrollAreaViewport } from "@/components/ui/scroll-area";
-import { ScrollToBottomButton } from "./scroll-to-bottom-button";
+import { ScrollToBottomButton } from "./scroll-button";
 
 interface ChatScrollContainerProps {
   children: ReactNode;

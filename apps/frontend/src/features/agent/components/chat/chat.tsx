@@ -1,17 +1,18 @@
 import { useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { rpc } from "@/lib/rpc";
-import { ChatInput, type ChatSubmitOptions } from "./chat-input";
-import { MessageList } from "./chat/message-list";
-import { type ModelOption } from "./model-selector";
-import { type ThinkingLevel } from "./thinking-level-selector";
-import { useAgentActions, useMessages, useIsStreaming } from "../hooks";
+import { ChatInput, type ChatSubmitOptions } from "./input";
+import { MessageList } from "./message-list";
+import { type ModelOption } from "../settings/model-selector";
+import { type ThinkingLevel } from "../settings/thinking-selector";
+import { EmptyChatState } from "./empty-state";
+import { useAgentActions, useMessages, useIsStreaming } from "../../hooks";
 import { useAgentFrontendConfig } from "@/features/config/hooks/use-config";
-import { EmptyChatState } from "./chat/empty-chat-state";
+
 import { useLiveQuery } from "@tanstack/react-db";
 import { getModelsCollection } from "@/features/config/models-collection";
 
-interface AgentChatProps {
+interface ChatProps {
   projectId: string;
   agentId: string;
 }
@@ -35,7 +36,7 @@ function pickInitialModel(
 }
 
 const modelsCollection = getModelsCollection();
-export function AgentChat({ projectId, agentId }: AgentChatProps) {
+export function Chat({ projectId, agentId }: ChatProps) {
   const messages = useMessages(agentId);
   const { sendMessage, abortMessage, configureSession } = useAgentActions(projectId, agentId);
   const isStreaming = useIsStreaming(agentId);

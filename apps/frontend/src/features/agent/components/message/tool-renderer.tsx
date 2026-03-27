@@ -6,8 +6,8 @@ import {
   RiWrenchLine,
 } from "@remixicon/react";
 import { TaskItem, TaskItemFile } from "@/components/ai-elements/task";
-import type { ToolCallFromBlock } from "./message-types";
-import { getPathFromParams } from "./message-utils";
+import type { ToolCallFromBlock } from "./types";
+import { getPathFromParams } from "./utils";
 
 export function getToolIcon(name: string) {
   switch (name) {

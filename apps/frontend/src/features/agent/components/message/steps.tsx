@@ -4,7 +4,7 @@ import { ChainOfThoughtStep } from "@/components/ai-elements/chain-of-thought";
 import { MessageResponse } from "@/components/ai-elements/message";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import type { StepType } from "./message-types";
+import type { StepType } from "./types";
 import { ToolCallItem, ToolCallsGroup } from "./tool-renderer";
 
 interface ChainStepsProps {

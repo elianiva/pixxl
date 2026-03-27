@@ -1,5 +1,5 @@
 import type { MessageBlock } from "../../hooks";
-import type { StepType, ToolCallFromBlock } from "./message-types";
+import type { StepType, ToolCallFromBlock } from "./types";
 
 export function stepsFromBlocks(blocks: MessageBlock[], _isStreaming: boolean): StepType[] {
   const steps: StepType[] = [];

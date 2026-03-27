@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { AgentMessageContent } from "../message";
+import { MessageContent } from "../message/content";
 
 interface Message {
   id: string;
@@ -33,7 +33,7 @@ export function MessageBubble({ message, onFork }: MessageBubbleProps) {
         )}
       >
         {message.role === "assistant" ? (
-          <AgentMessageContent message={message} onFork={onFork} />
+          <MessageContent message={message} onFork={onFork} />
         ) : (
           <p className="whitespace-pre-wrap break-words">{message.content}</p>
         )}

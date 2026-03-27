@@ -11,7 +11,7 @@ import { getCommandsCollection } from "@/features/command/commands-collection";
 import { projectsCollection } from "@/features/project/projects-collection";
 import { NewCommandDialog } from "@/features/command/components/new-command-dialog";
 import { NewProjectDialog } from "@/features/project/components/new-project-dialog";
-import { EditAgentDialog } from "@/features/agent/components/edit-agent-dialog";
+import { EditAgentDialog } from "@/features/agent/components/dialog/edit-agent";
 import { EditTerminalDialog } from "@/features/terminal/components/edit-terminal-dialog";
 import type { AgentMetadata, TerminalMetadata, CommandMetadata } from "@pixxl/shared";
 import { generateId } from "@/lib/utils";

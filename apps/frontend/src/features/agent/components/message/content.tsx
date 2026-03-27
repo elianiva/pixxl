@@ -29,7 +29,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { MessageBlock } from "@/features/agent/hooks";
 
-import type { AgentMessageContentProps, ToolCallFromBlock } from "./message-types";
+import type { AgentMessageContentProps, ToolCallFromBlock } from "./types";
 
 // Builtin tools that use Task component
 const BUILTIN_TOOLS = ["read", "write", "edit", "bash"];

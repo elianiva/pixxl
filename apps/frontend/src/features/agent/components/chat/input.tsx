@@ -16,9 +16,9 @@ import {
   RiStopLine,
 } from "@remixicon/react";
 import type { PiUsageSchemaType } from "@pixxl/shared";
-import { ModelSelector, type ModelOption } from "./model-selector";
-import { ThinkingLevelSelector, type ThinkingLevel } from "./thinking-level-selector";
-import { AgentSessionDialog } from "./agent-session-dialog";
+import { ModelSelector, type ModelOption } from "../settings/model-selector";
+import { ThinkingLevelSelector, type ThinkingLevel } from "../settings/thinking-selector";
+import { SessionSettingsDialog } from "../dialog/session-settings";
 
 const tooltipHandle = createTooltipHandle();
 
@@ -309,7 +309,7 @@ export function ChatInput({
       </div>
 
       {agentId && projectId && (
-        <AgentSessionDialog
+        <SessionSettingsDialog
           open={settingsOpen}
           onOpenChange={setSettingsOpen}
           agentId={agentId}

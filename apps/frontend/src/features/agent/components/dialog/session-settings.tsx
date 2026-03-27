@@ -23,10 +23,10 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { rpc } from "@/lib/rpc";
 import type { AgentThinkingLevel } from "@pixxl/shared";
-import type { ModelOption } from "./model-selector";
-import { AgentModelSettings } from "./agent-model-settings";
-import { SessionTreeView } from "./session-tree-view";
-import { useAgentActions, useModels } from "../hooks";
+import type { ModelOption } from "../settings/model-selector";
+import { ModelSettings } from "../settings/model-settings";
+import { TreeView } from "../session/tree-view";
+import { useAgentActions, useModels } from "../../hooks";
 
 type SessionSection = "settings" | "session";
 
@@ -57,10 +57,11 @@ function SessionSidebar({ activeSection, onSectionChange }: SessionSidebarProps)
           <button
             key={item.id}
             onClick={() => onSectionChange(item.id)}
-            className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${activeSection === item.id
+            className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
+              activeSection === item.id
                 ? "bg-muted text-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              }`}
+            }`}
           >
             {item.icon}
             {item.name}
@@ -81,7 +82,7 @@ const formatPath = (path: string): string => {
   return parts.length > 3 ? `.../${parts.slice(-3).join("/")}` : path;
 };
 
-interface AgentSessionDialogProps {
+interface SessionSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   agentId: string;
@@ -92,7 +93,7 @@ interface AgentSessionDialogProps {
   onThinkingLevelChange: (level: AgentThinkingLevel) => void;
 }
 
-export function AgentSessionDialog({
+export function SessionSettingsDialog({
   open,
   onOpenChange,
   agentId,
@@ -101,7 +102,7 @@ export function AgentSessionDialog({
   currentThinkingLevel,
   onModelChange,
   onThinkingLevelChange,
-}: AgentSessionDialogProps) {
+}: SessionSettingsDialogProps) {
   const [activeSection, setActiveSection] = React.useState<SessionSection>("settings");
   const queryClient = useQueryClient();
 
@@ -165,7 +166,7 @@ export function AgentSessionDialog({
                     <div className="space-y-6">
                       <div>
                         <h3 className="mb-4 text-base font-semibold">Model Settings</h3>
-                        <AgentModelSettings
+                        <ModelSettings
                           provider={currentModel?.provider ?? ""}
                           model={currentModel?.id ?? ""}
                           thinkingLevel={currentThinkingLevel}
@@ -334,7 +335,7 @@ export function AgentSessionDialog({
                             <div>
                               <h4 className="text-sm font-medium mb-3">Session Tree</h4>
                               <ScrollArea className="h-50">
-                                <SessionTreeView nodes={details.tree} leafId={details.leafId} />
+                                <TreeView nodes={details.tree} leafId={details.leafId} />
                               </ScrollArea>
                             </div>
                           )}

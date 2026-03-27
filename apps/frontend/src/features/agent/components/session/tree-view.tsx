@@ -5,7 +5,7 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/component
 import type { SessionTreeNode } from "@pixxl/shared";
 import { RiFolderOpenLine, RiFileLine, RiCornerDownRightFill } from "@remixicon/react";
 
-interface SessionTreeViewProps {
+interface TreeViewProps {
   nodes: readonly SessionTreeNode[];
   leafId: string;
 }
@@ -92,7 +92,7 @@ function TreeNodeItem({
   );
 }
 
-export function SessionTreeView({ nodes, leafId }: SessionTreeViewProps) {
+export function TreeView({ nodes, leafId }: TreeViewProps) {
   const treeRoots = useMemo(() => buildTree(nodes), [nodes]);
 
   if (nodes.length === 0) {

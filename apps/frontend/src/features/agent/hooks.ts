@@ -16,7 +16,7 @@ import {
   type StreamMessage,
 } from "./stream-store";
 import { getModelsCollection } from "@/features/config/models-collection";
-import type { ChatSubmitOptions } from "./components/chat-input";
+import type { ChatSubmitOptions } from "./components/chat/input";
 import type { PiAvailableModel } from "@pixxl/shared";
 
 export type MessageBlock =

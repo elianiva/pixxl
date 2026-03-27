@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { AgentChat } from "@/features/agent/components/agent-chat";
+import { Chat } from "@/features/agent/components/chat/chat";
 import { getAgentsCollection } from "@/features/agent/agents-collection";
 import { selectAgent } from "@/features/agent/store";
 
@@ -23,5 +23,5 @@ function AgentRoute() {
 
   if (!agent) return <Navigate to="/app/$projectId/dashboard" params={{ projectId }} />;
 
-  return <AgentChat projectId={projectId} agentId={agentId} />;
+  return <Chat projectId={projectId} agentId={agentId} />;
 }
