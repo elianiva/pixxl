@@ -2,10 +2,14 @@ import { useEffectEvent, useRef } from "react";
 import { init, Terminal, FitAddon } from "ghostty-web";
 import { rpc } from "@/lib/rpc";
 import { WS_URL } from "@/lib/rpc";
+import { terminalFonts, terminalThemes } from "../themes";
 
 export interface GhosttyTerminalOptions {
   terminalId: string;
   containerRef: React.RefObject<HTMLDivElement | null>;
+  themeId: string;
+  fontId: string;
+  fontSize: number;
   onConnected?: () => void;
   onDisconnected?: () => void;
   onError?: (message: string) => void;
@@ -17,6 +21,9 @@ export interface UseGhosttyTerminalOptions {
   init: () => Promise<void>;
   dispose: () => void;
   resize: () => void;
+  setTheme: (themeId: string) => void;
+  setFont: (fontId: string) => void;
+  setFontSize: (size: number) => void;
 }
 
 export function useGhosttyTerminal(options: GhosttyTerminalOptions): UseGhosttyTerminalOptions {
@@ -28,15 +35,21 @@ export function useGhosttyTerminal(options: GhosttyTerminalOptions): UseGhosttyT
     // init ghostty wasm
     await init();
 
+    // Get theme and font from options
+    const theme =
+      terminalThemes.find((t) => t.id === options.themeId) ??
+      terminalThemes.find((t) => t.id === "catppuccin-mocha")!;
+    const font =
+      terminalFonts.find((f) => f.id === options.fontId) ??
+      terminalFonts.find((f) => f.id === "jetbrains-mono")!;
+    const fontSize = options.fontSize;
+
     const terminal = new Terminal({
-      fontSize: 14,
-      fontFamily: "JetBrains Mono, monospace",
+      fontSize,
+      fontFamily: font.family,
       cursorStyle: "block",
       cursorBlink: true,
-      theme: {
-        background: "#efefef",
-        foreground: "#242424",
-      },
+      theme: theme.theme,
     });
 
     terminalRef.current = terminal;
@@ -154,9 +167,39 @@ export function useGhosttyTerminal(options: GhosttyTerminalOptions): UseGhosttyT
     }
   });
 
+  const setTheme = useEffectEvent((themeId: string) => {
+    const theme = terminalThemes.find((t) => t.id === themeId);
+    if (!theme) return;
+
+    const terminal = terminalRef.current;
+    if (terminal) {
+      terminal.options.theme = theme.theme;
+    }
+  });
+
+  const setFont = useEffectEvent((fontId: string) => {
+    const font = terminalFonts.find((f) => f.id === fontId);
+    if (!font) return;
+
+    const terminal = terminalRef.current;
+    if (terminal) {
+      terminal.options.fontFamily = font.family;
+    }
+  });
+
+  const setFontSize = useEffectEvent((size: number) => {
+    const terminal = terminalRef.current;
+    if (terminal) {
+      terminal.options.fontSize = size;
+    }
+  });
+
   return {
     init: initGhostty,
     dispose,
     resize,
+    setTheme,
+    setFont,
+    setFontSize,
   };
 }
