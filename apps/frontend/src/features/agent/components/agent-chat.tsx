@@ -101,7 +101,7 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
       {messages.length < 1 ? (
         <EmptyChatState />
       ) : (
-        <ChatScrollContainer className="flex-1 overflow-y-auto py-4 max-w-3xl w-full mx-auto">
+        <ChatScrollContainer className="flex-1 overflow-y-auto py-4 max-w-3xl w-full mx-auto pt-18">
           <MessageList messages={messages} isStreaming={isStreaming} onFork={handleFork} />
         </ChatScrollContainer>
       )}

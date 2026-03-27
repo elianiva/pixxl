@@ -64,20 +64,17 @@ export const ChainOfThoughtHeader = memo(
     const { isOpen, setIsOpen } = useChainOfThought();
 
     return (
-      <Collapsible
-        onOpenChange={setIsOpen}
-        open={isOpen}
-        className={cn("mb-0 p-3 border-accent", isOpen && "border-b")}
-      >
+      <Collapsible onOpenChange={setIsOpen} open={isOpen} className="mb-0">
         <CollapsibleTrigger
           className={cn(
-            "flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground",
+            "flex w-full items-center gap-4 text-muted-foreground text-sm transition-colors hover:text-foreground",
             className,
           )}
           {...props}
         >
           <RiBrainLine className="size-4" />
-          <span className="flex-1 text-left">{children ?? "Chain of Thought"}</span>
+          <span className="text-left">{children ?? "Chain of Thought"}</span>
+          <span className="flex-1 border-t border-accent" />
           <RiArrowDownSLine
             className={cn("size-4 transition-transform", isOpen ? "rotate-180" : "rotate-0")}
           />
@@ -112,7 +109,7 @@ export const ChainOfThoughtStep = memo(
   }: ChainOfThoughtStepProps) => (
     <div
       className={cn(
-        "flex gap-2 text-sm pl-2 mb-3",
+        "flex gap-2 text-sm",
         stepStatusStyles[status],
         "fade-in-0 slide-in-from-top-2 animate-in",
         className,
@@ -121,7 +118,7 @@ export const ChainOfThoughtStep = memo(
     >
       <div className="relative mt-0.5">
         <Icon className="size-4" />
-        <div className="absolute top-7 bottom-0 left-1/2 -mx-px w-px bg-border" />
+        <div className="absolute top-7 bottom-0 left-1/2 -mx-px w-px" />
       </div>
       <div className="flex-1 space-y-2 overflow-hidden">
         <div>{label}</div>
@@ -161,7 +158,7 @@ export const ChainOfThoughtContent = memo(
     const { isOpen } = useChainOfThought();
 
     return (
-      <Collapsible open={isOpen} className={cn(isOpen && "p-2 pb-2")}>
+      <Collapsible open={isOpen}>
         <CollapsibleContent
           className={cn(
             "mt-2 space-y-3",

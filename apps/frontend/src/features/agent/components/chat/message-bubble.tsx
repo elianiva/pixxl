@@ -28,7 +28,7 @@ export function MessageBubble({ message, onFork }: MessageBubbleProps) {
       <div
         className={cn(
           message.role === "user"
-            ? "max-w-4/5 bg-primary px-3 py-2 text-primary-foreground"
+            ? "max-w-4/5 bg-accent/50 border border-accent px-3 py-2 text-foreground overflow-hidden"
             : "w-full px-0 py-1 text-foreground",
         )}
       >

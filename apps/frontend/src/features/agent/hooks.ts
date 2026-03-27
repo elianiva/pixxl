@@ -5,7 +5,6 @@ import { projectStore } from "@/lib/project-store";
 import { rpc } from "@/lib/rpc";
 import { queryClient } from "@/lib/query-client";
 import { getInteractionsCollection } from "./interactions-collection";
-import { getModelsCollection } from "@/features/config/models-collection";
 import { agentStore, selectAgent } from "./store";
 import {
   applyAgentEvent,
@@ -17,7 +16,6 @@ import {
   type StreamMessage,
 } from "./stream-store";
 import type { ChatSubmitOptions } from "./components/chat-input";
-import type { PiAvailableModel } from "@pixxl/shared";
 
 export type MessageBlock =
   | { type: "text"; text: string }
@@ -139,6 +137,66 @@ export function useMessages(agentId?: string): Message[] {
   );
 
   return useMemo(() => {
+    // First pass: collect tool results keyed by (parentId, toolCallId)
+    const toolResults = new Map<
+      string,
+      { output?: string; error?: string; isError: boolean }
+    >();
+
+    for (const item of historyMessages) {
+      const entry = item.entry as {
+        type?: string;
+        id: string;
+        parentId?: string | null;
+        message?: {
+          role?: "user" | "assistant" | "toolResult";
+          content?: unknown;
+          thinking?: string;
+          toolCallId?: string;
+          toolName?: string;
+          isError?: boolean;
+        };
+      };
+
+      if (
+        entry.type === "message" &&
+        entry.message?.role === "toolResult" &&
+        entry.message.toolCallId &&
+        entry.parentId
+      ) {
+        // Store result keyed by "parentId:toolCallId"
+        const key = `${entry.parentId}:${entry.message.toolCallId}`;
+        const content = entry.message.content;
+
+        // Extract text from content (handle both string and array of content parts)
+        let resultText: string;
+        if (typeof content === "string") {
+          resultText = content;
+        } else if (Array.isArray(content)) {
+          resultText = content
+            .map((c) => {
+              if (typeof c === "object" && c !== null) {
+                if (c.type === "text" && typeof c.text === "string") {
+                  return c.text;
+                }
+                // Handle any other content part types
+                return JSON.stringify(c);
+              }
+              return String(c);
+            })
+            .join("");
+        } else {
+          resultText = String(content ?? "");
+        }
+
+        toolResults.set(key, {
+          output: resultText,
+          isError: entry.message.isError ?? false,
+        });
+      }
+    }
+
+    // Second pass: process messages and merge tool results
     const persisted = historyMessages
       .toSorted((a, b) => a.order - b.order)
       .reduce<Message[]>((acc, item) => {
@@ -154,7 +212,7 @@ export function useMessages(agentId?: string): Message[] {
 
         if (entry.type !== "message" || !entry.message) return acc;
 
-        // Skip tool result messages - they're displayed via tool_end event handling
+        // Skip tool result messages - they're merged into tool calls
         if (entry.message.role === "toolResult") return acc;
 
         const message = entry.message;
@@ -176,11 +234,17 @@ export function useMessages(agentId?: string): Message[] {
           if (block.type === "text") text += block.text;
           else if (block.type === "thinking") thinking = (thinking ?? "") + block.thinking;
           else if (block.type === "toolCall") {
+            // Look up result for this tool call using entry.id:block.id as key
+            const resultKey = `${entry.id}:${block.id}`;
+            const result = toolResults.get(resultKey);
+
             toolCalls.push({
               id: block.id,
               name: block.name,
               params: block.arguments,
-              status: "complete",
+              status: result ? (result.isError ? "error" : "complete") : "running",
+              output: result?.output,
+              error: result?.error,
             });
           }
         }

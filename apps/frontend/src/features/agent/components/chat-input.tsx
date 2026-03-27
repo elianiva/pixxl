@@ -23,7 +23,7 @@ interface ChatInputProps {
   placeholder?: string;
   queuedMessages?: QueuedMessage[];
   onQueueClick?: (message: QueuedMessage) => void;
-  model: ModelOption;
+  model: ModelOption | undefined;
   thinkingLevel: ThinkingLevel;
   onModelChange: (model: ModelOption) => void;
   onThinkingLevelChange: (level: ThinkingLevel) => void;
@@ -47,7 +47,7 @@ export function ChatInput({
 
   const handleSubmit = useEffectEvent(() => {
     const trimmed = inputText.trim();
-    if (!trimmed || isStreaming) return;
+    if (!trimmed || isStreaming || !model) return;
     onSubmit(trimmed, { model, thinkingLevel });
     setInputText("");
     textareaRef.current?.focus();

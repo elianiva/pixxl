@@ -149,9 +149,26 @@ body,
 }
 
 [data-streamdown="code-block"] {
-  @apply rounded-none border-accent;
+  @apply rounded-none border-accent p-0 gap-0;
+}
+
+[data-streamdown="code-block-header"]>span {
+  @apply capitalize;
+}
+
+[data-streamdown="code-block-header"]+div {
+  @apply -mt-8;
+}
+
+[data-streamdown="code-block-actions"] {
+  @apply gap-1;
+}
+
+[data-streamdown="code-block-download-button"],
+[data-streamdown="code-block-copy-button"] {
+  @apply scale-90;
 }
 
 [data-streamdown="code-block-body"] {
-  @apply rounded-none border-accent px-0 py-4;
+  @apply rounded-none border-accent px-0 py-2 border-x-0 border-t mt-0;
 }
