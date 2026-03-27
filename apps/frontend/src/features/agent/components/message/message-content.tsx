@@ -1,7 +1,13 @@
 import { memo, useCallback, useMemo } from "react";
-import { RiFileCopyLine, RiGitBranchLine } from "@remixicon/react";
+import {
+  RiArrowDownSLine,
+  RiArrowRightSLine,
+  RiFileCopyLine,
+  RiGitBranchLine,
+} from "@remixicon/react";
 import { MessageResponse, MessageActions, MessageAction } from "@/components/ai-elements/message";
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning";
+import { CodeBlock } from "@/components/ai-elements/code-block";
 import {
   Task,
   TaskTrigger,
@@ -10,6 +16,7 @@ import {
   TaskItemFile,
 } from "@/components/ai-elements/task";
 import { Tool, ToolHeader, ToolContent, ToolInput } from "@/components/ai-elements/tool";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   RiFileTextLine,
   RiFileAddLine,
@@ -36,7 +43,7 @@ function getBuiltinToolIcon(name: string) {
     case "edit":
       return <RiFileEditLine className="size-4 text-yellow-500" />;
     case "bash":
-      return <RiTerminalBoxLine classSize="size-4 text-slate-500" />;
+      return <RiTerminalBoxLine className="size-4 text-slate-500" />;
     default:
       return null;
   }
@@ -85,7 +92,7 @@ function BuiltinToolBlock({ tool }: { tool: ToolCallFromBlock }) {
           <span className="capitalize">{tool.name}</span>
           <TaskItemFile>
             {getBuiltinToolIcon(tool.name)}
-            <span>{truncate(path, 30)}</span>
+            <span>{path}</span>
           </TaskItemFile>
         </span>
       );
@@ -128,17 +135,27 @@ function BuiltinToolBlock({ tool }: { tool: ToolCallFromBlock }) {
         </div>
       </TaskTrigger>
       <TaskContent>
-        <TaskItem className={cn("flex items-center gap-2 py-0.5", isRunning && "text-foreground")}>
-          {content}
-        </TaskItem>
-        {tool.output && (
-          <div className="mt-2 bg-muted/50 p-2 text-xs">
-            <pre className="whitespace-pre-wrap break-all font-mono">{tool.output}</pre>
-          </div>
-        )}
-        {tool.error && (
-          <div className="mt-2 bg-destructive/10 p-2 text-xs text-destructive">{tool.error}</div>
-        )}
+        <Collapsible>
+          <CollapsibleTrigger className="cursor-pointer">
+            <TaskItem
+              className={cn("flex items-center gap-2 py-0.5", isRunning && "text-foreground")}
+            >
+              {content}
+            </TaskItem>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            {tool.output && (
+              <div className="mt-2">
+                <CodeBlock code={tool.output} language="markdown" contentClassName="text-xs" />
+              </div>
+            )}
+            {tool.error && (
+              <div className="mt-2 bg-destructive/10 p-2 text-xs text-destructive">
+                {tool.error}
+              </div>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
       </TaskContent>
     </Task>
   );
@@ -165,13 +182,13 @@ function CustomToolBlock({ tool }: { tool: ToolCallFromBlock }) {
             <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
               Result
             </h4>
-            <div className="bg-muted/50 p-2 text-xs">
-              <pre className="whitespace-pre-wrap break-all font-mono">
-                {typeof tool.output === "string"
-                  ? tool.output
-                  : JSON.stringify(tool.output, null, 2)}
-              </pre>
-            </div>
+            <CodeBlock
+              code={
+                typeof tool.output === "string" ? tool.output : JSON.stringify(tool.output, null, 2)
+              }
+              language={typeof tool.output === "string" ? "markdown" : "json"}
+              className="text-xs"
+            />
           </div>
         )}
         {tool.error && (

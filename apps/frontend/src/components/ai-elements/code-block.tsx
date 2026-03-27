@@ -105,6 +105,7 @@ type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
   code: string;
   language: BundledLanguage;
   showLineNumbers?: boolean;
+  contentClassName?: string;
 };
 
 interface TokenizedCode {
@@ -165,11 +166,11 @@ const createRawTokens = (code: string): TokenizedCode => ({
     line === ""
       ? []
       : [
-          {
-            color: "inherit",
-            content: line,
-          } as ThemedToken,
-        ],
+        {
+          color: "inherit",
+          content: line,
+        } as ThemedToken,
+      ],
   ),
 });
 
@@ -238,16 +239,15 @@ export const highlightCode = (
   return null;
 };
 
+type CodeBlockBodyProps = {
+  tokenized: TokenizedCode;
+  showLineNumbers: boolean;
+  className?: string;
+  codeClassName?: string;
+};
+
 const CodeBlockBody = memo(
-  ({
-    tokenized,
-    showLineNumbers,
-    className,
-  }: {
-    tokenized: TokenizedCode;
-    showLineNumbers: boolean;
-    className?: string;
-  }) => {
+  ({ tokenized, showLineNumbers, className, codeClassName }: CodeBlockBodyProps) => {
     const preStyle = useMemo(
       () => ({
         backgroundColor: tokenized.bg,
@@ -270,6 +270,7 @@ const CodeBlockBody = memo(
           className={cn(
             "font-mono text-sm",
             showLineNumbers && "[counter-increment:line_0] [counter-reset:line]",
+            codeClassName,
           )}
         >
           {keyedLines.map((keyedLine) => (
@@ -354,15 +355,19 @@ export const CodeBlockActions = ({
   </div>
 );
 
+type CodeBlockContentProps = {
+  code: string;
+  language: BundledLanguage;
+  showLineNumbers?: boolean;
+  className?: string;
+};
+
 export const CodeBlockContent = ({
   code,
   language,
   showLineNumbers = false,
-}: {
-  code: string;
-  language: BundledLanguage;
-  showLineNumbers?: boolean;
-}) => {
+  className,
+}: CodeBlockContentProps) => {
   // Memoized raw tokens for immediate display
   const rawTokens = useMemo(() => createRawTokens(code), [code]);
 
@@ -400,7 +405,11 @@ export const CodeBlockContent = ({
 
   return (
     <div className="relative overflow-auto">
-      <CodeBlockBody showLineNumbers={showLineNumbers} tokenized={tokenized} />
+      <CodeBlockBody
+        showLineNumbers={showLineNumbers}
+        tokenized={tokenized}
+        codeClassName={className}
+      />
     </div>
   );
 };
@@ -410,6 +419,7 @@ export const CodeBlock = ({
   language,
   showLineNumbers = false,
   className,
+  contentClassName,
   children,
   ...props
 }: CodeBlockProps) => {
@@ -419,7 +429,12 @@ export const CodeBlock = ({
     <CodeBlockContext.Provider value={contextValue}>
       <CodeBlockContainer className={className} language={language} {...props}>
         {children}
-        <CodeBlockContent code={code} language={language} showLineNumbers={showLineNumbers} />
+        <CodeBlockContent
+          code={code}
+          language={language}
+          showLineNumbers={showLineNumbers}
+          className={contentClassName}
+        />
       </CodeBlockContainer>
     </CodeBlockContext.Provider>
   );
