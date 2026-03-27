@@ -35,7 +35,7 @@ export function MessageBubble({ message, onFork }: MessageBubbleProps) {
         {message.role === "assistant" ? (
           <AgentMessageContent message={message} onFork={onFork} />
         ) : (
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          <p className="whitespace-pre-wrap break-words">{message.content}</p>
         )}
       </div>
     </div>

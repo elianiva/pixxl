@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { rpc } from "@/lib/rpc";
 import { ChatInput, type ChatSubmitOptions } from "./chat-input";
 import { MessageList } from "./chat/message-list";
-import { ChatScrollContainer } from "./chat/chat-scroll-container";
 import { type ModelOption } from "./model-selector";
 import { type ThinkingLevel } from "./thinking-level-selector";
 import { useAgentActions, useMessages, useIsStreaming } from "../hooks";
@@ -81,10 +80,7 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
   };
 
   const handleFork = (content: string) => {
-    // Fork creates a follow-up request with the response content as context
-    // This allows getting an alternative response
     if (!initialModel) return;
-
     console.log("implement this", content);
   };
 
@@ -97,26 +93,31 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
   };
 
   return (
-    <div className="flex-1 flex flex-col w-full">
-      {messages.length < 1 ? (
-        <EmptyChatState />
-      ) : (
-        <ChatScrollContainer className="flex-1 overflow-y-auto py-4 max-w-3xl w-full mx-auto pt-18">
-          <MessageList messages={messages} isStreaming={isStreaming} onFork={handleFork} />
-        </ChatScrollContainer>
-      )}
-      <ChatInput
-        onSubmit={handleSubmit}
-        onAbort={abortMessage}
-        isStreaming={isStreaming}
-        queuedMessages={queuedMessages}
-        onQueueClick={handleQueueClick}
-        model={initialModel}
-        thinkingLevel={initialThinkingLevel}
-        onModelChange={handleModelChange}
-        onThinkingLevelChange={handleThinkingLevelChange}
-        placeholder="Ask anything..."
-      />
+    <div className="h-full flex flex-col">
+      {/* Scrollable message area */}
+      <div className="flex-1 overflow-y-auto overscroll-y-none py-4 px-4">
+        {messages.length < 1 ? (
+          <EmptyChatState />
+        ) : (
+          <div className="max-w-3xl mx-auto">
+            <MessageList messages={messages} isStreaming={isStreaming} onFork={handleFork} />
+          </div>
+        )}
+      </div>
+      <div className="pb-2 w-full max-w-3xl mx-auto">
+        <ChatInput
+          onSubmit={handleSubmit}
+          onAbort={abortMessage}
+          isStreaming={isStreaming}
+          queuedMessages={queuedMessages}
+          onQueueClick={handleQueueClick}
+          model={initialModel}
+          thinkingLevel={initialThinkingLevel}
+          onModelChange={handleModelChange}
+          onThinkingLevelChange={handleThinkingLevelChange}
+          placeholder="Ask anything..."
+        />
+      </div>
     </div>
   );
 }

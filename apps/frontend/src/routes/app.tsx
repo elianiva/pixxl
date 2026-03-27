@@ -154,15 +154,15 @@ function RouteComponent() {
           },
         }}
       />
-      <SidebarInset>
-        <header className="fixed z-10 bg-background flex h-14 w-full shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 border-b">
+      <SidebarInset className="h-[calc(100svh-0.5rem)] flex flex-col">
+        <header className="flex-none bg-background flex h-14 w-full items-center gap-2 border-b z-10">
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
             <AppBreadcrumb />
           </div>
         </header>
-        <div className="flex flex-col flex-1 gap-4 w-full">
+        <div className="flex-1 min-h-0">
           <Outlet />
         </div>
       </SidebarInset>
