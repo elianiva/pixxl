@@ -53,10 +53,11 @@ interface ChatInputProps {
   agentId?: string;
 }
 
-/** Format number compactly: 12500 -> 12.5k */
+/** Format number compactly: 12500 -> 12.5k, 1_250_000 -> 1.2m */
 function fmtCompact(n: number): string {
-  if (n < 1000) return `${n}`;
-  return `${(n / 1000).toFixed(1)}k`;
+  if (n < 1_000) return `${n}`;
+  if (n < 1_000_000) return `${(n / 1_000).toFixed(1)}k`;
+  return `${(n / 1_000_000).toFixed(1)}m`;
 }
 
 export function ChatInput({
@@ -227,13 +228,12 @@ export function ChatInput({
                         strokeWidth="3"
                         strokeLinecap="round"
                         strokeDasharray={`${(usage.totalTokens / contextWindow) * 50.27} 50.27`}
-                        className={`transition-all ${
-                          usage.totalTokens / contextWindow > 0.9
+                        className={`transition-all ${usage.totalTokens / contextWindow > 0.9
                             ? "text-destructive"
                             : usage.totalTokens / contextWindow > 0.7
                               ? "text-amber-500"
                               : "text-emerald-500"
-                        }`}
+                          }`}
                         transform="rotate(-90 10 10)"
                       />
                     </svg>
