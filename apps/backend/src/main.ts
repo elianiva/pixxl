@@ -33,7 +33,8 @@ const handler = new RPCHandler(router, {
         if (error.data) {
           console.error("Data:", error.data);
         } else if (error.cause) {
-          console.error(error.cause);
+          const issues = (error.cause as any).issues;
+          console.error(issues ?? error.cause);
         } else {
           console.error(error);
         }

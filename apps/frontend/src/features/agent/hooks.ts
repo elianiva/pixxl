@@ -138,10 +138,7 @@ export function useMessages(agentId?: string): Message[] {
 
   return useMemo(() => {
     // First pass: collect tool results keyed by (parentId, toolCallId)
-    const toolResults = new Map<
-      string,
-      { output?: string; error?: string; isError: boolean }
-    >();
+    const toolResults = new Map<string, { output?: string; error?: string; isError: boolean }>();
 
     for (const item of historyMessages) {
       const entry = item.entry as {

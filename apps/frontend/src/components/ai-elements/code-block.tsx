@@ -165,11 +165,11 @@ const createRawTokens = (code: string): TokenizedCode => ({
     line === ""
       ? []
       : [
-        {
-          color: "inherit",
-          content: line,
-        } as ThemedToken,
-      ],
+          {
+            color: "inherit",
+            content: line,
+          } as ThemedToken,
+        ],
   ),
 });
 

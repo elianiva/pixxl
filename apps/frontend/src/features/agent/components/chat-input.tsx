@@ -1,9 +1,24 @@
 import { useEffectEvent, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { RiAddLine, RiArrowUpLine, RiStopLine } from "@remixicon/react";
+import {
+  createTooltipHandle,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  RiAddLine,
+  RiArrowDownLine,
+  RiArrowUpLine,
+  RiDatabase2Line,
+  RiStopLine,
+} from "@remixicon/react";
+import type { PiUsageSchemaType } from "@pixxl/shared";
 import { ModelSelector, type ModelOption } from "./model-selector";
 import { ThinkingLevelSelector, type ThinkingLevel } from "./thinking-level-selector";
+
+const tooltipHandle = createTooltipHandle();
 
 interface QueuedMessage {
   text: string;
@@ -27,6 +42,15 @@ interface ChatInputProps {
   thinkingLevel: ThinkingLevel;
   onModelChange: (model: ModelOption) => void;
   onThinkingLevelChange: (level: ThinkingLevel) => void;
+  usage?: PiUsageSchemaType;
+  /** Context window size in tokens for progress bar calculation */
+  contextWindow?: number;
+}
+
+/** Format number compactly: 12500 -> 12.5k */
+function fmtCompact(n: number): string {
+  if (n < 1000) return `${n}`;
+  return `${(n / 1000).toFixed(1)}k`;
 }
 
 export function ChatInput({
@@ -41,6 +65,8 @@ export function ChatInput({
   thinkingLevel,
   onModelChange,
   onThinkingLevelChange,
+  usage,
+  contextWindow = 0,
 }: ChatInputProps) {
   const [inputText, setInputText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -162,6 +188,99 @@ export function ChatInput({
           onSelect={onThinkingLevelChange}
           disabled={disabled || isStreaming}
         />
+        <div className="flex-1" />
+        {usage && (
+          <TooltipProvider delay={300}>
+            <div className="flex items-center text-muted-foreground">
+              {/* Context Window Progress - Radial */}
+              <TooltipTrigger
+                handle={tooltipHandle}
+                render={
+                  <div className="flex cursor-default items-center gap-1.5 px-1">
+                    <svg className="size-4" viewBox="0 0 20 20">
+                      {/* Background circle */}
+                      <circle
+                        cx="10"
+                        cy="10"
+                        r="8"
+                        fill="none"
+                        stroke="currentColor"
+                        className="text-mauve-300"
+                        strokeWidth="3"
+                      />
+                      {/* Progress circle */}
+                      <circle
+                        cx="10"
+                        cy="10"
+                        r="8"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeDasharray={`${(usage.totalTokens / contextWindow) * 50.27} 50.27`}
+                        className={`transition-all ${usage.totalTokens / contextWindow > 0.9
+                            ? "text-destructive"
+                            : usage.totalTokens / contextWindow > 0.7
+                              ? "text-amber-500"
+                              : "text-emerald-500"
+                          }`}
+                        transform="rotate(-90 10 10)"
+                      />
+                    </svg>
+                    <span className="tabular-nums text-muted-foreground">
+                      {Math.round((usage.totalTokens / contextWindow) * 100)}%/
+                      {fmtCompact(contextWindow)}
+                    </span>
+                  </div>
+                }
+                payload={`Context window: ${usage.totalTokens.toLocaleString()} / ${contextWindow.toLocaleString()} tokens`}
+              />
+              {/* Token Stats */}
+              <TooltipTrigger
+                handle={tooltipHandle}
+                render={
+                  <span className="flex cursor-default items-center gap-0.5 px-1">
+                    <RiArrowUpLine className="size-3" />
+                    {fmtCompact(usage.input)}
+                  </span>
+                }
+                payload={`Input tokens: ${usage.input.toLocaleString()}`}
+              />
+              <TooltipTrigger
+                handle={tooltipHandle}
+                render={
+                  <span className="flex cursor-default items-center gap-0.5 px-1">
+                    <RiArrowDownLine className="size-3" />
+                    {fmtCompact(usage.output)}
+                  </span>
+                }
+                payload={`Output tokens: ${usage.output.toLocaleString()}`}
+              />
+              {usage.cacheRead > 0 && (
+                <TooltipTrigger
+                  handle={tooltipHandle}
+                  render={
+                    <span className="flex cursor-default items-center gap-0.5 px-1">
+                      <RiDatabase2Line className="size-3" />
+                      {fmtCompact(usage.cacheRead)}
+                    </span>
+                  }
+                  payload={`Cache read: ${usage.cacheRead.toLocaleString()}`}
+                />
+              )}
+              <TooltipTrigger
+                handle={tooltipHandle}
+                render={
+                  <span className="cursor-default font-medium px-1">
+                    ${usage.cost.total.toFixed(3)}
+                  </span>
+                }
+                payload={`Total cost: $${usage.cost.total.toFixed(6)}`}
+              />
+              <TooltipContent handle={tooltipHandle} />
+            </div>
+          </TooltipProvider>
+        )}
       </div>
     </div>
   );

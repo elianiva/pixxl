@@ -1,7 +1,7 @@
 import { type AgentSession, type SessionManager } from "@mariozechner/pi-coding-agent";
 import { Effect, PubSub, Stream } from "effect";
 import type { AgentEvent, AgentMetadata } from "@pixxl/shared";
-import type { AgentModel, AgentThinkingLevel } from "@pixxl/shared";
+import type { AgentModel, AgentModelRef, AgentThinkingLevel } from "@pixxl/shared";
 import { getModel } from "@mariozechner/pi-ai";
 
 export type AgentStatus = "idle" | "streaming" | "error";
@@ -51,7 +51,7 @@ export class AgentInstance {
     void this.session.abort();
   }
 
-  setModel(model: AgentModel): Effect.Effect<void, Error> {
+  setModel(model: AgentModelRef): Effect.Effect<void, Error> {
     return Effect.tryPromise({
       try: () => this.session.setModel(getModel(model.provider as never, model.id as never)),
       catch: (cause) => new Error(`Failed to set model: ${String(cause)}`),
@@ -74,13 +74,21 @@ export class AgentInstance {
     return this.session.getFollowUpMessages() ?? [];
   }
 
-  get currentModel(): { provider: string; id: string; name: string } | undefined {
+  get currentModel(): AgentModel | undefined {
     const model = this.session.model;
     if (!model) return undefined;
     return {
-      provider: String(model.provider),
-      id: String(model.id),
-      name: String(model.name ?? model.id),
+      id: model.id,
+      name: model.name ?? model.id,
+      api: model.api,
+      provider: model.provider,
+      baseUrl: model.baseUrl,
+      reasoning: model.reasoning,
+      input: model.input,
+      cost: model.cost,
+      contextWindow: model.contextWindow,
+      maxTokens: model.maxTokens,
+      headers: model.headers,
     };
   }
 

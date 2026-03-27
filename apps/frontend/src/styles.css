@@ -152,11 +152,11 @@ body,
   @apply rounded-none border-accent p-0 gap-0;
 }
 
-[data-streamdown="code-block-header"]>span {
+[data-streamdown="code-block-header"] > span {
   @apply capitalize;
 }
 
-[data-streamdown="code-block-header"]+div {
+[data-streamdown="code-block-header"] + div {
   @apply -mt-8;
 }
 

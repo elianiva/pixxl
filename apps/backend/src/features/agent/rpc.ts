@@ -129,7 +129,7 @@ export const getAgentHistoryRpc = os.agent.getAgentHistory.handler(({ input }) =
           if (!header) return null;
 
           const sessionName = instance.sessionManager.getSessionName();
-          const entries = instance.sessionManager.getEntries();
+          const _entries = instance.sessionManager.getEntries();
           const leafId = instance.sessionManager.getLeafId();
 
           return {
@@ -140,7 +140,70 @@ export const getAgentHistoryRpc = os.agent.getAgentHistory.handler(({ input }) =
             cwd: header.cwd,
             sessionName,
             leafId,
-            entries,
+            entries: _entries,
+          };
+        },
+      });
+    }).pipe(Effect.provide(AgentService.layer)),
+  ),
+);
+
+export const getAgentUsageRpc = os.agent.getAgentUsage.handler(({ input }) =>
+  runPromise(
+    Effect.gen(function* () {
+      const service = yield* AgentService;
+      const instanceOpt = yield* service.getInstance({ agentId: input.agentId });
+
+      return Option.match(instanceOpt, {
+        onNone: () => null,
+        onSome: (instance) => {
+          // Calculate usage from session entries - sum up all assistant message usage
+          let input = 0;
+          let output = 0;
+          let cacheRead = 0;
+          let cacheWrite = 0;
+          let costTotal = 0;
+
+          for (const entry of instance.sessionManager.getEntries()) {
+            if (entry.type === "message" && entry.message?.role === "assistant") {
+              const msg = entry.message as {
+                usage?: {
+                  input?: number;
+                  output?: number;
+                  cacheRead?: number;
+                  cacheWrite?: number;
+                  cost?: { total?: number };
+                };
+              };
+              if (msg.usage) {
+                input += msg.usage.input ?? 0;
+                output += msg.usage.output ?? 0;
+                cacheRead += msg.usage.cacheRead ?? 0;
+                cacheWrite += msg.usage.cacheWrite ?? 0;
+                costTotal += msg.usage.cost?.total ?? 0;
+              }
+            }
+          }
+
+          const totalTokens = input + output + cacheRead + cacheWrite;
+          const contextWindow = instance.currentModel?.contextWindow;
+
+          return {
+            usage: {
+              input,
+              output,
+              cacheRead,
+              cacheWrite,
+              totalTokens,
+              cost: {
+                input,
+                output,
+                cacheRead,
+                cacheWrite,
+                total: costTotal,
+              },
+            },
+            contextWindow,
           };
         },
       });

@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 import type { SessionEntry, SessionInfo } from "@mariozechner/pi-coding-agent";
-import { PiSessionEntrySchema, PiSessionInfoSchema } from "./pi";
+import { PiSessionEntrySchema, PiSessionInfoSchema, PiUsageSchema } from "./pi";
 
 export const CreateAgentInputSchema = Schema.Struct({
   id: Schema.String,
@@ -72,10 +72,25 @@ export const AgentThinkingLevelSchema = Schema.Literals([
   "xhigh",
 ]);
 
+export const AgentCostSchema = Schema.Struct({
+  input: Schema.Number,
+  output: Schema.Number,
+  cacheRead: Schema.Number,
+  cacheWrite: Schema.Number,
+});
+
 export const AgentModelSchema = Schema.Struct({
-  provider: Schema.String,
   id: Schema.String,
   name: Schema.String,
+  api: Schema.String,
+  provider: Schema.String,
+  baseUrl: Schema.String,
+  reasoning: Schema.Boolean,
+  input: Schema.Array(Schema.Literals(["text", "image"])),
+  cost: AgentCostSchema,
+  contextWindow: Schema.Number,
+  maxTokens: Schema.Number,
+  headers: Schema.optional(Schema.Record(Schema.String, Schema.String)),
 });
 
 export const PiAvailableModelSchema = Schema.Struct({
@@ -99,10 +114,16 @@ export const PromptAgentInputSchema = Schema.Struct({
   text: Schema.String,
 });
 
+export const AgentModelRefSchema = Schema.Struct({
+  provider: Schema.String,
+  id: Schema.String,
+  name: Schema.String,
+});
+
 export const ConfigureAgentSessionInputSchema = Schema.Struct({
   projectId: Schema.String,
   agentId: Schema.String,
-  model: AgentModelSchema,
+  model: AgentModelRefSchema,
   thinkingLevel: AgentThinkingLevelSchema,
 });
 
@@ -130,6 +151,16 @@ export const AbortAgentInputSchema = Schema.Struct({
   agentId: Schema.String,
 });
 
+export const GetAgentUsageInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+});
+
+export const AgentUsageSchema = Schema.Struct({
+  usage: Schema.optionalKey(PiUsageSchema),
+  contextWindow: Schema.optionalKey(Schema.Number),
+});
+
 // Re-export Pi types (unprefixed - the actual types from Pi packages)
 export type PiSessionInfo = SessionInfo;
 export type PiSessionEntry = SessionEntry;
@@ -147,6 +178,8 @@ export const AgentRuntimeStateSchema = Schema.Struct({
   currentSessionFile: Schema.String,
   model: Schema.optionalKey(AgentModelSchema),
   thinkingLevel: AgentThinkingLevelSchema,
+  usage: Schema.optionalKey(PiUsageSchema),
+  contextWindow: Schema.optionalKey(Schema.Number),
 });
 
 export const AgentHistorySchema = Schema.Struct({
@@ -240,6 +273,7 @@ export type SwitchSessionInput = typeof SwitchSessionInputSchema.Type;
 export type ListAttachableSessionsInput = typeof ListAttachableSessionsInputSchema.Type;
 export type AgentThinkingLevel = typeof AgentThinkingLevelSchema.Type;
 export type AgentModel = typeof AgentModelSchema.Type;
+export type AgentModelRef = typeof AgentModelRefSchema.Type;
 export type PiAvailableModel = typeof PiAvailableModelSchema.Type;
 export type PiAvailableModelList = typeof PiAvailableModelListSchema.Type;
 export type AgentFrontendConfig = typeof AgentFrontendConfigSchema.Type;
@@ -250,6 +284,8 @@ export type EnqueueAgentPromptInput = typeof EnqueueAgentPromptInputSchema.Type;
 export type GetAgentRuntimeInput = typeof GetAgentRuntimeInputSchema.Type;
 export type GetAgentHistoryInput = typeof GetAgentHistoryInputSchema.Type;
 export type AbortAgentInput = typeof AbortAgentInputSchema.Type;
+export type GetAgentUsageInput = typeof GetAgentUsageInputSchema.Type;
+export type AgentUsage = typeof AgentUsageSchema.Type;
 export type PiSessionInfoList = typeof PiSessionInfoListSchema.Type;
 export type AgentRuntimeState = typeof AgentRuntimeStateSchema.Type;
 export type AgentHistory = typeof AgentHistorySchema.Type;

@@ -17,7 +17,9 @@ import {
   GetAgentRuntimeInputSchema,
   GetAgentHistoryInputSchema,
   AbortAgentInputSchema,
+  GetAgentUsageInputSchema,
   AgentRuntimeStateSchema,
+  AgentUsageSchema,
   PiSessionInfoListSchema,
   AgentHistorySchema,
   AgentEventSchema,
@@ -67,6 +69,10 @@ export const getAgentRuntimeContract = oc
 export const getAgentHistoryContract = oc
   .input(Schema.toStandardSchemaV1(GetAgentHistoryInputSchema))
   .output(Schema.toStandardSchemaV1(Schema.NullOr(AgentHistorySchema)));
+
+export const getAgentUsageContract = oc
+  .input(Schema.toStandardSchemaV1(GetAgentUsageInputSchema))
+  .output(Schema.toStandardSchemaV1(Schema.NullOr(AgentUsageSchema)));
 
 export const configureAgentSessionContract = oc
   .input(Schema.toStandardSchemaV1(ConfigureAgentSessionInputSchema))

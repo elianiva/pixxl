@@ -46,6 +46,14 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
     queryFn: () => rpc.agent.getAgentRuntime({ projectId, agentId }),
   });
 
+  // Poll usage separately since it changes frequently
+  const { data: usageData } = useQuery({
+    queryKey: ["agent-usage", projectId, agentId],
+    queryFn: () => rpc.agent.getAgentUsage({ projectId, agentId }),
+    refetchInterval: 1000, // Poll every second while streaming
+    refetchIntervalInBackground: false,
+  });
+
   const { data: frontendConfig } = useAgentFrontendConfig();
 
   const queuedMessages: QueuedMessage[] = [
@@ -115,6 +123,8 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
           thinkingLevel={initialThinkingLevel}
           onModelChange={handleModelChange}
           onThinkingLevelChange={handleThinkingLevelChange}
+          usage={usageData?.usage}
+          contextWindow={usageData?.contextWindow}
           placeholder="Ask anything..."
         />
       </div>
