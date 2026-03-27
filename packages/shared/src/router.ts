@@ -23,6 +23,7 @@ import {
   abortAgentContract,
   getAgentFrontendConfigContract,
   listAvailableModelsContract,
+  getAgentSessionDetailsContract,
 } from "./contracts/agent";
 import {
   createTerminalContract,
@@ -66,6 +67,7 @@ export const routerContract = {
     abortAgent: abortAgentContract,
     getAgentFrontendConfig: getAgentFrontendConfigContract,
     listAvailableModels: listAvailableModelsContract,
+    getAgentSessionDetails: getAgentSessionDetailsContract,
   },
   terminal: {
     createTerminal: createTerminalContract,

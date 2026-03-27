@@ -161,6 +161,41 @@ export const AgentUsageSchema = Schema.Struct({
   contextWindow: Schema.optionalKey(Schema.Number),
 });
 
+// Agent session details schema
+export const GetAgentSessionDetailsInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+});
+
+export const AgentSessionStatsSchema = Schema.Struct({
+  totalTokens: Schema.Number,
+  messageCount: Schema.Number,
+  toolCallCount: Schema.Number,
+  totalCost: Schema.Number,
+});
+
+export const SessionTreeNodeSchema = Schema.Struct({
+  id: Schema.String,
+  parentId: Schema.optional(Schema.String),
+  role: Schema.String,
+  type: Schema.optional(Schema.String),
+  label: Schema.optional(Schema.String),
+  hasChildren: Schema.Boolean,
+  isLeaf: Schema.Boolean,
+});
+
+export const AgentSessionDetailsSchema = Schema.Struct({
+  sessionFile: Schema.String,
+  sessionId: Schema.String,
+  sessionName: Schema.optional(Schema.String),
+  cwd: Schema.String,
+  leafId: Schema.String,
+  createdAt: Schema.optional(Schema.String),
+  updatedAt: Schema.optional(Schema.String),
+  stats: AgentSessionStatsSchema,
+  tree: Schema.Array(SessionTreeNodeSchema),
+});
+
 // Re-export Pi types (unprefixed - the actual types from Pi packages)
 export type PiSessionInfo = SessionInfo;
 export type PiSessionEntry = SessionEntry;
@@ -290,3 +325,7 @@ export type PiSessionInfoList = typeof PiSessionInfoListSchema.Type;
 export type AgentRuntimeState = typeof AgentRuntimeStateSchema.Type;
 export type AgentHistory = typeof AgentHistorySchema.Type;
 export type AgentEvent = typeof AgentEventSchema.Type;
+export type GetAgentSessionDetailsInput = typeof GetAgentSessionDetailsInputSchema.Type;
+export type AgentSessionStats = typeof AgentSessionStatsSchema.Type;
+export type SessionTreeNode = typeof SessionTreeNodeSchema.Type;
+export type AgentSessionDetails = typeof AgentSessionDetailsSchema.Type;

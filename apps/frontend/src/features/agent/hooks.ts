@@ -15,7 +15,9 @@ import {
   streamStore,
   type StreamMessage,
 } from "./stream-store";
+import { getModelsCollection } from "@/features/config/models-collection";
 import type { ChatSubmitOptions } from "./components/chat-input";
+import type { PiAvailableModel } from "@pixxl/shared";
 
 export type MessageBlock =
   | { type: "text"; text: string }
@@ -394,4 +396,11 @@ export function useAgentActions(projectId: string, agentId?: string) {
     configureSession,
     activeAgentId: targetAgentId,
   };
+}
+
+const modelsCollection = getModelsCollection();
+
+export function useModels(): PiAvailableModel[] {
+  const { data: models = [] } = useLiveQuery((q) => q.from({ model: modelsCollection }));
+  return models as PiAvailableModel[];
 }

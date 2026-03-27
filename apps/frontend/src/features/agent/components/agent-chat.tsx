@@ -133,6 +133,8 @@ export function AgentChat({ projectId, agentId }: AgentChatProps) {
           usage={usageData?.usage}
           contextWindow={usageData?.contextWindow}
           placeholder="Ask anything..."
+          projectId={projectId}
+          agentId={agentId}
         />
       </div>
     </div>

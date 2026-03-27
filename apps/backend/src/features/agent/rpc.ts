@@ -84,11 +84,7 @@ export const listAttachableSessionsRpc = os.agent.listAttachableSessions.handler
   runPromise(
     Effect.gen(function* () {
       const service = yield* AgentService;
-      // Need project path - look it up from project service via an agent
-      const agents = yield* service.listAgents({ projectId: input.projectId });
-      if (agents.length === 0) return [];
-      // Get project path from first agent
-      return [];
+      return yield* service.listSessions({ projectId: input.projectId });
     }).pipe(Effect.provide(AgentService.layer)),
   ),
 );
@@ -248,6 +244,103 @@ export const listAvailableModelsRpc = os.agent.listAvailableModels.handler(() =>
     Effect.gen(function* () {
       const service = yield* AgentService;
       return yield* service.listAvailableModels();
+    }).pipe(Effect.provide(AgentService.layer)),
+  ),
+);
+
+export const getAgentSessionDetailsRpc = os.agent.getAgentSessionDetails.handler(({ input }) =>
+  runPromise(
+    Effect.gen(function* () {
+      const service = yield* AgentService;
+      const instanceOpt = yield* service.getInstance({ agentId: input.agentId });
+
+      if (Option.isNone(instanceOpt)) {
+        return null;
+      }
+
+      const instance = instanceOpt.value;
+      const sessionManager = instance.sessionManager;
+
+      // Get session metadata
+      const header = sessionManager.getHeader();
+      const sessionName = sessionManager.getSessionName();
+      const leafId = sessionManager.getLeafId();
+      const entries = sessionManager.getEntries();
+
+      if (!header) {
+        return null;
+      }
+
+      // Calculate stats from entries
+      let totalTokens = 0;
+      let messageCount = 0;
+      let toolCallCount = 0;
+      let totalCost = 0;
+
+      for (const entry of entries) {
+        if (entry.type === "message") {
+          const msg = entry.message as {
+            role?: string;
+            usage?: {
+              input?: number;
+              output?: number;
+              cacheRead?: number;
+              cacheWrite?: number;
+              cost?: { total?: number };
+            };
+          };
+          if (msg.role === "assistant") {
+            messageCount++;
+            if (msg.usage) {
+              totalTokens +=
+                (msg.usage.input ?? 0) +
+                (msg.usage.output ?? 0) +
+                (msg.usage.cacheRead ?? 0) +
+                (msg.usage.cacheWrite ?? 0);
+              totalCost += msg.usage.cost?.total ?? 0;
+            }
+          }
+        }
+      }
+
+      // Build label lookup map from label entries (label entries reference targetId)
+      const labelMap = new Map<string, string>();
+      for (const entry of entries) {
+        if (entry.type === "label") {
+          const labelEntry = entry as { targetId: string; label?: string };
+          if (labelEntry.label) {
+            labelMap.set(labelEntry.targetId, labelEntry.label);
+          }
+        }
+      }
+
+      // Build tree structure
+      const tree = entries.map((entry) => ({
+        id: entry.id ?? "",
+        parentId: entry.parentId ? String(entry.parentId) : undefined,
+        role: (entry as { message?: { role?: string } }).message?.role ?? entry.type ?? "unknown",
+        type: entry.type,
+        label: labelMap.get(entry.id ?? ""),
+        hasChildren: entries.some((e) => e.parentId === entry.id),
+        isLeaf: entry.id === leafId,
+      }));
+
+      return {
+        sessionFile: instance.metadata.pi.sessionFile,
+        sessionId: header.id ?? "",
+        sessionName,
+        cwd: header.cwd ?? "",
+        leafId: leafId ?? "",
+        createdAt: header.timestamp,
+        updatedAt: undefined,
+        stats: {
+          totalTokens,
+          messageCount,
+          toolCallCount,
+          totalCost,
+        },
+        tree,
+      };
     }).pipe(Effect.provide(AgentService.layer)),
   ),
 );

@@ -27,7 +27,7 @@ type AgentServiceShape = {
     agentId: string;
     sessionFile: string;
   }) => Effect.Effect<AgentMetadata, AgentUpdateError>;
-  readonly listSessions: (input: { projectPath: string }) => Effect.Effect<SessionInfo[]>;
+  readonly listSessions: (input: { projectId: string }) => Effect.Effect<SessionInfo[]>;
   readonly listAvailableModels: () => Effect.Effect<PiAvailableModel[]>;
 };
 
@@ -337,10 +337,12 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
       });
 
       const listSessions = Effect.fn("AgentService.listSessions")(function* (input: {
-        projectPath: string;
+        projectId: string;
       }) {
+        const projectPath = yield* getProjectPath(input.projectId);
+        if (!projectPath) return [] as SessionInfo[];
         return yield* Effect.tryPromise({
-          try: () => SessionManager.list(input.projectPath),
+          try: () => SessionManager.list(projectPath),
           catch: () => [] as SessionInfo[],
         });
       });

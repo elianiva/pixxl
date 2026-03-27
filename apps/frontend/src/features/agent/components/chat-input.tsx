@@ -12,11 +12,13 @@ import {
   RiArrowDownLine,
   RiArrowUpLine,
   RiDatabase2Line,
+  RiSettings3Line,
   RiStopLine,
 } from "@remixicon/react";
 import type { PiUsageSchemaType } from "@pixxl/shared";
 import { ModelSelector, type ModelOption } from "./model-selector";
 import { ThinkingLevelSelector, type ThinkingLevel } from "./thinking-level-selector";
+import { AgentSessionDialog } from "./agent-session-dialog";
 
 const tooltipHandle = createTooltipHandle();
 
@@ -45,6 +47,10 @@ interface ChatInputProps {
   usage?: PiUsageSchemaType;
   /** Context window size in tokens for progress bar calculation */
   contextWindow?: number;
+  /** Project ID for session operations */
+  projectId?: string;
+  /** Agent ID for session operations */
+  agentId?: string;
 }
 
 /** Format number compactly: 12500 -> 12.5k */
@@ -67,8 +73,11 @@ export function ChatInput({
   onThinkingLevelChange,
   usage,
   contextWindow = 0,
+  projectId,
+  agentId,
 }: ChatInputProps) {
   const [inputText, setInputText] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = useEffectEvent(() => {
@@ -278,11 +287,39 @@ export function ChatInput({
                 }
                 payload={`Total cost: $${usage.cost.total.toFixed(6)}`}
               />
+              {agentId && projectId && (
+                <TooltipTrigger
+                  handle={tooltipHandle}
+                  render={
+                    <button
+                      type="button"
+                      onClick={() => setSettingsOpen(true)}
+                      className="ml-2 flex items-center justify-center rounded p-1 hover:bg-mauve-200 transition-colors"
+                    >
+                      <RiSettings3Line className="size-3.5 text-muted-foreground hover:text-foreground" />
+                    </button>
+                  }
+                  payload="Session settings"
+                />
+              )}
               <TooltipContent handle={tooltipHandle} />
             </div>
           </TooltipProvider>
         )}
       </div>
+
+      {agentId && projectId && (
+        <AgentSessionDialog
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          agentId={agentId}
+          projectId={projectId}
+          currentModel={model}
+          currentThinkingLevel={thinkingLevel}
+          onModelChange={onModelChange}
+          onThinkingLevelChange={onThinkingLevelChange}
+        />
+      )}
     </div>
   );
 }
