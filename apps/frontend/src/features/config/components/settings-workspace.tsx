@@ -1,7 +1,7 @@
 import { SettingRow } from "./setting-row";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import type { Workspace } from "@pixxl/shared/schema/config";
+import { DEFAULT_CONFIG, type Workspace } from "@pixxl/shared/schema/config";
 import { useBlurSubmitInput } from "../hooks/use-blur-submit";
 
 interface WorkspaceSettingsProps {
@@ -32,7 +32,7 @@ export function WorkspaceSettings({ workspace, onUpdate }: WorkspaceSettingsProp
         </SettingRow>
         <SettingRow label="Auto-save Workspace" description="Remember open projects when closing">
           <Switch
-            checked={workspace.autoSave}
+            checked={workspace.autoSave ?? DEFAULT_CONFIG.workspace.autoSave}
             onCheckedChange={(checked) => onUpdate({ autoSave: checked })}
           />
         </SettingRow>

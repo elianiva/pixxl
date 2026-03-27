@@ -17,9 +17,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLiveQuery } from "@tanstack/react-db";
-import { agentsCollection } from "@/features/agent/agents-collection";
-import { terminalsCollection } from "@/features/terminal/terminals-collection";
-import { commandsCollection } from "@/features/command/commands-collection";
+import { getAgentsCollection } from "@/features/agent/agents-collection";
+import { getTerminalsCollection } from "@/features/terminal/terminals-collection";
+import { getCommandsCollection } from "@/features/command/commands-collection";
 import { generateId } from "@/lib/utils";
 import type { TerminalMetadata } from "@pixxl/shared";
 
@@ -55,7 +55,10 @@ function DashboardPage() {
   const { projectId } = useParams({ from: "/app/$projectId/dashboard/" });
   const navigate = useNavigate();
 
-  // Get counts for stats
+  const agentsCollection = getAgentsCollection(projectId);
+  const terminalsCollection = getTerminalsCollection(projectId);
+  const commandsCollection = getCommandsCollection(projectId);
+
   const terminalsAll = useLiveQuery(terminalsCollection);
   const agentsAll = useLiveQuery(agentsCollection);
   const commandsAll = useLiveQuery(commandsCollection);
@@ -90,7 +93,6 @@ function DashboardPage() {
     (commandsAll.data?.length ?? 0);
 
   function handleCreateTerminal() {
-    if (!terminalsAll.collection) return;
     terminalsCollection.insert({
       id: generateId(),
       name: `Terminal ${(terminalsAll.data?.length ?? 0) + 1}`,
@@ -100,10 +102,11 @@ function DashboardPage() {
   }
 
   function handleCreateAgent() {
-    if (!agentsAll.collection) return;
     agentsCollection.insert({
       id: generateId(),
+      projectId,
       name: `Agent ${(agentsAll.data?.length ?? 0) + 1}`,
+      pi: { sessionFile: "" },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
@@ -119,12 +122,12 @@ function DashboardPage() {
   if (isLoading) return <DashboardSkeleton />;
 
   return (
-    <main className="flex flex-col gap-4 p-4">
+    <main className="flex flex-col gap-4 p-4 pt-16">
       <section className="flex items-baseline justify-between border-b border-border pb-3">
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
             <RiFolderOpenLine className="size-3" />
-            <span className="font-mono truncate max-w-[300px]">{projectId}</span>
+            <span className="font-mono truncate max-w-75">{projectId}</span>
           </div>
           <h1 className="text-lg font-heading font-medium">Dashboard</h1>
         </div>

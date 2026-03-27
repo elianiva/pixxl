@@ -1,61 +1,73 @@
-import { createCollection } from "@tanstack/db";
+import { createCollection, BasicIndex } from "@tanstack/db";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
-import { getDefaultStore } from "jotai/vanilla";
 import { rpc } from "@/lib/rpc";
+import { generateId } from "@/lib/utils";
 import type { TerminalMetadata } from "@pixxl/shared";
 import { queryClient } from "@/lib/query-client";
-import { currentProjectIdAtom } from "@/providers/current-project";
 
-export const store = getDefaultStore();
+function getTerminalsCollectionInternal(projectId: string) {
+  const collection = createCollection(
+    queryCollectionOptions({
+      queryClient,
+      queryKey: ["terminals", projectId],
+      getKey: (item: TerminalMetadata) => item.id,
+      queryFn: async () => {
+        const result = await rpc.terminal.listTerminals({ projectId });
+        return [...result];
+      },
+      onInsert: async ({ transaction }) => {
+        for (const mutation of transaction.mutations) {
+          const modified = mutation.modified;
+          if (!modified.name) continue;
 
-export const terminalsCollection = createCollection(
-  queryCollectionOptions({
-    queryClient,
-    queryKey: () => ["terminals", store.get(currentProjectIdAtom)],
-    getKey: (item: TerminalMetadata) => item.id,
-    queryFn: async () => {
-      const projectId = store.get(currentProjectIdAtom);
-      if (!projectId) return [];
+          await rpc.terminal.createTerminal({
+            id: generateId(),
+            projectId,
+            name: modified.name,
+          });
+        }
+      },
+      onUpdate: async ({ transaction }) => {
+        for (const mutation of transaction.mutations) {
+          await rpc.terminal.updateTerminal({
+            projectId,
+            id: mutation.original.id,
+            name: mutation.modified.name,
+          });
+        }
+      },
+      onDelete: async ({ transaction }) => {
+        for (const mutation of transaction.mutations) {
+          await rpc.terminal.deleteTerminal({
+            projectId,
+            id: mutation.original.id,
+          });
+        }
+      },
+    }),
+  );
 
-      const result = await rpc.terminal.listTerminals({ projectId });
-      return [...result];
-    },
+  collection.createIndex((item) => item.updatedAt, { indexType: BasicIndex });
 
-    onInsert: async ({ transaction }) => {
-      const projectId = store.get(currentProjectIdAtom);
-      if (!projectId) return;
+  return collection;
+}
 
-      for (const mutation of transaction.mutations) {
-        const modified = mutation.modified;
-        if (!modified.name) continue;
+type TerminalsCollection = ReturnType<typeof getTerminalsCollectionInternal>;
 
-        await rpc.terminal.createTerminal({ projectId, name: modified.name });
-      }
-    },
+const cache = new Map<string, TerminalsCollection>();
 
-    onUpdate: async ({ transaction }) => {
-      const projectId = store.get(currentProjectIdAtom);
-      if (!projectId) return;
+export function getTerminalsCollection(projectId: string) {
+  const existing = cache.get(projectId);
+  if (existing) return existing;
 
-      for (const mutation of transaction.mutations) {
-        await rpc.terminal.updateTerminal({
-          projectId,
-          id: mutation.original.id,
-          name: mutation.modified.name,
-        });
-      }
-    },
+  const collection = getTerminalsCollectionInternal(projectId);
 
-    onDelete: async ({ transaction }) => {
-      const projectId = store.get(currentProjectIdAtom);
-      if (!projectId) return;
+  collection.on("status:change", ({ status }) => {
+    if (status === "cleaned-up") {
+      cache.delete(projectId);
+    }
+  });
 
-      for (const mutation of transaction.mutations) {
-        await rpc.terminal.deleteTerminal({
-          projectId,
-          id: mutation.original.id,
-        });
-      }
-    },
-  }),
-);
+  cache.set(projectId, collection);
+  return collection;
+}

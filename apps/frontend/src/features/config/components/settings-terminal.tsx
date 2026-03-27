@@ -9,7 +9,7 @@ import {
 import type { SelectEntry } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import type { Terminal } from "@pixxl/shared/schema/config";
+import { DEFAULT_CONFIG, type Terminal } from "@pixxl/shared/schema/config";
 import { useBlurSubmitSlider } from "../hooks/use-blur-submit";
 
 interface TerminalSettingsProps {
@@ -60,7 +60,7 @@ export function TerminalSettings({ terminal, onUpdate }: TerminalSettingsProps) 
         </SettingRow>
         <SettingRow label="Font Family" description="Monospace font for the terminal">
           <Select
-            value={terminal.fontFamily}
+            value={terminal.fontFamily ?? DEFAULT_CONFIG.terminal.fontFamily}
             onValueChange={(v) => v && onUpdate({ fontFamily: v })}
           >
             <SelectTrigger className="w-40">
@@ -77,7 +77,7 @@ export function TerminalSettings({ terminal, onUpdate }: TerminalSettingsProps) 
         </SettingRow>
         <SettingRow label="Cursor Style" description="Shape of the terminal cursor">
           <Select
-            value={terminal.cursorStyle}
+            value={terminal.cursorStyle ?? DEFAULT_CONFIG.terminal.cursorStyle}
             onValueChange={(v) => v && onUpdate({ cursorStyle: v as Terminal["cursorStyle"] })}
           >
             <SelectTrigger className="w-28">
@@ -94,12 +94,15 @@ export function TerminalSettings({ terminal, onUpdate }: TerminalSettingsProps) 
         </SettingRow>
         <SettingRow label="Cursor Blink" description="Animate cursor when idle">
           <Switch
-            checked={terminal.cursorBlink}
+            checked={terminal.cursorBlink ?? DEFAULT_CONFIG.terminal.cursorBlink}
             onCheckedChange={(checked) => onUpdate({ cursorBlink: checked })}
           />
         </SettingRow>
         <SettingRow label="Shell" description="Default shell to use">
-          <Select value={terminal.shell} onValueChange={(v) => v && onUpdate({ shell: v })}>
+          <Select
+            value={terminal.shell ?? DEFAULT_CONFIG.terminal.shell}
+            onValueChange={(v) => v && onUpdate({ shell: v })}
+          >
             <SelectTrigger className="w-28">
               <SelectValue />
             </SelectTrigger>

@@ -28,10 +28,10 @@ export function createTerminalConnection(terminalId: string, handlers: TerminalE
 
       switch (message.type) {
         case "closed":
-          handlers.onClose(message.reason);
+          handlers.onClose(message.reason ?? "Unknown reason");
           break;
         case "error":
-          handlers.onError(message.message);
+          handlers.onError(message.message ?? "Unknown error");
           break;
       }
     } catch {

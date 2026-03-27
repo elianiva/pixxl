@@ -1,3 +1,5 @@
+import { Switch } from "@/components/ui/switch";
+
 interface SettingRowProps {
   label: string;
   description?: string;
@@ -14,4 +16,13 @@ export function SettingRow({ label, description, children }: SettingRowProps) {
       <div className="shrink-0">{children}</div>
     </div>
   );
+}
+
+interface SettingRowToggleProps {
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}
+
+export function SettingRowToggle({ checked, onCheckedChange }: SettingRowToggleProps) {
+  return <Switch checked={checked} onCheckedChange={onCheckedChange} />;
 }

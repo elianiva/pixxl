@@ -12,7 +12,6 @@ import {
   ProjectCreateError,
   ProjectDeleteError,
   ProjectReadError,
-  ProjectWriteError,
   WorkspaceError,
 } from "./error";
 import { ConfigService } from "../config/service";
@@ -92,7 +91,7 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
             path.join(projectPath, "project.json"),
             JSON.stringify(metadata, null, 2),
           )
-          .pipe(Effect.mapError((cause) => new ProjectWriteError({ projectPath, cause })));
+          .pipe(Effect.mapError((cause) => new ProjectCreateError({ projectPath, cause })));
 
         return metadata;
       });
@@ -203,7 +202,12 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
         return Option.some(project);
       });
 
-      return { createProject, deleteProject, listProjects, getProjectDetail } as const;
+      return {
+        createProject,
+        deleteProject,
+        listProjects,
+        getProjectDetail,
+      } as unknown as ProjectServiceShape;
     }),
   },
 ) {

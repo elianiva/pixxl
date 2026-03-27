@@ -9,10 +9,7 @@ export const projectsCollection = createCollection(
     queryClient,
     queryKey: ["projects"],
     getKey: (item: ProjectMetadata) => item.id,
-    queryFn: async () => {
-      const result = await rpc.project.listProjects({});
-      return [...result];
-    },
+    queryFn: () => rpc.project.listProjects({}) as Promise<ProjectMetadata[]>,
     onInsert: async ({ transaction }) => {
       for (const mutation of transaction.mutations) {
         const modified = mutation.modified;

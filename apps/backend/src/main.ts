@@ -1,7 +1,6 @@
 import { RPCHandler } from "@orpc/server/bun-ws";
 import { onError, ORPCError } from "@orpc/server";
 import { router } from "./router";
-import { getRpcErrorResponse } from "./lib/error";
 import {
   handleTerminalConnection,
   handleTerminalMessage,
@@ -28,44 +27,48 @@ const PORT = Number.parseInt(process.env.HONO_PORT || "3000", 10);
 const handler = new RPCHandler(router, {
   interceptors: [
     onError((error) => {
-      // Check if it's our structured error response
-      const errorResponse = getRpcErrorResponse(error);
-
-      if (errorResponse) {
-        // Log structured error with context
-        console.error(
-          `[${errorResponse.error.feature}] ${errorResponse.error.code}: ${errorResponse.error.message}`,
-        );
-        if (errorResponse.error.details) {
-          console.error("Details:", errorResponse.error.details);
+      if (error instanceof ORPCError) {
+        // Log structured error with code and data
+        console.error(`[RPC Error] ${error.code}: ${error.message}`);
+        if (error.data) {
+          console.error("Data:", error.data);
+        } else if (error.cause) {
+          const issues = (error.cause as any).issues;
+          console.error(issues ?? error.cause);
+        } else {
+          console.error(error);
         }
-
-        // Re-throw as ORPCError with the structured data
-        // orpc will serialize this to the frontend
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: errorResponse.error.message,
-          data: errorResponse,
-        });
+      } else {
+        // Log unexpected errors
+        console.error("[RPC Error] Unhandled error:", error);
       }
-
-      // For unhandled errors, log and throw generic error
-      console.error("Unhandled error:", error);
-      throw new ORPCError("INTERNAL_SERVER_ERROR", {
-        message: error instanceof Error ? error.message : "An unexpected error occurred",
-      });
+      // Re-throw - orpc will serialize to client
+      throw error;
     }),
   ],
 });
 
 Bun.serve<WsData>({
   fetch(req, server) {
-    // Extract terminalId from path before upgrade
     const url = new URL(req.url);
-    const terminalId = url.pathname.match(/^\/terminal\/(.+)$/)?.at(1);
 
+    // Extract terminalId from path
+    const terminalId = url.pathname.match(/^\/terminal\/(.+)$/)?.at(1);
+    if (terminalId) {
+      if (
+        server.upgrade(req, {
+          data: { type: "terminal", terminalId } as TerminalWsData,
+        })
+      ) {
+        return;
+      }
+      return new Response("Upgrade failed", { status: 500 });
+    }
+
+    // Default: RPC
     if (
       server.upgrade(req, {
-        data: terminalId ? { type: "terminal", terminalId: terminalId } : { type: "rpc" },
+        data: { type: "rpc" } as RpcWsData,
       })
     ) {
       return;
@@ -77,12 +80,13 @@ Bun.serve<WsData>({
     async message(ws, message) {
       const data = ws.data as WsData;
 
-      // terminal connection
+      // Terminal connection
       if (data.type === "terminal" && data.terminalId.length > 0) {
         handleTerminalMessage(ws, message.toString());
         return;
       }
 
+      // RPC connection (includes agent streaming)
       await handler.message(ws, message, {
         context: {},
       });

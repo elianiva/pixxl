@@ -1,15 +1,13 @@
 import { Effect, FileSystem, Layer, Option, Path, Schema, ServiceMap } from "effect";
-import { generateId } from "../utils";
 import {
-  EntityNotFoundError,
   EntityDecodeError,
-  EntityEncodeError,
   EntityDirectoryError,
   EntityFileReadError,
   EntityFileWriteError,
   type EntityServiceError,
 } from "./entity-error";
 
+/** Minimal metadata required by all entities stored on disk */
 export type EntityMetadata = {
   readonly id: string;
   readonly name: string;
@@ -17,14 +15,40 @@ export type EntityMetadata = {
   readonly updatedAt: string;
 };
 
-type CreateInputBase = {
+/** Input params for creating an entity */
+export type CreateEntityInput = {
+  readonly id: string;
   readonly projectPath: string;
 };
 
+/** Input params for reading an entity */
+export type GetEntityInput = {
+  readonly projectPath: string;
+  readonly id: string;
+};
+
+/** Input params for updating an entity */
+export type UpdateEntityInput = {
+  readonly id: string;
+  readonly projectPath: string;
+};
+
+/** Input params for deleting an entity */
+export type DeleteEntityInput = {
+  readonly projectPath: string;
+  readonly id: string;
+};
+
+/** Input params for listing entities */
+export type ListEntityInput = {
+  readonly projectPath: string;
+};
+
+/** Definition for a specific entity type */
 export type EntityDefinition<
   TEntity extends EntityMetadata,
-  TCreate extends CreateInputBase,
-  TUpdate = TCreate,
+  TCreate extends object,
+  TUpdate extends object = TCreate,
 > = {
   readonly directoryName: string;
   readonly schema: Schema.Schema<TEntity>;
@@ -32,40 +56,32 @@ export type EntityDefinition<
   readonly update: (current: TEntity, input: TUpdate & { readonly now: string }) => TEntity;
 };
 
-export type EntityOperations<TEntity, TCreate extends CreateInputBase, TUpdate = TCreate> = {
+/** CRUD operations exposed by EntityService.forEntity */
+export type EntityOperations<TEntity, TCreate extends object, TUpdate extends object = TCreate> = {
   readonly create: (
-    input: TCreate & { readonly id: string },
+    input: TCreate & CreateEntityInput,
   ) => Effect.Effect<TEntity, EntityServiceError>;
-  readonly get: (input: {
-    readonly projectPath: string;
-    readonly id: string;
-  }) => Effect.Effect<Option.Option<TEntity>, EntityServiceError>;
-  readonly update: (
-    input: { readonly id: string } & TUpdate,
+  readonly get: (
+    input: GetEntityInput,
   ) => Effect.Effect<Option.Option<TEntity>, EntityServiceError>;
-  readonly delete: (input: {
-    readonly projectPath: string;
-    readonly id: string;
-  }) => Effect.Effect<Option.Option<boolean>, EntityServiceError>;
-  readonly list: (input: {
-    readonly projectPath: string;
-  }) => Effect.Effect<Array<TEntity>, EntityServiceError>;
+  readonly update: (
+    input: TUpdate & UpdateEntityInput,
+  ) => Effect.Effect<Option.Option<TEntity>, EntityServiceError>;
+  readonly delete: (input: DeleteEntityInput) => Effect.Effect<boolean, EntityServiceError>;
+  readonly list: (input: ListEntityInput) => Effect.Effect<Array<TEntity>, EntityServiceError>;
 };
 
 type EntityServiceShape = {
   readonly forEntity: <
     TEntity extends EntityMetadata,
-    TCreate extends CreateInputBase,
-    TUpdate extends CreateInputBase = TCreate,
+    TCreate extends object,
+    TUpdate extends object = TCreate,
   >(
     definition: EntityDefinition<TEntity, TCreate, TUpdate>,
   ) => EntityOperations<TEntity, TCreate, TUpdate>;
 };
 
-/**
- * Helper to map file system errors to entity errors
- */
-const mapFsError = (error: unknown, makeError: (message: string) => EntityServiceError) => {
+const mapFsError = (error: unknown, makeError: (_msg: string) => EntityServiceError) => {
   const message = error instanceof Error ? error.message : String(error);
   return makeError(message);
 };
@@ -79,8 +95,8 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
 
       const forEntity = <
         TEntity extends EntityMetadata,
-        TCreate extends CreateInputBase,
-        TUpdate extends CreateInputBase = TCreate,
+        TCreate extends object,
+        TUpdate extends object = TCreate,
       >(
         definition: EntityDefinition<TEntity, TCreate, TUpdate>,
       ): EntityOperations<TEntity, TCreate, TUpdate> => {
@@ -95,16 +111,17 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
         ) as (content: string) => Effect.Effect<TEntity, unknown, never>;
 
         const create = Effect.fn("EntityService.create")(function* (
-          input: { readonly id: string } & TCreate,
+          input: TCreate & CreateEntityInput,
         ) {
           const directoryPath = entityPath(input.projectPath);
+
           const dirExists = yield* fs
             .exists(directoryPath)
             .pipe(
-              Effect.mapError((e) =>
+              Effect.mapError((_e) =>
                 mapFsError(
-                  e,
-                  (msg) =>
+                  _e,
+                  (_msg) =>
                     new EntityDirectoryError({ directory: directoryPath, operation: "check" }),
                 ),
               ),
@@ -114,10 +131,10 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
             yield* fs
               .makeDirectory(directoryPath, { recursive: true })
               .pipe(
-                Effect.mapError((e) =>
+                Effect.mapError((_e) =>
                   mapFsError(
-                    e,
-                    (msg) =>
+                    _e,
+                    (_msg) =>
                       new EntityDirectoryError({ directory: directoryPath, operation: "create" }),
                   ),
                 ),
@@ -137,24 +154,22 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           yield* fs
             .writeFileString(fp, content)
             .pipe(
-              Effect.mapError((e) =>
-                mapFsError(e, (msg) => new EntityFileWriteError({ filePath: fp })),
+              Effect.mapError((_e) =>
+                mapFsError(_e, (_msg) => new EntityFileWriteError({ filePath: fp })),
               ),
             );
 
           return entity;
         });
 
-        const get = Effect.fn("EntityService.get")(function* (input: {
-          readonly projectPath: string;
-          readonly id: string;
-        }) {
+        const get = Effect.fn("EntityService.get")(function* (input: GetEntityInput) {
           const fp = filePath(input.projectPath, input.id);
+
           const fileExists = yield* fs
             .exists(fp)
             .pipe(
-              Effect.mapError((e) =>
-                mapFsError(e, (msg) => new EntityFileReadError({ filePath: fp })),
+              Effect.mapError((_e) =>
+                mapFsError(_e, (_msg) => new EntityFileReadError({ filePath: fp })),
               ),
             );
 
@@ -165,14 +180,14 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           const content = yield* fs
             .readFileString(fp)
             .pipe(
-              Effect.mapError((e) =>
-                mapFsError(e, (msg) => new EntityFileReadError({ filePath: fp })),
+              Effect.mapError((_e) =>
+                mapFsError(_e, (_msg) => new EntityFileReadError({ filePath: fp })),
               ),
             );
 
           const entity = yield* decodeEntity(content).pipe(
             Effect.mapError(
-              (e) =>
+              (_e) =>
                 new EntityDecodeError({
                   entityId: input.id,
                   directory: entityPath(input.projectPath),
@@ -184,14 +199,15 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
         });
 
         const update = Effect.fn("EntityService.update")(function* (
-          input: { readonly id: string } & TUpdate,
+          input: TUpdate & UpdateEntityInput,
         ) {
           const fp = filePath(input.projectPath, input.id);
+
           const fileExists = yield* fs
             .exists(fp)
             .pipe(
-              Effect.mapError((e) =>
-                mapFsError(e, (msg) => new EntityFileReadError({ filePath: fp })),
+              Effect.mapError((_e) =>
+                mapFsError(_e, (_msg) => new EntityFileReadError({ filePath: fp })),
               ),
             );
 
@@ -202,14 +218,14 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           const content = yield* fs
             .readFileString(fp)
             .pipe(
-              Effect.mapError((e) =>
-                mapFsError(e, (msg) => new EntityFileReadError({ filePath: fp })),
+              Effect.mapError((_e) =>
+                mapFsError(_e, (_msg) => new EntityFileReadError({ filePath: fp })),
               ),
             );
 
           const current = yield* decodeEntity(content).pipe(
             Effect.mapError(
-              (e) =>
+              (_e) =>
                 new EntityDecodeError({
                   entityId: input.id,
                   directory: entityPath(input.projectPath),
@@ -225,53 +241,48 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           yield* fs
             .writeFileString(fp, JSON.stringify(entity, null, 2))
             .pipe(
-              Effect.mapError((e) =>
-                mapFsError(e, (msg) => new EntityFileWriteError({ filePath: fp })),
+              Effect.mapError((_e) =>
+                mapFsError(_e, (_msg) => new EntityFileWriteError({ filePath: fp })),
               ),
             );
 
           return Option.some(entity);
         });
 
-        const remove = Effect.fn("EntityService.delete")(function* (input: {
-          readonly projectPath: string;
-          readonly id: string;
-        }) {
+        const remove = Effect.fn("EntityService.delete")(function* (input: DeleteEntityInput) {
           const fp = filePath(input.projectPath, input.id);
+
           const fileExists = yield* fs
             .exists(fp)
             .pipe(
-              Effect.mapError((e) =>
-                mapFsError(e, (msg) => new EntityFileReadError({ filePath: fp })),
+              Effect.mapError((_e) =>
+                mapFsError(_e, (_msg) => new EntityFileReadError({ filePath: fp })),
               ),
             );
 
-          if (!fileExists) {
-            return Option.none<boolean>();
-          }
+          if (!fileExists) return false;
 
           yield* fs
             .remove(fp)
             .pipe(
-              Effect.mapError((e) =>
-                mapFsError(e, (msg) => new EntityFileWriteError({ filePath: fp })),
+              Effect.mapError((_e) =>
+                mapFsError(_e, (_msg) => new EntityFileWriteError({ filePath: fp })),
               ),
             );
 
-          return Option.some(true);
+          return true;
         });
 
-        const list = Effect.fn("EntityService.list")(function* (input: {
-          readonly projectPath: string;
-        }) {
+        const list = Effect.fn("EntityService.list")(function* (input: ListEntityInput) {
           const directoryPath = entityPath(input.projectPath);
+
           const dirExists = yield* fs
             .exists(directoryPath)
             .pipe(
-              Effect.mapError((e) =>
+              Effect.mapError((_e) =>
                 mapFsError(
-                  e,
-                  (msg) =>
+                  _e,
+                  (_msg) =>
                     new EntityDirectoryError({ directory: directoryPath, operation: "check" }),
                 ),
               ),
@@ -282,10 +293,10 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           const entries = yield* fs
             .readDirectory(directoryPath)
             .pipe(
-              Effect.mapError((e) =>
+              Effect.mapError((_e) =>
                 mapFsError(
-                  e,
-                  (msg) =>
+                  _e,
+                  (_msg) =>
                     new EntityDirectoryError({ directory: directoryPath, operation: "read" }),
                 ),
               ),
@@ -297,11 +308,11 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           return yield* Effect.all(
             files.map((file) =>
               fs.readFileString(path.join(directoryPath, file)).pipe(
-                Effect.mapError((e) => new EntityFileReadError({ filePath: file })),
+                Effect.mapError((_e) => new EntityFileReadError({ filePath: file })),
                 Effect.flatMap((content) =>
                   decodeEntity(content).pipe(
                     Effect.mapError(
-                      (e) => new EntityDecodeError({ entityId: file, directory: directoryPath }),
+                      (_e) => new EntityDecodeError({ entityId: file, directory: directoryPath }),
                     ),
                   ),
                 ),
@@ -321,15 +332,3 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
   static layer = Layer.effect(EntityService, EntityService.make);
   static live = EntityService.layer;
 }
-
-// Re-export entity errors for convenience
-export {
-  EntityNotFoundError,
-  EntityDecodeError,
-  EntityEncodeError,
-  EntityDirectoryError,
-  EntityFileReadError,
-  EntityFileWriteError,
-  type EntityServiceError,
-};
-export { generateId };

@@ -11,3 +11,5 @@ export interface TerminalClientMessage {
   cols?: number;
   rows?: number;
 }
+
+export type TerminalMessage = TerminalServerMessage;

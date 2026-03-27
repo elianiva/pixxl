@@ -103,3 +103,31 @@ export function useBlurSubmitSlider(
     handleValueCommit,
   };
 }
+
+// Variant for controlled select components
+export function useBlurSubmitSelect(value: string, onSubmit: (value: string) => void) {
+  const [localValue, setLocalValue] = useState(value);
+  const originalValueRef = useRef(value);
+
+  // Sync when external value changes
+  useEffect(() => {
+    setLocalValue(value);
+    originalValueRef.current = value;
+  }, [value]);
+
+  const handleValueChange = useCallback(
+    (newValue: string) => {
+      setLocalValue(newValue);
+      if (newValue !== originalValueRef.current) {
+        onSubmit(newValue);
+        originalValueRef.current = newValue;
+      }
+    },
+    [onSubmit],
+  );
+
+  return {
+    localValue,
+    handleValueChange,
+  };
+}

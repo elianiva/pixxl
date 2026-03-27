@@ -14,7 +14,7 @@ import { BunFileSystem, BunPath } from "@effect/platform-bun";
 type CommandServiceShape = {
   readonly createCommand: (
     input: CreateCommandInput,
-  ) => Effect.Effect<Option.Option<CommandMetadata>, CommandNotFoundError | CommandCreateError>;
+  ) => Effect.Effect<Option.Option<CommandMetadata>, CommandCreateError>;
   readonly getCommand: (input: {
     projectId: string;
     id: string;
@@ -65,6 +65,7 @@ export class CommandService extends ServiceMap.Service<CommandService, CommandSe
             projectPath: projectResult.value.path,
             id: input.id,
             name: input.name,
+            projectId: input.projectId,
             command: input.command,
             description: input.description,
           })
@@ -150,13 +151,18 @@ export class CommandService extends ServiceMap.Service<CommandService, CommandSe
         });
       });
 
-      return { createCommand, getCommand, deleteCommand, listCommands } as const;
+      return {
+        createCommand,
+        getCommand,
+        deleteCommand,
+        listCommands,
+      } as unknown as CommandServiceShape;
     }),
   },
 ) {
   static layer = Layer.effect(CommandService, CommandService.make).pipe(
     Layer.provideMerge(EntityService.layer),
-    Layer.provideMerge(ProjectService.layer),
+    Layer.provideMerge(ProjectService.live),
     Layer.provideMerge(ConfigService.layer),
     Layer.provideMerge(Layer.mergeAll(BunFileSystem.layer, BunPath.layer)),
   );

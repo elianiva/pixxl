@@ -10,55 +10,72 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { RiCommandLine, RiRobot2Line, RiTerminalBoxLine } from "@remixicon/react";
-import type { AgentMetadata, ProjectMetadata, TerminalMetadata } from "@pixxl/shared";
+import type {
+  AgentMetadata,
+  CommandMetadata,
+  ProjectMetadata,
+  TerminalMetadata,
+} from "@pixxl/shared";
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   projects: ProjectMetadata[];
   currentProjectId?: string;
   agents: AgentMetadata[];
   terminals: TerminalMetadata[];
+  commands: CommandMetadata[];
   isLoading: boolean;
   onSelectProject?: (project: { id: string }) => void;
   onAddProject?: () => void;
-  onEditAgent?: (agent: AgentMetadata) => void;
-  onEditTerminal?: (terminal: TerminalMetadata) => void;
-  onDeleteAgent?: (id: string) => void;
-  onDeleteTerminal?: (id: string) => void;
-  onDeleteCommand?: (id: string) => void;
-  onAddCommand?: () => void;
-  onNavigateTerminal?: (terminal: TerminalMetadata) => void;
-  onCreateAgent?: (name: string) => void;
-  onCreateTerminal?: (name: string) => void;
+  actions: {
+    agents: {
+      edit?: (agent: AgentMetadata) => void;
+      delete?: (id: string) => void;
+      create?: (name: string) => void;
+    };
+    terminals: {
+      edit?: (terminal: TerminalMetadata) => void;
+      delete?: (id: string) => void;
+      create?: (name: string) => void;
+    };
+    commands: {
+      add?: () => void;
+      delete?: (id: string) => void;
+    };
+  };
 }
 
 const EmptyItem: NavSubItem = { title: "", url: "#", disabled: true };
 
-function createMenuItems<T extends { id: string; name: string }>(options: {
+interface CreateMenuItemsOptions<T extends { id: string; name: string }> {
   items: T[];
   onAdd?: () => void;
+  getUrl?: (item: T) => string;
   onEdit?: (item: T) => void;
   onDelete?: (id: string) => void;
   isLoading: boolean;
   addLabel: string;
-}): NavSubItem[] {
-  const { items, onAdd, onEdit, onDelete, isLoading, addLabel } = options;
-  const addItem: NavSubItem = onAdd
-    ? { title: `+ Add ${addLabel}`, url: "#", onClick: onAdd }
+}
+
+function createMenuItems<T extends { id: string; name: string }>(
+  options: CreateMenuItemsOptions<T>,
+): NavSubItem[] {
+  const addItem: NavSubItem = options.onAdd
+    ? { title: `+ Add ${options.addLabel}`, url: "#", onClick: options.onAdd }
     : EmptyItem;
 
-  if (isLoading || items.length === 0) {
+  if (options.isLoading || options.items.length === 0) {
     return [EmptyItem, addItem];
   }
 
   return [
-    ...items
+    ...options.items
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((item) => ({
         title: item.name,
-        url: "#",
+        url: options.getUrl ? options.getUrl(item) : "#",
         id: item.id,
-        onEdit: onEdit ? () => onEdit(item) : undefined,
-        onDelete: onDelete ? () => onDelete(item.id) : undefined,
+        onEdit: options.onEdit ? () => options.onEdit!(item) : undefined,
+        onDelete: options.onDelete ? () => options.onDelete!(item.id) : undefined,
       })),
     addItem,
   ];
@@ -69,31 +86,27 @@ export function AppSidebar({
   currentProjectId,
   agents,
   terminals,
+  commands,
   isLoading,
   onSelectProject,
   onAddProject,
-  onEditAgent,
-  onEditTerminal,
-  onDeleteAgent,
-  onDeleteTerminal,
-  onDeleteCommand,
-  onAddCommand,
-  onNavigateTerminal,
-  onCreateAgent,
-  onCreateTerminal,
-  ...props
+  actions,
+  ...sidebarProps
 }: AppSidebarProps) {
   const navMain = React.useMemo(
     () => [
       {
         title: "Agents",
-        url: "#",
+        url: currentProjectId ? `/app/${currentProjectId}/agent` : "#",
         icon: <RiRobot2Line />,
         items: createMenuItems({
           items: agents,
-          onAdd: onCreateAgent ? () => onCreateAgent(`Agent ${agents.length + 1}`) : undefined,
-          onEdit: onEditAgent,
-          onDelete: onDeleteAgent,
+          onAdd: actions.agents.create
+            ? () => actions.agents.create!(`Agent ${agents.length + 1}`)
+            : undefined,
+          getUrl: (agent) => `/app/${currentProjectId}/agent/${agent.id}`,
+          onEdit: actions.agents.edit,
+          onDelete: actions.agents.delete,
           isLoading,
           addLabel: "Agent",
         }),
@@ -102,69 +115,37 @@ export function AppSidebar({
         title: "Terminals",
         url: "#",
         icon: <RiTerminalBoxLine />,
-        items: (() => {
-          if (isLoading || terminals.length === 0) {
-            return [
-              EmptyItem,
-              onCreateTerminal
-                ? {
-                    title: "+ Add Terminal",
-                    url: "#",
-                    onClick: () => onCreateTerminal(`Terminal ${terminals.length + 1}`),
-                  }
-                : EmptyItem,
-            ];
-          }
-          return [
-            ...terminals.map((terminal) => ({
-              title: terminal.name,
-              url: "#",
-              id: terminal.id,
-              onClick: onNavigateTerminal ? () => onNavigateTerminal(terminal) : undefined,
-              onEdit: onEditTerminal ? () => onEditTerminal(terminal) : undefined,
-              onDelete: onDeleteTerminal ? () => onDeleteTerminal(terminal.id) : undefined,
-            })),
-            onCreateTerminal
-              ? {
-                  title: "+ Add Terminal",
-                  url: "#",
-                  onClick: () => onCreateTerminal(`Terminal ${terminals.length + 1}`),
-                }
-              : EmptyItem,
-          ];
-        })(),
+        items: createMenuItems({
+          items: terminals,
+          onAdd: actions.terminals.create
+            ? () => actions.terminals.create!(`Terminal ${terminals.length + 1}`)
+            : undefined,
+          getUrl: (terminal) => `/app/${currentProjectId}/terminal/${terminal.id}`,
+          onEdit: actions.terminals.edit,
+          onDelete: actions.terminals.delete,
+          isLoading,
+          addLabel: "Terminal",
+        }),
       },
       {
         title: "Commands",
         url: "#",
         icon: <RiCommandLine />,
-        items: createMenuItems({
-          items: [],
-          onAdd: onAddCommand,
-          onDelete: onDeleteCommand,
+        items: createMenuItems<CommandMetadata>({
+          items: commands,
+          onAdd: actions.commands.add,
+          getUrl: (cmd) => `/app/${currentProjectId}/command/${cmd.id}`,
+          onDelete: actions.commands.delete,
           isLoading: false,
           addLabel: "Command",
         }),
       },
     ],
-    [
-      agents,
-      terminals,
-      isLoading,
-      onCreateAgent,
-      onCreateTerminal,
-      onEditAgent,
-      onEditTerminal,
-      onDeleteAgent,
-      onDeleteTerminal,
-      onDeleteCommand,
-      onAddCommand,
-      onNavigateTerminal,
-    ],
+    [actions, agents, commands, currentProjectId, isLoading, terminals],
   );
 
   return (
-    <Sidebar collapsible="icon" {...props}>
+    <Sidebar collapsible="icon" {...sidebarProps}>
       <SidebarHeader>
         <ProjectSwitcher
           projects={projects}

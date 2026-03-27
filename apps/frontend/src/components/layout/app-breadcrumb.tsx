@@ -10,8 +10,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { terminalsCollection } from "@/features/terminal/terminals-collection";
-import { agentsCollection } from "@/features/agent/agents-collection";
+import { getTerminalsCollection } from "@/features/terminal/terminals-collection";
+import { getAgentsCollection } from "@/features/agent";
 
 export function AppBreadcrumb() {
   const projectId = useParams({ select: (p) => p.projectId as string, strict: false });
@@ -27,7 +27,7 @@ export function AppBreadcrumb() {
   const terminal = useLiveQuery(
     (q) =>
       q
-        .from({ terminal: terminalsCollection })
+        .from({ terminal: getTerminalsCollection(projectId) })
         .where(({ terminal }) => eq(terminal.id, terminalId ?? ""))
         .findOne(),
     [terminalId],
@@ -35,7 +35,7 @@ export function AppBreadcrumb() {
   const agent = useLiveQuery(
     (q) =>
       q
-        .from({ agent: agentsCollection })
+        .from({ agent: getAgentsCollection(projectId) })
         .where(({ agent }) => eq(agent.id, agentId ?? ""))
         .findOne(),
     [agentId],

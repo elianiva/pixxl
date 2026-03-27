@@ -2,14 +2,16 @@ packages:
   - "apps/*"
   - "packages/*"
 
-catalog:
-  "@orpc/contract": "^1.13.9"
-  "effect": "4.0.0-beta.36"
-
 allowBuilds:
   esbuild: true
+  koffi: true
   msgpackr-extract: true
   msw: true
+  protobufjs: true
+
+catalog:
+  "@orpc/contract": "^1.13.11"
+  "effect": "4.0.0-beta.36"
 
 pnpm:
   onlyBuiltDependencies:

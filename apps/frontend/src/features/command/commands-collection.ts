@@ -1,52 +1,62 @@
-import { createCollection } from "@tanstack/db";
+import { createCollection, BasicIndex } from "@tanstack/db";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
-import { getDefaultStore } from "jotai/vanilla";
 import { rpc } from "@/lib/rpc";
 import { generateId, type CommandMetadata } from "@pixxl/shared";
 import { queryClient } from "@/lib/query-client";
-import { currentProjectIdAtom } from "@/providers/current-project";
 
-export const store = getDefaultStore();
+function getCommandsCollectionInternal(projectId: string) {
+  const collection = createCollection(
+    queryCollectionOptions({
+      queryClient,
+      queryKey: ["commands", projectId],
+      getKey: (item: CommandMetadata) => item.id,
+      queryFn: async () => rpc.command.listCommands({ projectId }) as Promise<CommandMetadata[]>,
+      onInsert: async ({ transaction }) => {
+        for (const mutation of transaction.mutations) {
+          const modified = mutation.modified;
+          if (!modified.name || !modified.command) continue;
 
-export const commandsCollection = createCollection(
-  queryCollectionOptions({
-    queryClient,
-    queryKey: () => ["commands", store.get(currentProjectIdAtom)],
-    getKey: (item: CommandMetadata) => item.id,
-    queryFn: async () => {
-      const projectId = store.get(currentProjectIdAtom);
-      if (!projectId) return [];
+          await rpc.command.createCommand({
+            id: generateId(),
+            projectId,
+            name: modified.name,
+            command: modified.command,
+            description: modified.description ?? "",
+          });
+        }
+      },
+      onDelete: async ({ transaction }) => {
+        for (const mutation of transaction.mutations) {
+          await rpc.command.deleteCommand({
+            projectId,
+            id: mutation.original.id,
+          });
+        }
+      },
+    }),
+  );
 
-      const result = await rpc.command.listCommands({ projectId });
-      return [...result];
-    },
-    onInsert: async ({ transaction }) => {
-      const projectId = store.get(currentProjectIdAtom);
-      if (!projectId) return;
+  collection.createIndex((item) => item.updatedAt, { indexType: BasicIndex });
 
-      for (const mutation of transaction.mutations) {
-        const modified = mutation.modified;
-        if (!modified.name || !modified.command) continue;
+  return collection;
+}
 
-        await rpc.command.createCommand({
-          id: generateId(),
-          projectId,
-          name: modified.name,
-          command: modified.command,
-          description: modified.description ?? "",
-        });
-      }
-    },
-    onDelete: async ({ transaction }) => {
-      const projectId = store.get(currentProjectIdAtom);
-      if (!projectId) return;
+type CommandsCollection = ReturnType<typeof getCommandsCollectionInternal>;
 
-      for (const mutation of transaction.mutations) {
-        await rpc.command.deleteCommand({
-          projectId,
-          id: mutation.original.id,
-        });
-      }
-    },
-  }),
-);
+const cache = new Map<string, CommandsCollection>();
+
+export function getCommandsCollection(projectId: string) {
+  const existing = cache.get(projectId);
+  if (existing) return existing;
+
+  const collection = getCommandsCollectionInternal(projectId);
+
+  collection.on("status:change", ({ status }) => {
+    if (status === "cleaned-up") {
+      cache.delete(projectId);
+    }
+  });
+
+  cache.set(projectId, collection);
+  return collection;
+}

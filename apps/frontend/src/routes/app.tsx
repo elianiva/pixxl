@@ -5,15 +5,15 @@ import { AppSidebar } from "@/components/layout/sidebar/app-sidebar";
 import { AppBreadcrumb } from "@/components/layout/app-breadcrumb";
 import { Separator } from "@base-ui/react";
 import { useLiveQuery } from "@tanstack/react-db";
-import { agentsCollection } from "@/features/agent/agents-collection";
-import { terminalsCollection } from "@/features/terminal/terminals-collection";
-import { commandsCollection } from "@/features/command/commands-collection";
+import { getAgentsCollection } from "@/features/agent/agents-collection";
+import { getTerminalsCollection } from "@/features/terminal/terminals-collection";
+import { getCommandsCollection } from "@/features/command/commands-collection";
 import { projectsCollection } from "@/features/project/projects-collection";
 import { NewCommandDialog } from "@/features/command/components/new-command-dialog";
 import { NewProjectDialog } from "@/features/project/components/new-project-dialog";
-import { EditAgentDialog } from "@/features/agent/components/edit-agent-dialog";
+import { EditAgentDialog } from "@/features/agent/components/dialog/edit-agent";
 import { EditTerminalDialog } from "@/features/terminal/components/edit-terminal-dialog";
-import type { AgentMetadata, TerminalMetadata } from "@pixxl/shared";
+import type { AgentMetadata, TerminalMetadata, CommandMetadata } from "@pixxl/shared";
 import { generateId } from "@/lib/utils";
 
 export const Route = createFileRoute("/app")({
@@ -25,9 +25,14 @@ function RouteComponent() {
   const navigate = useNavigate();
 
   const projects = useLiveQuery(projectsCollection);
-  const agents = useLiveQuery(agentsCollection);
-  const terminals = useLiveQuery(terminalsCollection);
-  const commands = useLiveQuery(commandsCollection);
+
+  // Get project-scoped collections dynamically based on projectId
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const agents = useLiveQuery(projectId ? getAgentsCollection(projectId) : (null as any));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const terminals = useLiveQuery(projectId ? getTerminalsCollection(projectId) : (null as any));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const commands = useLiveQuery(projectId ? getCommandsCollection(projectId) : (null as any));
 
   function handleSelectProject(project: { id: string }) {
     void navigate({
@@ -52,39 +57,36 @@ function RouteComponent() {
     });
   }
 
-  function handleNavigateTerminal(terminal: TerminalMetadata) {
-    void navigate({
-      to: "/app/$projectId/terminal/$terminalId",
-      params: { projectId, terminalId: terminal.id },
-    });
-  }
-
   function handleCreateAgent(name: string) {
-    if (!agents.collection) return;
-    agentsCollection.insert({
+    if (!projectId) return;
+    getAgentsCollection(projectId).insert({
       id: generateId(),
+      projectId,
       name,
+      pi: { sessionFile: "" },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
   }
 
   function handleUpdateAgent(id: string, name: string) {
-    if (!agents.collection) return;
-    agentsCollection.update(id, (draft) => {
+    if (!projectId) return;
+    // Draft is mutable proxy, don't type it with readonly schema
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getAgentsCollection(projectId).update(id, (draft: any) => {
       draft.name = name;
       draft.updatedAt = new Date().toISOString();
     });
   }
 
   function handleDeleteAgent(id: string) {
-    if (!agents.collection) return;
-    agentsCollection.delete(id);
+    if (!projectId) return;
+    getAgentsCollection(projectId).delete(id);
   }
 
   function handleCreateTerminal(name: string) {
-    if (!terminals.collection) return;
-    terminalsCollection.insert({
+    if (!projectId) return;
+    getTerminalsCollection(projectId).insert({
       id: generateId(),
       name,
       createdAt: new Date().toISOString(),
@@ -93,21 +95,23 @@ function RouteComponent() {
   }
 
   function handleUpdateTerminal(id: string, name: string) {
-    if (!terminals.collection) return;
-    terminalsCollection.update(id, (draft) => {
+    if (!projectId) return;
+    // Draft is mutable proxy, don't type it with readonly schema
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getTerminalsCollection(projectId).update(id, (draft: any) => {
       draft.name = name;
       draft.updatedAt = new Date().toISOString();
     });
   }
 
   function handleDeleteTerminal(id: string) {
-    if (!terminals.collection) return;
-    terminalsCollection.delete(id);
+    if (!projectId) return;
+    getTerminalsCollection(projectId).delete(id);
   }
 
   function handleCreateCommand(input: { name: string; command: string; description?: string }) {
-    if (!commands.collection) return;
-    commandsCollection.insert({
+    if (!projectId) return;
+    getCommandsCollection(projectId).insert({
       id: generateId(),
       name: input.name,
       command: input.command,
@@ -118,8 +122,8 @@ function RouteComponent() {
   }
 
   function handleDeleteCommand(id: string) {
-    if (!commands.collection) return;
-    commandsCollection.delete(id);
+    if (!projectId) return;
+    getCommandsCollection(projectId).delete(id);
   }
 
   return (
@@ -127,33 +131,39 @@ function RouteComponent() {
       <AppSidebar
         projects={projects.data ?? []}
         currentProjectId={projectId}
-        agents={agents.data ?? []}
-        terminals={terminals.data ?? []}
+        agents={(agents.data ?? []) as AgentMetadata[]}
+        terminals={(terminals.data ?? []) as TerminalMetadata[]}
+        commands={(commands.data ?? []) as CommandMetadata[]}
         isLoading={agents.isLoading || terminals.isLoading}
         onSelectProject={handleSelectProject}
         onAddProject={() => setProjectDialogOpen(true)}
-        onEditAgent={setEditingAgent}
-        onEditTerminal={setEditingTerminal}
-        onDeleteAgent={handleDeleteAgent}
-        onDeleteTerminal={handleDeleteTerminal}
-        onDeleteCommand={handleDeleteCommand}
-        onAddCommand={() => setCommandDialogOpen(true)}
-        onNavigateTerminal={handleNavigateTerminal}
-        onCreateAgent={handleCreateAgent}
-        onCreateTerminal={handleCreateTerminal}
+        actions={{
+          agents: {
+            edit: setEditingAgent,
+            delete: handleDeleteAgent,
+            create: handleCreateAgent,
+          },
+          terminals: {
+            edit: setEditingTerminal,
+            delete: handleDeleteTerminal,
+            create: handleCreateTerminal,
+          },
+          commands: {
+            add: () => setCommandDialogOpen(true),
+            delete: handleDeleteCommand,
+          },
+        }}
       />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+      <SidebarInset className="h-[calc(100svh-0.5rem)] flex flex-col">
+        <header className="flex-none bg-background flex h-14 w-full items-center gap-2 border-b z-10">
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
             <AppBreadcrumb />
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          <div className="min-h-screen flex-1 md:min-h-min">
-            <Outlet />
-          </div>
+        <div className="flex-1 min-h-0">
+          <Outlet />
         </div>
       </SidebarInset>
 

@@ -99,6 +99,7 @@ function getErrorMessage(error: unknown, fallback: string): { message: string; d
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [activeSection, setActiveSection] = React.useState<SettingsSection>("workspace");
+  const [dismissedError, setDismissedError] = React.useState<string | null>(null);
   const { data: config, status, error: loadError } = useConfig();
   const updateConfig = useUpdateConfig();
 
@@ -114,6 +115,33 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           activeError,
           status === "error" ? "Error loading config" : "Error saving config",
         );
+
+  // Auto-dismiss error after 5 seconds
+  React.useEffect(() => {
+    if (!errorInfo) {
+      setDismissedError(null);
+      return;
+    }
+
+    const errorKey = `${errorInfo.message}-${errorInfo.details ?? ""}`;
+    if (dismissedError === errorKey) return;
+
+    const timer = setTimeout(() => {
+      setDismissedError(errorKey);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [errorInfo, dismissedError]);
+
+  const isErrorDismissed = errorInfo
+    ? dismissedError === `${errorInfo.message}-${errorInfo.details ?? ""}`
+    : false;
+
+  const handleDismissError = () => {
+    if (errorInfo) {
+      setDismissedError(`${errorInfo.message}-${errorInfo.details ?? ""}`);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -171,14 +199,31 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             )}
           </div>
 
-          {errorInfo && (
-            <div className="border-t bg-destructive/5 px-5 py-3">
-              <p className="text-sm font-medium text-destructive">{errorInfo.message}</p>
-              {errorInfo.details && (
-                <p className="mt-1 whitespace-pre-wrap break-words text-xs text-muted-foreground">
-                  {errorInfo.details}
-                </p>
-              )}
+          {errorInfo && !isErrorDismissed && (
+            <div className="border-t bg-destructive/5 px-5 py-3 flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-destructive">{errorInfo.message}</p>
+                {errorInfo.details && (
+                  <p className="mt-1 whitespace-pre-wrap break-words text-xs text-muted-foreground">
+                    {errorInfo.details}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleDismissError}
+                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Dismiss error"
+              >
+                <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
             </div>
           )}
         </div>

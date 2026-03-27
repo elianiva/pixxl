@@ -1,23 +1,12 @@
-import { Schema, Struct } from "effect";
+import { Schema } from "effect";
 import { oc } from "@orpc/contract";
-import {
-  AgentSchema,
-  AppearanceSchema,
-  AppConfigSchema,
-  TerminalSchema,
-  WorkspaceSchema,
-} from "../schema/config";
+import { AppConfigSchema, PartialAppConfigSchema } from "../schema/config";
 
 export const getConfigContract = oc
   .input(Schema.toStandardSchemaV1(Schema.Void))
   .output(Schema.toStandardSchemaV1(AppConfigSchema));
 
-const UpdateConfigInputSchema = Schema.Struct({
-  workspace: Schema.optionalKey(WorkspaceSchema.mapFields(Struct.map(Schema.optionalKey))),
-  terminal: Schema.optionalKey(TerminalSchema.mapFields(Struct.map(Schema.optionalKey))),
-  agent: Schema.optionalKey(AgentSchema.mapFields(Struct.map(Schema.optionalKey))),
-  appearance: Schema.optionalKey(AppearanceSchema.mapFields(Struct.map(Schema.optionalKey))),
-});
+export const UpdateConfigInputSchema = PartialAppConfigSchema;
 export type UpdateConfigInput = typeof UpdateConfigInputSchema.Type;
 
 export const updateConfigContract = oc
