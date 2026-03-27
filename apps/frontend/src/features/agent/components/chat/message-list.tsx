@@ -28,26 +28,12 @@ interface MessageListProps {
 }
 
 /**
- * Merge consecutive assistant messages into a single message with interleaved steps.
- * This creates ONE Chain of Thought per agent turn, with thinking and tool use
- * appearing as steps within that single chain.
+ * Merge all consecutive assistant messages into a single message.
+ * This collapses multiple assistant messages (think steps, tool calls, text responses)
+ * that arrive as separate messages into one cohesive bubble.
  *
- * Goal: Instead of multiple bubbles each with their own CoT:
- *   -- CoT 1
- *   - thinking
- *   - tool use
- *   -- CoT 2
- *   - thinking
- *   - tool use
- *
- * We want ONE bubble with ONE CoT:
- *   -- CoT
- *   - thinking (part 1)
- *   - tool use 1
- *   - thinking (part 2)
- *   - tool use 2
- *   - thinking (part 3)
- *   - final text response
+ * The merged message interleves blocks in order: thinking → tool calls → text,
+ * preserving the chronological flow of the agent's response.
  */
 function mergeMessagesIntoSingleChain(messages: Message[]): Message[] {
   const result: Message[] = [];
