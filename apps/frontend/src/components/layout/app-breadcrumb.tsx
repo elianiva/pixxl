@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useRouterState, useParams } from "@tanstack/react-router";
+import { useRouterState, useParams, Link } from "@tanstack/react-router";
 import { eq } from "@tanstack/db";
 import { useLiveQuery } from "@tanstack/react-db";
 import {
@@ -59,7 +59,7 @@ export function AppBreadcrumb() {
     <Breadcrumb>
       <BreadcrumbList>
         <BreadcrumbItem>
-          <BreadcrumbLink href={`/app/${projectId}/dashboard`}>
+          <BreadcrumbLink render={<Link to="/app/$projectId/dashboard" params={{ projectId }} />}>
             {breadcrumb.projectName}
           </BreadcrumbLink>
         </BreadcrumbItem>

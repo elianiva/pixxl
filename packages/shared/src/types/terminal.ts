@@ -1,12 +1,13 @@
 export interface TerminalServerMessage {
-  type: "closed" | "error";
+  type: "closed" | "error" | "dead";
   reason?: string;
   message?: string;
   code?: number;
+  exitCode?: number;
 }
 
 export interface TerminalClientMessage {
-  type: "input" | "resize";
+  type: "input" | "resize" | "sync";
   data?: string;
   cols?: number;
   rows?: number;

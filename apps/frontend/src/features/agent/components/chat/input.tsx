@@ -53,10 +53,11 @@ interface ChatInputProps {
   agentId?: string;
 }
 
-/** Format number compactly: 12500 -> 12.5k */
+/** Format number compactly: 12500 -> 12.5k, 1_250_000 -> 1.2m */
 function fmtCompact(n: number): string {
-  if (n < 1000) return `${n}`;
-  return `${(n / 1000).toFixed(1)}k`;
+  if (n < 1_000) return `${n}`;
+  if (n < 1_000_000) return `${(n / 1_000).toFixed(1)}k`;
+  return `${(n / 1_000_000).toFixed(1)}m`;
 }
 
 export function ChatInput({

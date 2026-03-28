@@ -111,7 +111,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
                               className="w-full text-left"
                             />
                           ) : (
-                            <a href={subItem.url} />
+                            <Link to={subItem.url} />
                           )
                         }
                         className="w-full flex-1"

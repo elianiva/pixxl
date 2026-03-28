@@ -15,6 +15,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { RiMoreLine, RiFolderLine, RiShareForwardLine, RiDeleteBinLine } from "@remixicon/react";
+import { Link } from "@tanstack/react-router";
 
 export function NavProjects({
   projects,
@@ -32,7 +33,7 @@ export function NavProjects({
       <SidebarMenu>
         {projects.map((item) => (
           <SidebarMenuItem key={item.name}>
-            <SidebarMenuButton render={<a href={item.url} />}>
+            <SidebarMenuButton render={<Link to={item.url} />}>
               {item.icon}
               <span>{item.name}</span>
             </SidebarMenuButton>

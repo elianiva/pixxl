@@ -1,4 +1,4 @@
-import { Console, Effect, Option } from "effect";
+import { Effect, Option } from "effect";
 import { os } from "@/contract";
 import { TerminalService } from "./service";
 import { terminalManager } from "./manager";
@@ -35,8 +35,8 @@ export const deleteTerminalRpc = os.terminal.deleteTerminal.handler(({ input }) 
   runPromise(
     Effect.gen(function* () {
       const service = yield* TerminalService;
-      const result = yield* service.deleteTerminal(input);
-      return Option.getOrElse(result, () => false);
+      const deleted = yield* service.deleteTerminal(input);
+      return deleted;
     }).pipe(Effect.provide(TerminalService.layer)),
   ),
 );
@@ -55,8 +55,6 @@ export const connectTerminalRpc = os.terminal.connectTerminal.handler(({ input }
     Effect.gen(function* () {
       const configService = yield* ConfigService;
       const config = yield* configService.loadConfig();
-
-      Console.log({ config });
 
       terminalManager.getOrCreate({
         terminalId: input.id,

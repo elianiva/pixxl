@@ -100,13 +100,13 @@ function BuiltinToolBlock({ tool }: { tool: ToolCallFromBlock }) {
     }
     case "bash": {
       const command = (params?.command as string) ?? (params?.cmd as string) ?? "";
-      title = `bash ${truncate(command, 20)}`;
+      title = `bash ${truncate(command, 120)}`;
       content = (
         <span className="inline-flex items-center gap-1.5">
           <span>Run</span>
           <TaskItemFile>
             {getBuiltinToolIcon(tool.name)}
-            <span>{truncate(command, 30)}</span>
+            <span>{truncate(command, 120)}</span>
           </TaskItemFile>
         </span>
       );

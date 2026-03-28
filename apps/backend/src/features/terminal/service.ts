@@ -3,6 +3,7 @@ import {
   TerminalMetadata,
   TerminalMetadataSchema,
   CreateTerminalInput,
+  UpdateTerminalInput,
   EntityService,
 } from "@pixxl/shared";
 import {
@@ -24,15 +25,13 @@ type TerminalServiceShape = {
     projectId: string;
     id: string;
   }) => Effect.Effect<Option.Option<TerminalMetadata>, TerminalNotFoundError>;
-  readonly updateTerminal: (input: {
-    projectId: string;
-    id: string;
-    name: string;
-  }) => Effect.Effect<Option.Option<TerminalMetadata>, TerminalUpdateError>;
+  readonly updateTerminal: (
+    input: UpdateTerminalInput,
+  ) => Effect.Effect<Option.Option<TerminalMetadata>, TerminalUpdateError>;
   readonly deleteTerminal: (input: {
     projectId: string;
     id: string;
-  }) => Effect.Effect<Option.Option<boolean>, TerminalDeleteError>;
+  }) => Effect.Effect<boolean, TerminalDeleteError>;
   readonly listTerminals: (input: {
     projectId: string;
   }) => Effect.Effect<TerminalMetadata[], never>;
@@ -48,15 +47,21 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
       const terminals = entity.forEntity<TerminalMetadata, CreateTerminalInput>({
         directoryName: "terminals",
         schema: TerminalMetadataSchema,
-        create: ({ id, now, name }) => ({
+        create: ({ id, now, name, themeId, fontId, fontSize }) => ({
           id,
           name,
+          themeId: themeId ?? "catppuccin-mocha",
+          fontId: fontId ?? "jetbrains-mono",
+          fontSize: fontSize ?? 14,
           createdAt: now,
           updatedAt: now,
         }),
-        update: (current, { now, name }) => ({
+        update: (current, { now, name, themeId, fontId, fontSize }) => ({
           ...current,
           name,
+          themeId: themeId ?? current.themeId,
+          fontId: fontId ?? current.fontId,
+          fontSize: fontSize ?? current.fontSize,
           updatedAt: now,
         }),
       });
@@ -118,11 +123,9 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
           );
       });
 
-      const updateTerminal = Effect.fn("TerminalService.updateTerminal")(function* (input: {
-        projectId: string;
-        id: string;
-        name: string;
-      }) {
+      const updateTerminal = Effect.fn("TerminalService.updateTerminal")(function* (
+        input: UpdateTerminalInput,
+      ) {
         const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
         if (Option.isNone(projectResult)) {
@@ -135,6 +138,9 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
             id: input.id,
             name: input.name,
             projectId: input.projectId,
+            themeId: input.themeId,
+            fontId: input.fontId,
+            fontSize: input.fontSize,
           })
           .pipe(
             Effect.mapError(
@@ -157,10 +163,10 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
         const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
         if (Option.isNone(projectResult)) {
-          return Option.none<boolean>();
+          return Option.some(false); // Return false instead of none for consistent typing
         }
 
-        return yield* terminals
+        const deleted = yield* terminals
           .delete({
             projectPath: projectResult.value.path,
             id: input.id,
@@ -175,6 +181,8 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
                 }),
             ),
           );
+
+        return Option.some(deleted);
       });
 
       const listTerminals = Effect.fn("TerminalService.listTerminals")(function* (input: {

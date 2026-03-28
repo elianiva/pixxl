@@ -10,7 +10,10 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@fontsource-variable/lilex": "^5.2.1",
     "@fontsource-variable/space-grotesk": "^5.2.10",
+    "@fontsource/iosevka": "^5.2.5",
     "@orpc/client": "^1.13.11",
     "@orpc/contract": "catalog:",
     "@pixxl/shared": "workspace:*",

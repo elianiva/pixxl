@@ -2,11 +2,11 @@ import { useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { rpc } from "@/lib/rpc";
 import { ChatInput, type ChatSubmitOptions } from "./input";
-import { MessageList } from "./message-list";
+import { Timeline } from "./message-list";
 import { type ModelOption } from "../settings/model-selector";
 import { type ThinkingLevel } from "../settings/thinking-selector";
 import { EmptyChatState } from "./empty-state";
-import { useAgentActions, useMessages, useIsStreaming } from "../../hooks";
+import { useAgentActions, useChatTimeline, useIsStreaming } from "../../hooks";
 import { useAgentFrontendConfig } from "@/features/config/hooks/use-config";
 
 import { useLiveQuery } from "@tanstack/react-db";
@@ -37,7 +37,7 @@ function pickInitialModel(
 
 const modelsCollection = getModelsCollection();
 export function Chat({ projectId, agentId }: ChatProps) {
-  const messages = useMessages(agentId);
+  const timeline = useChatTimeline(agentId);
   const { sendMessage, abortMessage, configureSession } = useAgentActions(projectId, agentId);
   const isStreaming = useIsStreaming(agentId);
   const { data: models = [] } = useLiveQuery(modelsCollection);
@@ -103,16 +103,19 @@ export function Chat({ projectId, agentId }: ChatProps) {
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // Count only message items for empty state check
+  const messageCount = timeline.filter((item) => item.kind === "message").length;
+
   return (
     <div className="h-full flex flex-col">
       {/* Scrollable message area */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overscroll-y-none py-4 px-4">
-        {messages.length < 1 ? (
+        {messageCount < 1 ? (
           <EmptyChatState />
         ) : (
           <div className="max-w-3xl mx-auto">
-            <MessageList
-              messages={messages}
+            <Timeline
+              items={timeline}
               isStreaming={isStreaming}
               onFork={handleFork}
               scrollContainerRef={scrollContainerRef}

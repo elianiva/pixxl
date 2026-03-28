@@ -96,6 +96,9 @@ function DashboardPage() {
     terminalsCollection.insert({
       id: generateId(),
       name: `Terminal ${(terminalsAll.data?.length ?? 0) + 1}`,
+      themeId: "catppuccin-mocha",
+      fontId: "jetbrains-mono",
+      fontSize: 14,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
