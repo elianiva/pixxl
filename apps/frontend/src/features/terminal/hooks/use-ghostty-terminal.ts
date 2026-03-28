@@ -92,9 +92,8 @@ export function useGhosttyTerminal(options: GhosttyTerminalOptions): UseGhosttyT
     ws.addEventListener("open", () => {
       console.log(`[Terminal ${options.terminalId}] Connected`);
       options.onConnected?.();
-      // Request scrollback sync for reattach scenarios
-      ws.send(JSON.stringify({ type: "sync" }));
-      // Send initial resize after sync
+      // Backend will auto-send scrollback on CLIENT_CONNECT
+      // Just send initial resize
       ws.send(JSON.stringify({ type: "resize", cols: terminal.cols, rows: terminal.rows }));
     });
 
