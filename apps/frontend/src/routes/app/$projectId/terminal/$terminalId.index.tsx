@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { createFileRoute, useParams } from "@tanstack/react-router";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useGhosttyTerminal } from "@/features/terminal/hooks/use-ghostty-terminal";
@@ -16,6 +16,9 @@ function TerminalPage() {
     from: "/app/$projectId/terminal/$terminalId/",
   });
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isDead, setIsDead] = useState(false);
+  const [exitCode, setExitCode] = useState<number | undefined>();
+  const [sessionKey, setSessionKey] = useState(0); // Used to force re-initialization
 
   const terminalsCollection = getTerminalsCollection(projectId);
   const { data: terminals } = useLiveQuery((q) =>
@@ -24,12 +27,24 @@ function TerminalPage() {
 
   const terminal = terminals?.[0] as TerminalMetadata | undefined;
 
+  const handleDead = useCallback((code?: number) => {
+    setIsDead(true);
+    setExitCode(code);
+  }, []);
+
+  const handleRestart = useCallback(() => {
+    setIsDead(false);
+    setExitCode(undefined);
+    setSessionKey((k) => k + 1); // Force new ghostty instance
+  }, []);
+
   const ghostty = useGhosttyTerminal({
     terminalId,
     containerRef,
     themeId: terminal?.themeId ?? "catppuccin-mocha",
     fontId: terminal?.fontId ?? "jetbrains-mono",
     fontSize: terminal?.fontSize ?? 14,
+    onDead: handleDead,
   });
 
   useEffect(() => {
@@ -42,7 +57,8 @@ function TerminalPage() {
       controller.abort();
       ghostty.dispose();
     };
-  }, [terminal?.themeId, terminal?.fontId, terminal?.fontSize]);
+    // sessionKey forces re-initialization when restarting dead session
+  }, [terminal?.themeId, terminal?.fontId, terminal?.fontSize, sessionKey]);
 
   // Get theme background color for container styling
   const theme = terminalThemes.find((t) => t.id === terminal?.themeId);
@@ -61,10 +77,25 @@ function TerminalPage() {
 
   return (
     <div
-      className="h-full flex items-center justify-center p-4"
+      className="h-full flex items-center justify-center p-4 relative"
       style={{ backgroundColor: bgColor }}
     >
       <div ref={containerRef} className="h-full w-full overflow-hidden rounded" />
+      {isDead && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-background border rounded-lg p-6 shadow-lg max-w-sm text-center space-y-4">
+            <p className="text-muted-foreground">
+              Session ended{exitCode !== undefined ? ` (exit code ${exitCode})` : ""}
+            </p>
+            <button
+              onClick={handleRestart}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+            >
+              Start New Session
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
