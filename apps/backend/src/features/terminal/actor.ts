@@ -30,6 +30,7 @@ export interface TerminalActorContext {
   terminal?: globalThis.Bun.Terminal;
   scrollback: ScrollbackBuffer;
   metadata: SessionMetadata;
+  pendingResize?: { cols: number; rows: number };
 }
 
 export type TerminalActorEvents =
@@ -160,7 +161,22 @@ export const terminalMachine = setup({
         context.terminal.resize(event.cols, event.rows);
         return context.terminal;
       },
+      pendingResize: ({ context, event }) => {
+        if (event.type !== "RESIZE") return context.pendingResize;
+        // If terminal not ready yet, queue the resize
+        if (!context.terminal) {
+          return { cols: event.cols, rows: event.rows };
+        }
+        return undefined;
+      },
     }),
+
+    applyPendingResize: ({ context }) => {
+      if (context.pendingResize && context.terminal) {
+        context.terminal.resize(context.pendingResize.cols, context.pendingResize.rows);
+        context.pendingResize = undefined;
+      }
+    },
 
     killTerminal: assign({
       terminal: ({ context }) => {
@@ -212,15 +228,24 @@ export const terminalMachine = setup({
           target: "starting",
           actions: "addClient",
         },
+        RESIZE: {
+          actions: "resizePty",
+        },
       },
     },
 
     starting: {
       entry: "spawnTerminal",
       always: "active",
+      on: {
+        RESIZE: {
+          actions: "resizePty",
+        },
+      },
     },
 
     active: {
+      entry: "applyPendingResize",
       on: {
         CLIENT_CONNECT: {
           actions: ["addClient", "replayScrollback"],
@@ -255,6 +280,9 @@ export const terminalMachine = setup({
         CLIENT_CONNECT: {
           target: "active",
           actions: ["addClient", "replayScrollback"],
+        },
+        RESIZE: {
+          actions: "resizePty",
         },
         CLOSE: "closing",
         PROCESS_EXIT: "dead",

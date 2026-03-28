@@ -7,8 +7,9 @@ import type { TerminalClientMessage } from "@pixxl/shared";
 interface TerminalWsData {
   type: "terminal";
   terminalId: string;
-  actor: TerminalActor;
-  client: Client;
+  actor?: TerminalActor;
+  client?: Client;
+  pendingResize?: { cols: number; rows: number };
 }
 
 export function handleTerminalConnection(terminalId: string, ws: Bun.ServerWebSocket<unknown>) {
@@ -29,38 +30,55 @@ export function handleTerminalConnection(terminalId: string, ws: Bun.ServerWebSo
       close: () => ws.close(),
     };
 
-    actor.send({ type: "CLIENT_CONNECT", client });
-
     // Extend ws.data with actor and client (preserve terminalId from initial data)
     const data = ws.data as TerminalWsData;
     data.actor = actor;
     data.client = client;
+
+    // Apply any pending resize that arrived before actor was ready
+    if (data.pendingResize) {
+      actor.send({
+        type: "RESIZE",
+        cols: data.pendingResize.cols,
+        rows: data.pendingResize.rows,
+      });
+      data.pendingResize = undefined;
+    }
+
+    // Now connect the client (triggers spawn if first client)
+    actor.send({ type: "CLIENT_CONNECT", client });
   });
 }
 
 export function handleTerminalMessage(ws: Bun.ServerWebSocket<unknown>, message: string) {
   const data = ws.data as TerminalWsData | undefined;
-
-  if (!data?.actor || !data?.client) return;
+  if (!data) return;
 
   try {
     const parsed: TerminalClientMessage = JSON.parse(message);
 
     switch (parsed.type) {
       case "input":
-        if (parsed.data) {
+        if (parsed.data && data.actor) {
           data.actor.send({ type: "INPUT", data: parsed.data });
         }
         break;
       case "resize":
         if (parsed.cols !== undefined && parsed.rows !== undefined) {
-          data.actor.send({ type: "RESIZE", cols: parsed.cols, rows: parsed.rows });
+          if (data.actor) {
+            // Actor ready - send immediately
+            data.actor.send({ type: "RESIZE", cols: parsed.cols, rows: parsed.rows });
+          } else {
+            // Actor not ready yet - store for later
+            data.pendingResize = { cols: parsed.cols, rows: parsed.rows };
+          }
         }
         break;
       case "sync":
         // Trigger scrollback replay by sending CLIENT_CONNECT again
-        // The actor handles replay in the action
-        data.actor.send({ type: "CLIENT_CONNECT", client: data.client });
+        if (data.actor && data.client) {
+          data.actor.send({ type: "CLIENT_CONNECT", client: data.client });
+        }
         break;
     }
   } catch {
