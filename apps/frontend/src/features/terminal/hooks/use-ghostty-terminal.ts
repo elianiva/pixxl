@@ -15,6 +15,7 @@ export interface GhosttyTerminalOptions {
   onError?: (message: string) => void;
   onOutput?: (data: string) => void;
   onClosed?: (reason: string) => void;
+  onDead?: (exitCode?: number) => void;
 }
 
 export interface UseGhosttyTerminalOptions {
@@ -91,7 +92,9 @@ export function useGhosttyTerminal(options: GhosttyTerminalOptions): UseGhosttyT
     ws.addEventListener("open", () => {
       console.log(`[Terminal ${options.terminalId}] Connected`);
       options.onConnected?.();
-      // Send initial resize after fit
+      // Request scrollback sync for reattach scenarios
+      ws.send(JSON.stringify({ type: "sync" }));
+      // Send initial resize after sync
       ws.send(JSON.stringify({ type: "resize", cols: terminal.cols, rows: terminal.rows }));
     });
 
@@ -110,6 +113,11 @@ export function useGhosttyTerminal(options: GhosttyTerminalOptions): UseGhosttyT
           } else if (message.type === "error") {
             console.error(`[Terminal ${options.terminalId}] Error: ${message.message}`);
             options.onError?.(message.message);
+          } else if (message.type === "dead") {
+            console.log(`[Terminal ${options.terminalId}] Process exited: ${message.exitCode}`);
+            // Write visible message to terminal
+            terminal.write(`\r\n\x1b[31m[Session ended - exit code ${message.exitCode ?? "unknown"}]\x1b[0m\r\n`);
+            options.onDead?.(message.exitCode);
           }
         } catch {
           // Ignore malformed messages
