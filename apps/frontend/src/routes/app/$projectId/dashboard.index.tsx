@@ -61,19 +61,13 @@ function DashboardPage() {
 
   // Single queries per collection - derive counts and limited lists from same source
   const terminals = useLiveQuery((q) =>
-    q
-      .from({ terminal: terminalsCollection })
-      .orderBy(({ terminal }) => terminal.updatedAt, "desc"),
+    q.from({ terminal: terminalsCollection }).orderBy(({ terminal }) => terminal.updatedAt, "desc"),
   );
   const agents = useLiveQuery((q) =>
-    q
-      .from({ agent: agentsCollection })
-      .orderBy(({ agent }) => agent.updatedAt, "desc"),
+    q.from({ agent: agentsCollection }).orderBy(({ agent }) => agent.updatedAt, "desc"),
   );
   const commands = useLiveQuery((q) =>
-    q
-      .from({ command: commandsCollection })
-      .orderBy(({ command }) => command.updatedAt, "desc"),
+    q.from({ command: commandsCollection }).orderBy(({ command }) => command.updatedAt, "desc"),
   );
 
   const isLoading = terminals.isLoading || agents.isLoading || commands.isLoading;
@@ -137,11 +131,7 @@ function DashboardPage() {
       </section>
 
       <section className="flex gap-2">
-        <StatPill
-          icon={RiTerminalBoxLine}
-          label="TERMINALS"
-          value={terminalData.length}
-        />
+        <StatPill icon={RiTerminalBoxLine} label="TERMINALS" value={terminalData.length} />
         <StatPill icon={RiRobot2Line} label="AGENTS" value={agentData.length} />
         <StatPill icon={RiCommandLine} label="COMANDS" value={commandData.length} />
         <StatPill icon={RiStackLine} label="KNOWLEDGE" value={mockNotes.length} />
@@ -247,9 +237,7 @@ function DashboardPage() {
                     Commands
                   </CardTitle>
                 </div>
-                <span className="text-[10px] text-muted-foreground">
-                  {commandData.length}
-                </span>
+                <span className="text-[10px] text-muted-foreground">{commandData.length}</span>
               </div>
             </CardHeader>
             <CardContent className="px-3 pb-3 pt-0">

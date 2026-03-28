@@ -26,6 +26,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   isLoading: boolean;
   onSelectProject?: (project: { id: string }) => void;
   onAddProject?: () => void;
+  onOpenSettings?: () => void;
   actions: {
     agents: {
       edit?: (agent: AgentMetadata) => void;
@@ -90,6 +91,7 @@ export function AppSidebar({
   isLoading,
   onSelectProject,
   onAddProject,
+  onOpenSettings,
   actions,
   ...sidebarProps
 }: AppSidebarProps) {
@@ -158,7 +160,7 @@ export function AppSidebar({
         <NavMain items={navMain} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={{ name: "shadcn", email: "m@example.com", avatar: "/avatars/shadcn.jpg" }} />
+        <NavUser onClick={onOpenSettings} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

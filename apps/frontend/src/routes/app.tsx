@@ -16,6 +16,7 @@ import {
   EditTerminalDialog,
   type TerminalSettings,
 } from "@/features/terminal/components/edit-terminal-dialog";
+import { SettingsDialog } from "@/features/config/components/settings-dialog";
 import type { AgentMetadata, TerminalMetadata, CommandMetadata } from "@pixxl/shared";
 import { generateId } from "@/lib/utils";
 
@@ -46,6 +47,7 @@ function RouteComponent() {
 
   const [commandDialogOpen, setCommandDialogOpen] = useState(false);
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<AgentMetadata | null>(null);
   const [editingTerminal, setEditingTerminal] = useState<TerminalMetadata | null>(null);
 
@@ -146,6 +148,7 @@ function RouteComponent() {
         isLoading={agents.isLoading || terminals.isLoading}
         onSelectProject={handleSelectProject}
         onAddProject={() => setProjectDialogOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
         actions={{
           agents: {
             edit: setEditingAgent,
@@ -198,6 +201,7 @@ function RouteComponent() {
         onOpenChange={(open) => !open && setEditingTerminal(null)}
         onUpdate={handleUpdateTerminal}
       />
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </SidebarProvider>
   );
 }
