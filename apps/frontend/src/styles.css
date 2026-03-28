@@ -151,6 +151,12 @@ body,
   }
 }
 
+/* Ghostty-web creates a textarea at 0,0 for input handling - hide its cursor */
+[role="textbox"] > textarea {
+  caret-color: transparent !important;
+  pointer-events: none !important;
+}
+
 [data-streamdown="code-block"] {
   @apply rounded-none border-accent p-0 gap-0;
 }
