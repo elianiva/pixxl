@@ -57,6 +57,11 @@ export function handleTerminalMessage(ws: Bun.ServerWebSocket<unknown>, message:
           data.actor.send({ type: "RESIZE", cols: parsed.cols, rows: parsed.rows });
         }
         break;
+      case "sync":
+        // Trigger scrollback replay by sending CLIENT_CONNECT again
+        // The actor handles replay in the action
+        data.actor.send({ type: "CLIENT_CONNECT", client: data.client });
+        break;
     }
   } catch {
     console.error("[Terminal] Failed to parse message:", message);
