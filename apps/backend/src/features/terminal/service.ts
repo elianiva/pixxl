@@ -32,7 +32,7 @@ type TerminalServiceShape = {
   readonly deleteTerminal: (input: {
     projectId: string;
     id: string;
-  }) => Effect.Effect<Option.Option<boolean>, TerminalDeleteError>;
+  }) => Effect.Effect<boolean, TerminalDeleteError>;
   readonly listTerminals: (input: {
     projectId: string;
   }) => Effect.Effect<TerminalMetadata[], never>;
@@ -164,10 +164,10 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
         const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
         if (Option.isNone(projectResult)) {
-          return Option.none<boolean>();
+          return Option.some(false);  // Return false instead of none for consistent typing
         }
 
-        return yield* terminals
+        const deleted = yield* terminals
           .delete({
             projectPath: projectResult.value.path,
             id: input.id,
@@ -182,6 +182,8 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
                 }),
             ),
           );
+
+        return Option.some(deleted);
       });
 
       const listTerminals = Effect.fn("TerminalService.listTerminals")(function* (input: {
