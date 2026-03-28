@@ -59,43 +59,33 @@ function DashboardPage() {
   const terminalsCollection = getTerminalsCollection(projectId);
   const commandsCollection = getCommandsCollection(projectId);
 
-  const terminalsAll = useLiveQuery(terminalsCollection);
-  const agentsAll = useLiveQuery(agentsCollection);
-  const commandsAll = useLiveQuery(commandsCollection);
-
-  // Get limited lists for display
+  // Single queries per collection - derive counts and limited lists from same source
   const terminals = useLiveQuery((q) =>
     q
       .from({ terminal: terminalsCollection })
-      .orderBy(({ terminal }) => terminal.updatedAt, "desc")
-      .limit(8),
+      .orderBy(({ terminal }) => terminal.updatedAt, "desc"),
   );
   const agents = useLiveQuery((q) =>
     q
       .from({ agent: agentsCollection })
-      .orderBy(({ agent }) => agent.updatedAt, "desc")
-      .limit(8),
+      .orderBy(({ agent }) => agent.updatedAt, "desc"),
   );
   const commands = useLiveQuery((q) =>
     q
       .from({ command: commandsCollection })
-      .orderBy(({ command }) => command.updatedAt, "desc")
-      .limit(6),
+      .orderBy(({ command }) => command.updatedAt, "desc"),
   );
 
-  const isLoading = terminalsAll.isLoading || agentsAll.isLoading || commandsAll.isLoading;
+  const isLoading = terminals.isLoading || agents.isLoading || commands.isLoading;
   const terminalData = terminals.data ?? [];
   const agentData = agents.data ?? [];
   const commandData = commands.data ?? [];
-  const totalResources =
-    (terminalsAll.data?.length ?? 0) +
-    (agentsAll.data?.length ?? 0) +
-    (commandsAll.data?.length ?? 0);
+  const totalResources = terminalData.length + agentData.length + commandData.length;
 
   function handleCreateTerminal() {
     terminalsCollection.insert({
       id: generateId(),
-      name: `Terminal ${(terminalsAll.data?.length ?? 0) + 1}`,
+      name: `Terminal ${terminalData.length + 1}`,
       themeId: "catppuccin-mocha",
       fontId: "jetbrains-mono",
       fontSize: 14,
@@ -108,7 +98,7 @@ function DashboardPage() {
     agentsCollection.insert({
       id: generateId(),
       projectId,
-      name: `Agent ${(agentsAll.data?.length ?? 0) + 1}`,
+      name: `Agent ${agentData.length + 1}`,
       pi: { sessionFile: "" },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -150,10 +140,10 @@ function DashboardPage() {
         <StatPill
           icon={RiTerminalBoxLine}
           label="TERMINALS"
-          value={terminalsAll.data?.length ?? 0}
+          value={terminalData.length}
         />
-        <StatPill icon={RiRobot2Line} label="AGENTS" value={agentsAll.data?.length ?? 0} />
-        <StatPill icon={RiCommandLine} label="COMANDS" value={commandsAll.data?.length ?? 0} />
+        <StatPill icon={RiRobot2Line} label="AGENTS" value={agentData.length} />
+        <StatPill icon={RiCommandLine} label="COMANDS" value={commandData.length} />
         <StatPill icon={RiStackLine} label="KNOWLEDGE" value={mockNotes.length} />
       </section>
 
@@ -258,7 +248,7 @@ function DashboardPage() {
                   </CardTitle>
                 </div>
                 <span className="text-[10px] text-muted-foreground">
-                  {commandsAll.data?.length ?? 0}
+                  {commandData.length}
                 </span>
               </div>
             </CardHeader>
