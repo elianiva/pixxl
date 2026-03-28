@@ -12,3 +12,6 @@ dist-ssr
 __unconfig*
 todos.json
 .reference
+
+# Build outputs
+bin/

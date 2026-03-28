@@ -1,114 +1,49 @@
-import { RPCHandler } from "@orpc/server/bun-ws";
-import { onError, ORPCError } from "@orpc/server";
-import { router } from "./router";
-import {
-  handleTerminalConnection,
-  handleTerminalMessage,
-  handleTerminalClose,
-} from "./features/terminal/ws-handler";
-import type { TerminalActor, Client } from "./features/terminal/actor";
+/**
+ * pixxl server entry point.
+ *
+ * Usage:
+ *   bun src/main.ts              # Development mode
+ *   ./bin/pixxl                  # Compiled binary
+ *
+ * The server provides:
+ *   - RPC over WebSocket at /rpc
+ *   - Terminal I/O at /terminal/{id}
+ *   - Static frontend assets (compiled binary only)
+ */
+
 import * as Bun from "bun";
+import { PORT, IS_COMPILED } from "./config";
+import { handleRequest } from "./http-handler";
+import {
+  handleWsOpen,
+  handleWsMessage,
+  handleWsClose,
+} from "./ws-router";
+import type { WsData } from "./types";
 
-interface TerminalWsData {
-  type: "terminal";
-  terminalId: string;
-  actor?: TerminalActor;
-  client?: Client;
-}
+// Import frontend HTML to trigger full-stack bundling in compiled mode
+// @ts-ignore - This import is handled by Bun's bundler
+import _indexHtml from "../../frontend/dist/index.html" with { type: "file" };
 
-interface RpcWsData {
-  type: "rpc";
-}
-
-type WsData = TerminalWsData | RpcWsData;
-
-const PORT = Number.parseInt(process.env.HONO_PORT || "3000", 10);
-
-const handler = new RPCHandler(router, {
-  interceptors: [
-    onError((error) => {
-      if (error instanceof ORPCError) {
-        // Log structured error with code and data
-        console.error(`[RPC Error] ${error.code}: ${error.message}`);
-        if (error.data) {
-          console.error("Data:", error.data);
-        } else if (error.cause) {
-          const issues = (error.cause as any).issues;
-          console.error(issues ?? error.cause);
-        } else {
-          console.error(error);
-        }
-      } else {
-        // Log unexpected errors
-        console.error("[RPC Error] Unhandled error:", error);
-      }
-      // Re-throw - orpc will serialize to client
-      throw error;
-    }),
-  ],
-});
+console.log(
+  `Starting pixxl server on port ${PORT}${IS_COMPILED ? " (compiled binary mode)" : ""}`
+);
 
 Bun.serve<WsData>({
-  fetch(req, server) {
-    const url = new URL(req.url);
-
-    // Extract terminalId from path
-    const terminalId = url.pathname.match(/^\/terminal\/(.+)$/)?.at(1);
-    if (terminalId) {
-      if (
-        server.upgrade(req, {
-          data: { type: "terminal", terminalId } as TerminalWsData,
-        })
-      ) {
-        return;
-      }
-      return new Response("Upgrade failed", { status: 500 });
-    }
-
-    // Default: RPC
-    if (
-      server.upgrade(req, {
-        data: { type: "rpc" } as RpcWsData,
-      })
-    ) {
-      return;
-    }
-
-    return new Response("Upgrade failed", { status: 500 });
+  async fetch(req, server) {
+    return handleRequest(req, server);
   },
   websocket: {
+    open(ws) {
+      handleWsOpen(ws);
+    },
     async message(ws, message) {
-      const data = ws.data as WsData;
-
-      // Terminal connection
-      if (data.type === "terminal" && data.terminalId.length > 0) {
-        handleTerminalMessage(ws, message.toString());
-        return;
-      }
-
-      // RPC connection (includes agent streaming)
-      await handler.message(ws, message, {
-        context: {},
-      });
+      await handleWsMessage(ws, message);
     },
     close(ws) {
-      const data = ws.data as WsData;
-
-      if (data.type === "terminal") {
-        handleTerminalClose(ws);
-        return;
-      }
-
-      handler.close(ws);
-    },
-    open(ws) {
-      const data = ws.data as WsData;
-
-      if (data.type === "terminal") {
-        handleTerminalConnection(data.terminalId, ws);
-      }
+      handleWsClose(ws);
     },
   },
   port: PORT,
-  development: true, // TODO: get this from env instead
+  development: !IS_COMPILED,
 });
