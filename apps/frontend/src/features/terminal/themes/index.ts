@@ -23,12 +23,22 @@ export const terminalThemes: TerminalTheme[] = [
   // GitHub themes
   { id: "github-dark", name: "GitHub Dark", theme: githubDark, isDark: true },
   { id: "github-dark-dimmed", name: "GitHub Dark Dimmed", theme: githubDarkDimmed, isDark: true },
-  { id: "github-dark-high-contrast", name: "GitHub Dark High Contrast", theme: githubDarkHighContrast, isDark: true },
+  {
+    id: "github-dark-high-contrast",
+    name: "GitHub Dark High Contrast",
+    theme: githubDarkHighContrast,
+    isDark: true,
+  },
   { id: "github-light", name: "GitHub Light", theme: githubLight, isDark: false },
 
   // Catppuccin themes
   { id: "catppuccin-frappe", name: "Catppuccin Frappé", theme: catppuccinFrappe, isDark: true },
-  { id: "catppuccin-macchiato", name: "Catppuccin Macchiato", theme: catppuccinMacchiato, isDark: true },
+  {
+    id: "catppuccin-macchiato",
+    name: "Catppuccin Macchiato",
+    theme: catppuccinMacchiato,
+    isDark: true,
+  },
   { id: "catppuccin-mocha", name: "Catppuccin Mocha", theme: catppuccinMocha, isDark: true },
   { id: "catppuccin-latte", name: "Catppuccin Latte", theme: catppuccinLatte, isDark: false },
 

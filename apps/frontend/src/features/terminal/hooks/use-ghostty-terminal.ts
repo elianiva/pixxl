@@ -116,7 +116,9 @@ export function useGhosttyTerminal(options: GhosttyTerminalOptions): UseGhosttyT
           } else if (message.type === "dead") {
             console.log(`[Terminal ${options.terminalId}] Process exited: ${message.exitCode}`);
             // Write visible message to terminal
-            terminal.write(`\r\n\x1b[31m[Session ended - exit code ${message.exitCode ?? "unknown"}]\x1b[0m\r\n`);
+            terminal.write(
+              `\r\n\x1b[31m[Session ended - exit code ${message.exitCode ?? "unknown"}]\x1b[0m\r\n`,
+            );
             options.onDead?.(message.exitCode);
           }
         } catch {

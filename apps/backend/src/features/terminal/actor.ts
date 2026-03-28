@@ -49,6 +49,9 @@ export const terminalMachine = setup({
   },
   actions: {
     spawnTerminal: assign(({ context }) => {
+      console.log(
+        `[TerminalActor ${context.terminalId}] SPAWNING new terminal with shell: ${context.shell}`,
+      );
       const proc = Bun.spawn({
         cmd: [context.shell],
         cwd: context.cwd ?? Bun.env.HOME,
@@ -69,6 +72,9 @@ export const terminalMachine = setup({
             });
           },
           exit(_terminal, exitCode, _signal) {
+            console.log(
+              `[TerminalActor ${context.terminalId}] PROCESS EXIT: code=${exitCode}, signal=${_signal}`,
+            );
             // Note: Process exit while active notifies clients
             // Process exit while detached triggers PROCESS_EXIT event via subscribe
             // We handle this via actor.subscribe() in createTerminalActor
@@ -98,6 +104,9 @@ export const terminalMachine = setup({
     addClient: assign({
       clients: ({ context, event }) => {
         if (event.type !== "CLIENT_CONNECT") return context.clients;
+        console.log(
+          `[TerminalActor ${context.terminalId}] CLIENT_CONNECT, clients: ${context.clients.size} -> ${context.clients.size + 1}`,
+        );
         const newClients = new Set(context.clients);
         newClients.add(event.client);
         return newClients;
@@ -118,23 +127,30 @@ export const terminalMachine = setup({
         if (event.type !== "CLIENT_DISCONNECT") return context.clients;
         const newClients = new Set(context.clients);
         newClients.delete(event.client);
+        console.log(
+          `[TerminalActor ${context.terminalId}] CLIENT_DISCONNECT, clients: ${context.clients.size} -> ${newClients.size}`,
+        );
         return newClients;
       },
     }),
 
     clearClients: assign({
       clients: () => new Set(),
-      metadata: ({ context }) => ({
-        ...context.metadata,
-        isDetached: true,
-        lastActivity: new Date(),
-      }),
+      metadata: ({ context }) => {
+        console.log(`[TerminalActor ${context.terminalId}] Entering DETACHED state`);
+        return {
+          ...context.metadata,
+          isDetached: true,
+          lastActivity: new Date(),
+        };
+      },
     }),
 
     replayScrollback: ({ context, event }) => {
       if (event.type !== "CLIENT_CONNECT") return;
-
-      // Replay all scrollback to the new client
+      console.log(
+        `[TerminalActor ${context.terminalId}] Replaying ${context.scrollback.size} scrollback lines to client`,
+      ); // Replay all scrollback to the new client
       for (const chunk of context.scrollback.iter()) {
         if (!event.client.closed) {
           event.client.send(chunk);

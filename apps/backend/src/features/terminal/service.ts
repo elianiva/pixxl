@@ -25,10 +25,9 @@ type TerminalServiceShape = {
     projectId: string;
     id: string;
   }) => Effect.Effect<Option.Option<TerminalMetadata>, TerminalNotFoundError>;
-  readonly updateTerminal: (input: UpdateTerminalInput) => Effect.Effect<
-    Option.Option<TerminalMetadata>,
-    TerminalUpdateError
-  >;
+  readonly updateTerminal: (
+    input: UpdateTerminalInput,
+  ) => Effect.Effect<Option.Option<TerminalMetadata>, TerminalUpdateError>;
   readonly deleteTerminal: (input: {
     projectId: string;
     id: string;
@@ -164,7 +163,7 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
         const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
         if (Option.isNone(projectResult)) {
-          return Option.some(false);  // Return false instead of none for consistent typing
+          return Option.some(false); // Return false instead of none for consistent typing
         }
 
         const deleted = yield* terminals

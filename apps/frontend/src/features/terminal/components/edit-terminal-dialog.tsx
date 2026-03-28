@@ -91,7 +91,10 @@ export function EditTerminalDialog({
             <label htmlFor="terminal-theme" className="text-sm font-medium">
               Theme
             </label>
-            <Select value={themeId} onValueChange={(value) => setThemeId(value ?? "catppuccin-mocha")}>
+            <Select
+              value={themeId}
+              onValueChange={(value) => setThemeId(value ?? "catppuccin-mocha")}
+            >
               <SelectTrigger id="terminal-theme">
                 <SelectValue placeholder="Select a theme" />
               </SelectTrigger>

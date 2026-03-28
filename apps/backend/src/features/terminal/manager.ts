@@ -18,15 +18,20 @@ class TerminalManager {
 
   getOrCreate(input: TerminalActorInput): TerminalActor {
     const existing = this.actors.get(input.terminalId);
+    console.log(`[TerminalManager] getOrCreate for ${input.terminalId}, existing=${!!existing}`);
     if (existing) {
       const state = existing.getSnapshot();
+      console.log(`[TerminalManager] existing state: ${state?.value ?? "null"}`);
       if (!state) {
+        console.log(`[TerminalManager] deleting - no state`);
         this.actors.delete(input.terminalId);
       } else if (state.matches("dead") || state.matches("closed")) {
         // Dead or closed sessions need recreation
+        console.log(`[TerminalManager] deleting - dead or closed`);
         this.actors.delete(input.terminalId);
       } else {
         // Active or detached - return existing
+        console.log(`[TerminalManager] returning existing actor`);
         return existing;
       }
     }
