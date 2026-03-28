@@ -29,6 +29,7 @@ export function AppearanceSettings({ appearance, onUpdate }: AppearanceSettingsP
         <SettingRow label="Color Scheme" description="Choose your preferred theme">
           <Select
             value={appearance.colorScheme ?? DEFAULT_CONFIG.appearance.colorScheme}
+            items={colorSchemes}
             onValueChange={(v) => v && onUpdate({ colorScheme: v as Appearance["colorScheme"] })}
           >
             <SelectTrigger className="w-28">

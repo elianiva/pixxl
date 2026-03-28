@@ -45,6 +45,9 @@ export function EditTerminalDialog({
   const [fontId, setFontId] = useState<string>(terminal?.fontId ?? "jetbrains-mono");
   const [fontSize, setFontSize] = useState<number>(terminal?.fontSize ?? 14);
 
+  const themeItems = terminalThemes.map((t) => ({ value: t.id, label: t.name }));
+  const fontItems = terminalFonts.map((f) => ({ value: f.id, label: f.name }));
+
   // Sync values when terminal changes or dialog opens
   useEffect(() => {
     if (terminal) {
@@ -93,6 +96,7 @@ export function EditTerminalDialog({
             </label>
             <Select
               value={themeId}
+              items={themeItems}
               onValueChange={(value) => setThemeId(value ?? "catppuccin-mocha")}
             >
               <SelectTrigger id="terminal-theme">
@@ -123,7 +127,11 @@ export function EditTerminalDialog({
             <label htmlFor="terminal-font" className="text-sm font-medium">
               Font
             </label>
-            <Select value={fontId} onValueChange={(value) => setFontId(value ?? "jetbrains-mono")}>
+            <Select
+              value={fontId}
+              items={fontItems}
+              onValueChange={(value) => setFontId(value ?? "jetbrains-mono")}
+            >
               <SelectTrigger id="terminal-font">
                 <SelectValue placeholder="Select a font" />
               </SelectTrigger>

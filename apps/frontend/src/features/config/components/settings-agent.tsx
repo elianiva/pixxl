@@ -76,6 +76,7 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
         <SettingRow label="Provider" description="AI provider for model selection">
           <Select
             value={provider}
+            items={providerOptions}
             onValueChange={(nextProvider) => {
               if (!nextProvider) return;
 
@@ -100,7 +101,11 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
         </SettingRow>
 
         <SettingRow label="Model" description="Default AI model">
-          <Select value={selectedModel} onValueChange={(v) => v && onUpdate({ defaultModel: v })}>
+          <Select
+            value={selectedModel}
+            items={modelOptions}
+            onValueChange={(v) => v && onUpdate({ defaultModel: v })}
+          >
             <SelectTrigger className="w-56">
               <SelectValue placeholder="Select model" />
             </SelectTrigger>
@@ -117,6 +122,7 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
         <SettingRow label="Thinking Level" description="How much reasoning the model does">
           <Select
             value={thinkingLevel}
+            items={thinkingLevels}
             onValueChange={(v) =>
               v && onUpdate({ defaultThinkingLevel: v as Agent["defaultThinkingLevel"] })
             }
@@ -137,6 +143,7 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
         <SettingRow label="Transport" description="Protocol for streaming responses">
           <Select
             value={transport}
+            items={transports}
             onValueChange={(v) => v && onUpdate({ transport: v as Agent["transport"] })}
           >
             <SelectTrigger className="w-36">
@@ -155,6 +162,7 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
         <SettingRow label="Steering Mode" description="How queued messages are handled">
           <Select
             value={steeringMode}
+            items={steeringModes}
             onValueChange={(v) => v && onUpdate({ steeringMode: v as Agent["steeringMode"] })}
           >
             <SelectTrigger className="w-44">

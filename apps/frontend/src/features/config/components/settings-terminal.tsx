@@ -61,6 +61,7 @@ export function TerminalSettings({ terminal, onUpdate }: TerminalSettingsProps) 
         <SettingRow label="Font Family" description="Monospace font for the terminal">
           <Select
             value={terminal.fontFamily ?? DEFAULT_CONFIG.terminal.fontFamily}
+            items={fontFamilies}
             onValueChange={(v) => v && onUpdate({ fontFamily: v })}
           >
             <SelectTrigger className="w-40">
@@ -78,6 +79,7 @@ export function TerminalSettings({ terminal, onUpdate }: TerminalSettingsProps) 
         <SettingRow label="Cursor Style" description="Shape of the terminal cursor">
           <Select
             value={terminal.cursorStyle ?? DEFAULT_CONFIG.terminal.cursorStyle}
+            items={cursorStyles}
             onValueChange={(v) => v && onUpdate({ cursorStyle: v as Terminal["cursorStyle"] })}
           >
             <SelectTrigger className="w-28">
@@ -101,6 +103,7 @@ export function TerminalSettings({ terminal, onUpdate }: TerminalSettingsProps) 
         <SettingRow label="Shell" description="Default shell to use">
           <Select
             value={terminal.shell ?? DEFAULT_CONFIG.terminal.shell}
+            items={shells}
             onValueChange={(v) => v && onUpdate({ shell: v })}
           >
             <SelectTrigger className="w-28">

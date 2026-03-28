@@ -68,7 +68,12 @@ export function ModelSettings({
   return (
     <div className="border border-border">
       <SettingRow label="Provider" description="AI provider for model selection">
-        <Select value={provider} onValueChange={handleProviderChange} disabled={disabled}>
+        <Select
+          value={provider}
+          items={providerOptions}
+          onValueChange={handleProviderChange}
+          disabled={disabled}
+        >
           <SelectTrigger className="w-40">
             <SelectValue />
           </SelectTrigger>
@@ -83,7 +88,12 @@ export function ModelSettings({
       </SettingRow>
 
       <SettingRow label="Model" description="AI model for this session">
-        <Select value={model} onValueChange={(v) => v && onModelChange(v)} disabled={disabled}>
+        <Select
+          value={model}
+          items={modelOptions}
+          onValueChange={(v) => v && onModelChange(v)}
+          disabled={disabled}
+        >
           <SelectTrigger className="w-56">
             <SelectValue placeholder="Select model" />
           </SelectTrigger>
@@ -100,6 +110,7 @@ export function ModelSettings({
       <SettingRow label="Thinking Level" description="How much reasoning the model does">
         <Select
           value={thinkingLevel}
+          items={thinkingLevels}
           onValueChange={(v) => v && onThinkingLevelChange(v as AgentThinkingLevel)}
           disabled={disabled}
         >
