@@ -4,18 +4,12 @@ export const CreateTerminalInputSchema = Schema.Struct({
   id: Schema.String,
   projectId: Schema.String,
   name: Schema.NonEmptyString,
-  themeId: Schema.optional(Schema.String),
-  fontId: Schema.optional(Schema.String),
-  fontSize: Schema.optional(Schema.Number),
 });
 
 export const UpdateTerminalInputSchema = Schema.Struct({
   projectId: Schema.String,
   id: Schema.String,
   name: Schema.String,
-  themeId: Schema.optional(Schema.String),
-  fontId: Schema.optional(Schema.String),
-  fontSize: Schema.optional(Schema.Number),
 });
 
 export const DeleteTerminalInputSchema = Schema.Struct({
@@ -26,9 +20,6 @@ export const DeleteTerminalInputSchema = Schema.Struct({
 export const TerminalMetadataSchema = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
-  themeId: Schema.String,
-  fontId: Schema.String,
-  fontSize: Schema.Number,
   createdAt: Schema.String,
   updatedAt: Schema.String,
 });

@@ -47,21 +47,15 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
       const terminals = entity.forEntity<TerminalMetadata, CreateTerminalInput>({
         directoryName: "terminals",
         schema: TerminalMetadataSchema,
-        create: ({ id, now, name, themeId, fontId, fontSize }) => ({
+        create: ({ id, now, name }) => ({
           id,
           name,
-          themeId: themeId ?? "catppuccin-mocha",
-          fontId: fontId ?? "jetbrains-mono",
-          fontSize: fontSize ?? 14,
           createdAt: now,
           updatedAt: now,
         }),
-        update: (current, { now, name, themeId, fontId, fontSize }) => ({
+        update: (current, { now, name }) => ({
           ...current,
           name,
-          themeId: themeId ?? current.themeId,
-          fontId: fontId ?? current.fontId,
-          fontSize: fontSize ?? current.fontSize,
           updatedAt: now,
         }),
       });
@@ -138,9 +132,6 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
             id: input.id,
             name: input.name,
             projectId: input.projectId,
-            themeId: input.themeId,
-            fontId: input.fontId,
-            fontSize: input.fontSize,
           })
           .pipe(
             Effect.mapError(

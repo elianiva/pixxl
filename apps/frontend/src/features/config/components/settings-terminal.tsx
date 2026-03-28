@@ -11,19 +11,12 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { DEFAULT_CONFIG, type Terminal } from "@pixxl/shared/schema/config";
 import { useBlurSubmitSlider } from "../hooks/use-blur-submit";
+import { terminalThemes, terminalFonts } from "@/features/terminal/themes";
 
 interface TerminalSettingsProps {
   terminal: Terminal;
   onUpdate: (terminal: Partial<Terminal>) => void;
 }
-
-const fontFamilies: SelectEntry[] = [
-  { value: "JetBrains Mono", label: "JetBrains Mono" },
-  { value: "Fira Code", label: "Fira Code" },
-  { value: "SF Mono", label: "SF Mono" },
-  { value: "Source Code Pro", label: "Source Code Pro" },
-  { value: "Iosevka", label: "Iosevka" },
-];
 
 const cursorStyles: SelectEntry[] = [
   { value: "block", label: "Block" },
@@ -37,6 +30,9 @@ const shells: SelectEntry[] = [
   { value: "/bin/fish", label: "Fish" },
 ];
 
+const themeItems: SelectEntry[] = terminalThemes.map((t) => ({ value: t.id, label: t.name }));
+const fontItems: SelectEntry[] = terminalFonts.map((f) => ({ value: f.id, label: f.name }));
+
 export function TerminalSettings({ terminal, onUpdate }: TerminalSettingsProps) {
   const fontSizeSlider = useBlurSubmitSlider(terminal.fontSize, (fontSize) =>
     onUpdate({ fontSize }),
@@ -46,7 +42,49 @@ export function TerminalSettings({ terminal, onUpdate }: TerminalSettingsProps) 
     <div>
       <h3 className="text-base font-semibold mb-4">Terminal</h3>
       <div className="border border-border">
-        <SettingRow label="Font Size" description="Terminal text size in pixels">
+        <SettingRow label="Theme" description="Color theme for all terminals">
+          <Select
+            value={terminal.themeId ?? DEFAULT_CONFIG.terminal.themeId}
+            items={themeItems}
+            onValueChange={(v) => v && onUpdate({ themeId: v })}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {terminalThemes.map((theme) => (
+                <SelectItem key={theme.id} value={theme.id}>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="inline-block h-3 w-3 rounded-full"
+                      style={{ backgroundColor: theme.theme.foreground }}
+                    />
+                    {theme.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SettingRow>
+        <SettingRow label="Font" description="Font family for all terminals">
+          <Select
+            value={terminal.fontId ?? DEFAULT_CONFIG.terminal.fontId}
+            items={fontItems}
+            onValueChange={(v) => v && onUpdate({ fontId: v })}
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {terminalFonts.map((font) => (
+                <SelectItem key={font.id} value={font.id}>
+                  {font.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SettingRow>
+        <SettingRow label="Font Size" description="Text size for all terminals">
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground w-8">{fontSizeSlider.localValue}px</span>
             <Slider
@@ -57,24 +95,6 @@ export function TerminalSettings({ terminal, onUpdate }: TerminalSettingsProps) 
               max={24}
             />
           </div>
-        </SettingRow>
-        <SettingRow label="Font Family" description="Monospace font for the terminal">
-          <Select
-            value={terminal.fontFamily ?? DEFAULT_CONFIG.terminal.fontFamily}
-            items={fontFamilies}
-            onValueChange={(v) => v && onUpdate({ fontFamily: v })}
-          >
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {fontFamilies.map((f) => (
-                <SelectItem key={f.value} value={f.value}>
-                  {f.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </SettingRow>
         <SettingRow label="Cursor Style" description="Shape of the terminal cursor">
           <Select

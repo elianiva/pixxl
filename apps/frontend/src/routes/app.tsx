@@ -12,10 +12,7 @@ import { projectsCollection } from "@/features/project/projects-collection";
 import { NewCommandDialog } from "@/features/command/components/new-command-dialog";
 import { NewProjectDialog } from "@/features/project/components/new-project-dialog";
 import { EditAgentDialog } from "@/features/agent/components/dialog/edit-agent";
-import {
-  EditTerminalDialog,
-  type TerminalSettings,
-} from "@/features/terminal/components/edit-terminal-dialog";
+import { EditTerminalDialog } from "@/features/terminal/components/edit-terminal-dialog";
 import { SettingsDialog } from "@/features/config/components/settings-dialog";
 import type { AgentMetadata, TerminalMetadata, CommandMetadata } from "@pixxl/shared";
 import { generateId } from "@/lib/utils";
@@ -94,23 +91,17 @@ function RouteComponent() {
     getTerminalsCollection(projectId).insert({
       id: generateId(),
       name,
-      themeId: "catppuccin-mocha",
-      fontId: "jetbrains-mono",
-      fontSize: 14,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
   }
 
-  function handleUpdateTerminal(id: string, name: string, settings: TerminalSettings) {
+  function handleUpdateTerminal(id: string, name: string) {
     if (!projectId) return;
     // Draft is mutable proxy, don't type it with readonly schema
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getTerminalsCollection(projectId).update(id, (draft: any) => {
       draft.name = name;
-      draft.themeId = settings.themeId;
-      draft.fontId = settings.fontId;
-      draft.fontSize = settings.fontSize;
       draft.updatedAt = new Date().toISOString();
     });
   }

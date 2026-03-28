@@ -4,6 +4,8 @@ import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useGhosttyTerminal } from "@/features/terminal/hooks/use-ghostty-terminal";
 import { getTerminalsCollection } from "@/features/terminal/terminals-collection";
 import { terminalThemes } from "@/features/terminal/themes";
+import { useConfig } from "@/features/config/hooks/use-config";
+import { DEFAULT_CONFIG } from "@pixxl/shared/schema/config";
 import type { TerminalMetadata } from "@pixxl/shared";
 
 export const Route = createFileRoute("/app/$projectId/terminal/$terminalId/")({
@@ -23,8 +25,12 @@ function TerminalPage() {
   const { data: terminals } = useLiveQuery((q) =>
     q.from({ t: terminalsCollection }).where(({ t }) => eq(t.id, terminalId)),
   );
+  const { data: config } = useConfig();
 
   const terminal = terminals?.[0] as TerminalMetadata | undefined;
+
+  // Get settings from global config
+  const terminalConfig = config?.terminal ?? DEFAULT_CONFIG.terminal;
 
   const handleDead = useCallback((code?: number) => {
     setIsDead(true);
@@ -40,9 +46,9 @@ function TerminalPage() {
   const ghostty = useGhosttyTerminal({
     terminalId,
     containerRef,
-    themeId: terminal?.themeId ?? "catppuccin-mocha",
-    fontId: terminal?.fontId ?? "jetbrains-mono",
-    fontSize: terminal?.fontSize ?? 14,
+    themeId: terminalConfig.themeId,
+    fontId: terminalConfig.fontId,
+    fontSize: terminalConfig.fontSize,
     onDead: handleDead,
   });
 
@@ -56,11 +62,11 @@ function TerminalPage() {
       controller.abort();
       ghostty.dispose();
     };
-    // sessionKey forces re-initialization when restarting dead session
-  }, [terminal?.themeId, terminal?.fontId, terminal?.fontSize, sessionKey]);
+    // Re-initialize when global terminal config changes or session restarts
+  }, [terminalConfig.themeId, terminalConfig.fontId, terminalConfig.fontSize, sessionKey]);
 
   // Get theme background color for container styling
-  const theme = terminalThemes.find((t) => t.id === terminal?.themeId);
+  const theme = terminalThemes.find((t) => t.id === terminalConfig.themeId);
   const bgColor = theme?.theme.background ?? "#1e1e2e";
 
   // Redirect to dashboard if terminal deleted

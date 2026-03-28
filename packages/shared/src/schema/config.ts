@@ -15,6 +15,8 @@ export const WorkspaceSchema = Schema.Struct({
 export const TerminalSchema = Schema.Struct({
   fontSize: Schema.Number,
   fontFamily: Schema.String,
+  themeId: Schema.String,
+  fontId: Schema.String,
   cursorStyle: CursorStyle,
   cursorBlink: Schema.Boolean,
   shell: Schema.String,
@@ -155,6 +157,8 @@ export const DEFAULT_CONFIG: AppConfig = {
   terminal: {
     fontSize: 14,
     fontFamily: "JetBrains Mono",
+    themeId: "catppuccin-mocha",
+    fontId: "jetbrains-mono",
     cursorStyle: "block",
     cursorBlink: true,
     shell: "/bin/zsh",
