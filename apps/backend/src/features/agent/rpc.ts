@@ -32,7 +32,8 @@ export const updateAgentRpc = os.agent.updateAgent.handler(({ input }) =>
   runPromise(
     Effect.gen(function* () {
       const service = yield* AgentService;
-      return yield* service.updateAgent(input);
+      const result = yield* service.updateAgent(input);
+      return toNullable(result);
     }).pipe(Effect.provide(AgentService.layer)),
   ),
 );
@@ -60,10 +61,11 @@ export const attachSessionRpc = os.agent.attachSession.handler(({ input }) =>
   runPromise(
     Effect.gen(function* () {
       const service = yield* AgentService;
-      return yield* service.attachSession({
+      const result = yield* service.attachSession({
         agentId: input.agentId,
         sessionFile: input.sessionFile,
       });
+      return toNullable(result);
     }).pipe(Effect.provide(AgentService.layer)),
   ),
 );
@@ -72,10 +74,11 @@ export const switchSessionRpc = os.agent.switchSession.handler(({ input }) =>
   runPromise(
     Effect.gen(function* () {
       const service = yield* AgentService;
-      return yield* service.attachSession({
+      const result = yield* service.attachSession({
         agentId: input.agentId,
         sessionFile: input.sessionFile,
       });
+      return toNullable(result);
     }).pipe(Effect.provide(AgentService.layer)),
   ),
 );

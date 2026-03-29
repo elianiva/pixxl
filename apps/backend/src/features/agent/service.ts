@@ -2,7 +2,6 @@ import { Effect, Layer, Option, ServiceMap, FileSystem, Schedule } from "effect"
 import type {
   AgentMetadata,
   CreateAgentInput,
-  PiAvailableModel,
   UpdateAgentInput,
 } from "@pixxl/shared";
 import { AgentMetadataSchema, EntityService } from "@pixxl/shared";
@@ -15,23 +14,7 @@ import { AgentInstance } from "./instance";
 import { ConfigService } from "../config/service";
 import { ProjectService } from "../project/service";
 
-type AgentServiceShape = {
-  readonly createAgent: (input: CreateAgentInput) => Effect.Effect<AgentMetadata, AgentCreateError>;
-  readonly getAgent: (input: { agentId: string }) => Effect.Effect<Option.Option<AgentMetadata>>;
-  readonly updateAgent: (input: UpdateAgentInput) => Effect.Effect<AgentMetadata, AgentUpdateError>;
-  readonly deleteAgent: (input: { agentId: string }) => Effect.Effect<void, AgentDeleteError>;
-  readonly listAgents: (input: { projectId: string }) => Effect.Effect<AgentMetadata[]>;
-  readonly getInstance: (input: { agentId: string }) => Effect.Effect<Option.Option<AgentInstance>>;
-  readonly removeInstance: (input: { agentId: string }) => Effect.Effect<void>;
-  readonly attachSession: (input: {
-    agentId: string;
-    sessionFile: string;
-  }) => Effect.Effect<AgentMetadata, AgentUpdateError>;
-  readonly listSessions: (input: { projectId: string }) => Effect.Effect<SessionInfo[]>;
-  readonly listAvailableModels: () => Effect.Effect<PiAvailableModel[]>;
-};
-
-export class AgentService extends ServiceMap.Service<AgentService, AgentServiceShape>()(
+export class AgentService extends ServiceMap.Service<AgentService>()(
   "@pixxl/AgentService",
   {
     make: Effect.gen(function* () {
@@ -66,24 +49,17 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
         }),
       });
 
-      const getProjectPath = Effect.fn("getProjectPath")(function* (projectId: string) {
-        const result = yield* project.getProjectDetail({ id: projectId });
-        return Option.match(result, {
-          onNone: () => null,
-          onSome: (p) => p.path,
-        });
-      });
-
       const createAgent = Effect.fn("AgentService.createAgent")(function* (
         input: CreateAgentInput,
       ) {
-        const projectPath = yield* getProjectPath(input.projectId);
-        if (!projectPath) {
+        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
+        if (Option.isNone(projectResult)) {
           return yield* new AgentCreateError({
             name: input.name,
             cause: "Project not found",
           });
         }
+        const projectPath = projectResult.value.path;
 
         const sessionManager = SessionManager.create(projectPath);
         const sessionId = sessionManager.newSession();
@@ -212,13 +188,14 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
       const updateAgent = Effect.fn("AgentService.updateAgent")(function* (
         input: UpdateAgentInput,
       ) {
-        const projectPath = yield* getProjectPath(input.projectId);
-        if (!projectPath) {
+        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
+        if (Option.isNone(projectResult)) {
           return yield* new AgentUpdateError({
             agentId: input.id,
             cause: "Project not found",
           });
         }
+        const projectPath = projectResult.value.path;
 
         const metadata = yield* agents
           .update({
@@ -244,13 +221,14 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
           });
         }
 
-        const projectPath = yield* getProjectPath(agentMetadata.value.projectId);
-        if (!projectPath) {
+        const projectResult = yield* project.getProjectDetail({ id: agentMetadata.value.projectId });
+        if (Option.isNone(projectResult)) {
           return yield* new AgentDeleteError({
             agentId: input.agentId,
             cause: "Project not found",
           });
         }
+        const projectPath = projectResult.value.path;
 
         // Dispose instance
         instances.get(input.agentId)?.dispose();
@@ -266,9 +244,9 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
       const listAgents = Effect.fn("AgentService.listAgents")(function* (input: {
         projectId: string;
       }) {
-        const projectPath = yield* getProjectPath(input.projectId);
-        if (!projectPath) return [];
-        return yield* agents.list({ projectPath });
+        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
+        if (Option.isNone(projectResult)) return [];
+        return yield* agents.list({ projectPath: projectResult.value.path });
       });
 
       const getInstance = Effect.fn("AgentService.getInstance")(function* (input: {
@@ -282,12 +260,12 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
           return Option.none<AgentInstance>();
         }
 
-        const projectPath = yield* getProjectPath(metadata.value.projectId);
-        if (!projectPath) {
+        const projectResult = yield* project.getProjectDetail({ id: metadata.value.projectId });
+        if (Option.isNone(projectResult)) {
           return Option.none<AgentInstance>();
         }
 
-        const instance = yield* getOrCreateInstance({ metadata: metadata.value, projectPath });
+        const instance = yield* getOrCreateInstance({ metadata: metadata.value, projectPath: projectResult.value.path });
         return Option.some(instance);
       });
 
@@ -339,10 +317,10 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
       const listSessions = Effect.fn("AgentService.listSessions")(function* (input: {
         projectId: string;
       }) {
-        const projectPath = yield* getProjectPath(input.projectId);
-        if (!projectPath) return [] as SessionInfo[];
+        const projectResult = yield* project.getProjectDetail({ id: input.projectId });
+        if (Option.isNone(projectResult)) return [] as SessionInfo[];
         return yield* Effect.tryPromise({
-          try: () => SessionManager.list(projectPath),
+          try: () => SessionManager.list(projectResult.value.path),
           catch: () => [] as SessionInfo[],
         });
       });
