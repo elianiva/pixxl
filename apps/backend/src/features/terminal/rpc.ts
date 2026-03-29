@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Effect, Option, Layer } from "effect";
 import { os } from "@/contract";
 import { TerminalService } from "./service";
 import { terminalManager } from "./manager";
@@ -56,12 +56,25 @@ export const connectTerminalRpc = os.terminal.connectTerminal.handler(({ input }
       const configService = yield* ConfigService;
       const config = yield* configService.loadConfig();
 
+      // Try to get stored shell from terminal metadata for resuming
+      const terminalService = yield* TerminalService;
+      const terminalResult = yield* terminalService.getTerminal({
+        projectId: input.projectId,
+        id: input.id,
+      });
+
+      // Use stored shell if available, otherwise fall back to current config
+      const shell = Option.match(terminalResult, {
+        onSome: (t) => t.shell ?? config.terminal.shell,
+        onNone: () => config.terminal.shell,
+      });
+
       terminalManager.getOrCreate({
         terminalId: input.id,
-        shell: config.terminal.shell,
+        shell,
       });
 
       return { success: true, websocketUrl: `/terminal/${input.id}` };
-    }).pipe(Effect.provide(ConfigService.live)),
+    }).pipe(Effect.provide(Layer.merge(TerminalService.layer, ConfigService.live))),
   ),
 );

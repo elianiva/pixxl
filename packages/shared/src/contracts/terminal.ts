@@ -26,7 +26,7 @@ export const listTerminalsContract = oc
   .output(Schema.toStandardSchemaV1(TerminalMetadataListSchema));
 
 export const connectTerminalContract = oc
-  .input(Schema.toStandardSchemaV1(Schema.Struct({ id: Schema.String })))
+  .input(Schema.toStandardSchemaV1(Schema.Struct({ id: Schema.String, projectId: Schema.String })))
   .output(
     Schema.toStandardSchemaV1(
       Schema.Struct({

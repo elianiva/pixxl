@@ -20,6 +20,7 @@ export const DeleteTerminalInputSchema = Schema.Struct({
 export const TerminalMetadataSchema = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
+  shell: Schema.optional(Schema.String),
   createdAt: Schema.String,
   updatedAt: Schema.String,
 });

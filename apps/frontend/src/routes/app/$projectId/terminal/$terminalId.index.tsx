@@ -52,6 +52,7 @@ function TerminalPage() {
     onDead: handleDead,
   });
 
+  // Initialize terminal WebSocket connection - only on mount or session restart
   useEffect(() => {
     void ghostty.init().then(() => console.log("Ghostty initialized"));
 
@@ -62,8 +63,21 @@ function TerminalPage() {
       controller.abort();
       ghostty.dispose();
     };
-    // Re-initialize when global terminal config changes or session restarts
-  }, [terminalConfig.themeId, terminalConfig.fontId, terminalConfig.fontSize, sessionKey]);
+    // Only reconnect on sessionKey change (manual restart), not theme/font changes
+  }, [sessionKey]);
+
+  // Apply theme/font changes dynamically without reconnection
+  useEffect(() => {
+    ghostty.setTheme(terminalConfig.themeId);
+  }, [terminalConfig.themeId]);
+
+  useEffect(() => {
+    ghostty.setFont(terminalConfig.fontId);
+  }, [terminalConfig.fontId]);
+
+  useEffect(() => {
+    ghostty.setFontSize(terminalConfig.fontSize);
+  }, [terminalConfig.fontSize]);
 
   // Get theme background color for container styling
   const theme = terminalThemes.find((t) => t.id === terminalConfig.themeId);

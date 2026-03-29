@@ -44,21 +44,27 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
       const entity = yield* EntityService;
       const project = yield* ProjectService;
 
-      const terminals = entity.forEntity<TerminalMetadata, CreateTerminalInput>({
+      // Extended input type that includes the shell we pass internally
+      type CreateTerminalInputWithShell = CreateTerminalInput & { shell: string };
+
+      const terminals = entity.forEntity<TerminalMetadata, CreateTerminalInputWithShell>({
         directoryName: "terminals",
         schema: TerminalMetadataSchema,
-        create: ({ id, now, name }) => ({
+        create: ({ id, now, name, shell }) => ({
           id,
           name,
+          shell,
           createdAt: now,
           updatedAt: now,
         }),
-        update: (current, { now, name }) => ({
+        update: (current, input) => ({
           ...current,
-          name,
-          updatedAt: now,
+          name: input.name,
+          updatedAt: input.now,
         }),
       });
+
+      const config = yield* ConfigService;
 
       const createTerminal = Effect.fn("TerminalService.createTerminal")(function* (
         input: CreateTerminalInput,
@@ -69,12 +75,17 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
           return Option.none();
         }
 
+        // Get shell from config at creation time
+        const cfg = yield* config.loadConfig();
+        const shell = cfg.terminal.shell;
+
         const terminal = yield* terminals
           .create({
             projectPath: projectResult.value.path,
             id: input.id,
             name: input.name,
             projectId: input.projectId,
+            shell,
           })
           .pipe(
             Effect.mapError(
@@ -126,12 +137,23 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
           return Option.none();
         }
 
+        // Get current terminal to preserve shell
+        const currentResult = yield* terminals.get({
+          projectPath: projectResult.value.path,
+          id: input.id,
+        });
+
+        if (Option.isNone(currentResult)) {
+          return Option.none();
+        }
+
         return yield* terminals
           .update({
             projectPath: projectResult.value.path,
             id: input.id,
             name: input.name,
             projectId: input.projectId,
+            shell: currentResult.value.shell ?? "/bin/bash",
           })
           .pipe(
             Effect.mapError(
