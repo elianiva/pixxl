@@ -71,10 +71,7 @@ export async function serveIndexHtml(): Promise<Response> {
   const file = Bun.file(`${ASSETS_BASE}/index.html`);
 
   if (!(await file.exists())) {
-    return new Response(
-      "index.html not found. Frontend assets not embedded.",
-      { status: 500 }
-    );
+    return new Response("index.html not found. Frontend assets not embedded.", { status: 500 });
   }
 
   return new Response(file, {

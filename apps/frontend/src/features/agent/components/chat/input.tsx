@@ -227,24 +227,35 @@ export function ChatInput({
                         stroke="currentColor"
                         strokeWidth="3"
                         strokeLinecap="round"
-                        strokeDasharray={`${(usage.totalTokens / contextWindow) * 50.27} 50.27`}
+                        strokeDasharray={
+                          contextWindow > 0
+                            ? `${(usage.totalTokens / contextWindow) * 50.27} 50.27`
+                            : "0 50.27"
+                        }
                         className={`transition-all ${
-                          usage.totalTokens / contextWindow > 0.9
-                            ? "text-destructive"
-                            : usage.totalTokens / contextWindow > 0.7
-                              ? "text-amber-500"
-                              : "text-emerald-500"
+                          contextWindow > 0
+                            ? usage.totalTokens / contextWindow > 0.9
+                              ? "text-destructive"
+                              : usage.totalTokens / contextWindow > 0.7
+                                ? "text-amber-500"
+                                : "text-emerald-500"
+                            : "text-muted-foreground"
                         }`}
                         transform="rotate(-90 10 10)"
                       />
                     </svg>
                     <span className="tabular-nums text-muted-foreground">
-                      {Math.round((usage.totalTokens / contextWindow) * 100)}%/
-                      {fmtCompact(contextWindow)}
+                      {contextWindow > 0
+                        ? `${Math.round((usage.totalTokens / contextWindow) * 100)}%/${fmtCompact(contextWindow)}`
+                        : `${fmtCompact(usage.totalTokens)} tokens`}
                     </span>
                   </div>
                 }
-                payload={`Context window: ${usage.totalTokens.toLocaleString()} / ${contextWindow.toLocaleString()} tokens`}
+                payload={
+                  contextWindow > 0
+                    ? `Context window: ${usage.totalTokens.toLocaleString()} / ${contextWindow.toLocaleString()} tokens`
+                    : `Total tokens: ${usage.totalTokens.toLocaleString()}`
+                }
               />
               {/* Token Stats */}
               <TooltipTrigger

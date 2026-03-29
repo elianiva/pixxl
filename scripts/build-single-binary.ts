@@ -55,12 +55,20 @@ async function main() {
     "build",
     BACKEND_ENTRY,
     "--compile",
-    "--target", "bun",
-    ...assetFiles.flatMap(f => ["--embed", f]),
-    "--outfile", OUTPUT_BINARY,
+    "--target",
+    "bun",
+    ...assetFiles.flatMap((f) => ["--embed", f]),
+    "--outfile",
+    OUTPUT_BINARY,
   ];
 
-  console.log("   Command: bun", compileArgs.map(a => a.includes(" ") ? `"${a}"` : a).join(" ").substring(0, 100) + "...");
+  console.log(
+    "   Command: bun",
+    compileArgs
+      .map((a) => (a.includes(" ") ? `"${a}"` : a))
+      .join(" ")
+      .substring(0, 100) + "...",
+  );
 
   const proc = Bun.spawn({
     cmd: ["bun", ...compileArgs],

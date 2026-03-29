@@ -153,14 +153,39 @@ export const getAgentUsageRpc = os.agent.getAgentUsage.handler(({ input }) =>
       return Option.match(instanceOpt, {
         onNone: () => null,
         onSome: (instance) => {
-          // Calculate usage from session entries - sum up all assistant message usage
-          let input = 0;
-          let output = 0;
-          let cacheRead = 0;
-          let cacheWrite = 0;
-          let costTotal = 0;
+          const entries = instance.sessionManager.getEntries();
+          const leafId = instance.sessionManager.getLeafId();
 
-          for (const entry of instance.sessionManager.getEntries()) {
+          // Build parent map to trace path from leaf to root
+          const parentMap = new Map<string, string>();
+          for (const entry of entries) {
+            if (entry.parentId) {
+              parentMap.set(entry.id, entry.parentId);
+            }
+          }
+
+          // Build set of IDs in the current branch path (from leaf to root)
+          const branchIds = new Set<string>();
+          let currentId: string | undefined = leafId ?? undefined;
+          while (currentId) {
+            branchIds.add(currentId);
+            currentId = parentMap.get(currentId);
+          }
+
+          // Calculate usage only from entries in the current branch
+          // Note: input/cacheRead represent the TOTAL context sent to API, so we
+          // only take the maximum (latest message), not sum. Output is additive
+          // since each message generates new tokens.
+          let maxInput = 0;
+          let maxCacheRead = 0;
+          let maxCacheWrite = 0;
+          let totalOutput = 0;
+          let totalCost = 0;
+
+          for (const entry of entries) {
+            // Only count entries in the current branch path
+            if (!branchIds.has(entry.id)) continue;
+
             if (entry.type === "message" && entry.message?.role === "assistant") {
               const msg = entry.message as {
                 usage?: {
@@ -172,15 +197,21 @@ export const getAgentUsageRpc = os.agent.getAgentUsage.handler(({ input }) =>
                 };
               };
               if (msg.usage) {
-                input += msg.usage.input ?? 0;
-                output += msg.usage.output ?? 0;
-                cacheRead += msg.usage.cacheRead ?? 0;
-                cacheWrite += msg.usage.cacheWrite ?? 0;
-                costTotal += msg.usage.cost?.total ?? 0;
+                // Take max of input/cache since they represent total context
+                maxInput = Math.max(maxInput, msg.usage.input ?? 0);
+                maxCacheRead = Math.max(maxCacheRead, msg.usage.cacheRead ?? 0);
+                maxCacheWrite = Math.max(maxCacheWrite, msg.usage.cacheWrite ?? 0);
+                // Sum outputs (additive per message)
+                totalOutput += msg.usage.output ?? 0;
+                totalCost += msg.usage.cost?.total ?? 0;
               }
             }
           }
 
+          const input = maxInput;
+          const cacheRead = maxCacheRead;
+          const cacheWrite = maxCacheWrite;
+          const output = totalOutput;
           const totalTokens = input + output + cacheRead + cacheWrite;
           const contextWindow = instance.currentModel?.contextWindow;
 
@@ -196,7 +227,7 @@ export const getAgentUsageRpc = os.agent.getAgentUsage.handler(({ input }) =>
                 output,
                 cacheRead,
                 cacheWrite,
-                total: costTotal,
+                total: totalCost,
               },
             },
             contextWindow,
@@ -271,13 +302,37 @@ export const getAgentSessionDetailsRpc = os.agent.getAgentSessionDetails.handler
         return null;
       }
 
-      // Calculate stats from entries
-      let totalTokens = 0;
+      // Build parent map to trace path from leaf to root
+      const parentMap = new Map<string, string>();
+      for (const entry of entries) {
+        if (entry.parentId) {
+          parentMap.set(entry.id, entry.parentId);
+        }
+      }
+
+      // Build set of IDs in the current branch path (from leaf to root)
+      const branchIds = new Set<string>();
+      let currentId: string | undefined = leafId ?? undefined;
+      while (currentId) {
+        branchIds.add(currentId);
+        currentId = parentMap.get(currentId);
+      }
+
+      // Calculate stats from entries in current branch only
+      // Note: input/cacheRead/cacheWrite represent TOTAL context sent to API,
+      // so we take max (latest message). Output is summed (additive per message).
+      let maxInput = 0;
+      let maxCacheRead = 0;
+      let maxCacheWrite = 0;
+      let totalOutput = 0;
       let messageCount = 0;
       let toolCallCount = 0;
       let totalCost = 0;
 
       for (const entry of entries) {
+        // Only count entries in the current branch path
+        if (!branchIds.has(entry.id)) continue;
+
         if (entry.type === "message") {
           const msg = entry.message as {
             role?: string;
@@ -292,16 +347,19 @@ export const getAgentSessionDetailsRpc = os.agent.getAgentSessionDetails.handler
           if (msg.role === "assistant") {
             messageCount++;
             if (msg.usage) {
-              totalTokens +=
-                (msg.usage.input ?? 0) +
-                (msg.usage.output ?? 0) +
-                (msg.usage.cacheRead ?? 0) +
-                (msg.usage.cacheWrite ?? 0);
+              // Take max of input/cache since they represent total context size
+              maxInput = Math.max(maxInput, msg.usage.input ?? 0);
+              maxCacheRead = Math.max(maxCacheRead, msg.usage.cacheRead ?? 0);
+              maxCacheWrite = Math.max(maxCacheWrite, msg.usage.cacheWrite ?? 0);
+              // Sum outputs (additive per message)
+              totalOutput += msg.usage.output ?? 0;
               totalCost += msg.usage.cost?.total ?? 0;
             }
           }
         }
       }
+
+      const totalTokens = maxInput + totalOutput + maxCacheRead + maxCacheWrite;
 
       // Build label lookup map from label entries (label entries reference targetId)
       const labelMap = new Map<string, string>();

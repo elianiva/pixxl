@@ -68,8 +68,9 @@ async function main() {
     "--compile",
     "--minify",
     "--sourcemap",
-    ...filesToEmbed.flatMap(f => ["--embed", f]),
-    "--outfile", OUTPUT_BINARY,
+    ...filesToEmbed.flatMap((f) => ["--embed", f]),
+    "--outfile",
+    OUTPUT_BINARY,
     BACKEND_ENTRY,
   ];
 

@@ -13,6 +13,7 @@ Pixxl is basically a workspace that tries to combine some of the things I use in
 - [Obsidian](https://obsidian.md/)
 
 The goal of this project is to provide these things integrated into one place:
+
 - Coding Agent, which is a custom GUI that wraps [Pi Coding Agent by Mario Zechner](https://github.com/badlogic/pi-mono)
 - Terminal, where I launch [Neovim](https://neovim.io) and do other things, it uses [Ghostty](https://ghostty.org/) via [ghostty-web](https://github.com/coder/ghostty-web). This is one of my reason why I want to make this app, so that I have all my TUI and GUI all in one place.
 - Commands, basically a manager around long-running shell commands so that I can manage them all in one place and expose the logs to the agents.

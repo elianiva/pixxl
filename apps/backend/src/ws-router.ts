@@ -46,7 +46,7 @@ export function handleWsOpen(ws: ServerWebSocket<WsData>): void {
 
 export async function handleWsMessage(
   ws: ServerWebSocket<WsData>,
-  message: string | Buffer
+  message: string | Buffer,
 ): Promise<void> {
   const data = ws.data;
 
