@@ -56,39 +56,22 @@ export class AgentService extends ServiceMap.Service<AgentService>()(
         if (Option.isNone(projectResult)) {
           return yield* new AgentCreateError({
             name: input.name,
-            cause: "Project not found",
+            cause: new Error("Project not found"),
           });
         }
         const projectPath = projectResult.value.path;
 
-        const sessionManager = SessionManager.create(projectPath);
-        const sessionId = sessionManager.newSession();
-        if (!sessionId) {
-          return yield* new AgentCreateError({
-            name: input.name,
-            cause: "Failed to create session",
-          });
-        }
-
-        const sessionFile = sessionManager.getSessionFile();
-        if (!sessionFile) {
-          return yield* new AgentCreateError({
-            name: input.name,
-            cause: "SessionManager did not return file path",
-          });
-        }
-
-        let metadata = yield* agents
+        // Lazy initialization: don't create session until first message
+        // Store empty sessionFile initially
+        const metadata = yield* agents
           .create({
             id: input.id,
             name: input.name,
             projectId: input.projectId,
             projectPath,
-            sessionFile,
+            sessionFile: "",
           })
           .pipe(Effect.mapError((cause) => new AgentCreateError({ name: input.name, cause })));
-
-        yield* getOrCreateInstance({ metadata, projectPath });
 
         return metadata;
       });
@@ -145,16 +128,58 @@ export class AgentService extends ServiceMap.Service<AgentService>()(
         const existing = instances.get(input.metadata.id);
         if (existing) return existing;
 
-        // Ensure session file exists with retry
-        yield* ensureSessionFile(input.metadata.pi.sessionFile, input.metadata.name).pipe(
-          Effect.retry({
-            schedule: Schedule.exponential("50 millis"),
-            times: 3,
-            until: (err) => err._tag !== "AgentCreateError",
-          }),
-        );
+        // Lazy session creation: if no session file, create a new session
+        let sessionFile = input.metadata.pi.sessionFile;
+        let sessionManager: SessionManager;
 
-        const sessionManager = SessionManager.open(input.metadata.pi.sessionFile);
+        if (!sessionFile) {
+          // Create a new session lazily on first use
+          sessionManager = SessionManager.create(input.projectPath);
+          const sessionId = sessionManager.newSession();
+          if (!sessionId) {
+            return yield* new AgentCreateError({
+              name: input.metadata.name,
+              cause: "Failed to create session",
+            });
+          }
+          const newSessionFile = sessionManager.getSessionFile();
+          if (!newSessionFile) {
+            return yield* new AgentCreateError({
+              name: input.metadata.name,
+              cause: "SessionManager did not return file path",
+            });
+          }
+          sessionFile = newSessionFile;
+
+          // Update metadata with the new session file
+          const updatedMetadataOpt = yield* agents.update({
+            id: input.metadata.id,
+            name: input.metadata.name,
+            projectId: input.metadata.projectId,
+            projectPath: input.projectPath,
+            sessionFile,
+          });
+
+          if (Option.isNone(updatedMetadataOpt)) {
+            return yield* new AgentCreateError({
+              name: input.metadata.name,
+              cause: "Failed to update agent metadata with new session file",
+            });
+          }
+
+          // Update the input metadata for the instance
+          input.metadata = updatedMetadataOpt.value;
+        } else {
+          // Ensure existing session file exists with retry
+          yield* ensureSessionFile(sessionFile, input.metadata.name).pipe(
+            Effect.retry({
+              schedule: Schedule.exponential("50 millis"),
+              times: 3,
+              until: (err) => err._tag !== "AgentCreateError",
+            }),
+          );
+          sessionManager = SessionManager.open(sessionFile);
+        }
 
         const result = yield* Effect.tryPromise({
           try: () =>
