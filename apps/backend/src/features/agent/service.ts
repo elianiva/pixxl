@@ -40,7 +40,7 @@ export class AgentService extends ServiceMap.Service<AgentService, AgentServiceS
       const fs = yield* FileSystem.FileSystem;
 
       const authStorage = AuthStorage.create();
-      const modelRegistry = new ModelRegistry(authStorage);
+      const modelRegistry = ModelRegistry.inMemory(authStorage);
 
       const instances = new Map<string, AgentInstance>();
 
