@@ -7,13 +7,13 @@
   },
   "dependencies": {
     "@effect/platform-bun": "4.0.0-beta.36",
-    "@mariozechner/pi-ai": "^0.62.0",
-    "@mariozechner/pi-coding-agent": "^0.62.0",
+    "@mariozechner/pi-ai": "^0.64.0",
+    "@mariozechner/pi-coding-agent": "^0.64.0",
     "@orpc/contract": "catalog:",
-    "@orpc/server": "^1.13.9",
+    "@orpc/server": "^1.13.13",
     "@pixxl/shared": "workspace:*",
     "effect": "catalog:",
     "nanoid": "^5.1.7",
-    "xstate": "^5.28.0"
+    "xstate": "^5.30.0"
   }
 }
