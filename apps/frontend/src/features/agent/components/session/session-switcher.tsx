@@ -31,11 +31,6 @@ interface SessionOption {
   label: string;
 }
 
-function truncateLabel(label: string, maxLength: number = 40): string {
-  if (label.length <= maxLength) return label;
-  return `${label.slice(0, maxLength - 3)}...`;
-}
-
 export function SessionSwitcher({
   projectId: propProjectId,
   agentId: propAgentId,
@@ -47,7 +42,7 @@ export function SessionSwitcher({
 
   const queryClient = useQueryClient();
 
-  const { data: sessions, isLoading } = useQuery({
+  const { data: sessions = [], isLoading } = useQuery({
     queryKey: ["attachable-sessions", projectId],
     queryFn: () => rpc.agent.listAttachableSessions({ projectId: projectId! }),
     enabled: !!projectId,
@@ -56,26 +51,29 @@ export function SessionSwitcher({
   const switchSessionMutation = useMutation({
     mutationFn: ({ sessionFile }: { sessionFile: string }) =>
       rpc.agent.switchSession({ projectId: projectId!, agentId: agentId!, sessionFile }),
-    onSuccess: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["agent-session-details", projectId, agentId] }),
-        queryClient.invalidateQueries({ queryKey: ["agent-runtime", projectId, agentId] }),
-        queryClient.invalidateQueries({ queryKey: ["agent-history", projectId, agentId] }),
-      ]),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["agent-session-details", projectId, agentId],
+      });
+      void queryClient.invalidateQueries({ queryKey: ["agent-runtime", projectId, agentId] });
+      void queryClient.invalidateQueries({ queryKey: ["agent-history", projectId, agentId] });
+    },
   });
-
-  // Only render when we're on an agent route with valid projectId and agentId
-  if (!projectId || !agentId || !sessions || sessions.length === 0) {
-    return null;
-  }
 
   const sessionOptions: SessionOption[] = sessions.map((session) => ({
     id: session.id,
     path: session.path,
-    label: truncateLabel(session.firstMessage || session.name || session.id),
+    label: session.firstMessage || session.name || session.id,
   }));
 
   const currentValue = currentSessionFile ?? "";
+
+  // Don't render if we're not on an agent route
+  if (!projectId || !agentId) {
+    return null;
+  }
+
+  const hasSessions = sessions.length > 0;
 
   return (
     <div className="flex items-center gap-2">
@@ -87,19 +85,26 @@ export function SessionSwitcher({
             switchSessionMutation.mutate({ sessionFile });
           }
         }}
-        disabled={switchSessionMutation.isPending || isLoading}
+        disabled={switchSessionMutation.isPending || isLoading || !hasSessions}
       >
-        <SelectTrigger className="h-7 w-64 text-xs" size="sm">
+        <SelectTrigger className="h-7 w-80 text-xs" size="sm">
           {switchSessionMutation.isPending ? (
             <RiLoader4Line className="size-3.5 animate-spin" />
           ) : (
-            <SelectValue placeholder="Select session..." />
+            <SelectValue placeholder={hasSessions ? "Select session..." : "No sessions"} />
           )}
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="max-h-80 w-80">
           {sessionOptions.map((session) => (
-            <SelectItem key={session.id} value={session.path}>
-              {session.label}
+            <SelectItem
+              key={session.id}
+              value={session.path}
+              title={session.label}
+              className="pr-2"
+            >
+              <span className="block overflow-hidden text-ellipsis whitespace-nowrap">
+                {session.label}
+              </span>
             </SelectItem>
           ))}
         </SelectContent>
