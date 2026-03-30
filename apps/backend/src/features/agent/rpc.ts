@@ -82,6 +82,18 @@ export const switchSessionRpc = os.agent.switchSession.handler(({ input }) =>
   ),
 );
 
+export const createSessionRpc = os.agent.createSession.handler(({ input }) =>
+  runPromise(
+    Effect.gen(function* () {
+      const service = yield* AgentService;
+      const result = yield* service.createNewSession({
+        agentId: input.agentId,
+      });
+      return toNullable(result);
+    }).pipe(Effect.provide(AgentService.layer)),
+  ),
+);
+
 export const listAttachableSessionsRpc = os.agent.listAttachableSessions.handler(({ input }) =>
   runPromise(
     Effect.gen(function* () {

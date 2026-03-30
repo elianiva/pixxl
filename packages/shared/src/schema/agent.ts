@@ -58,6 +58,11 @@ export const SwitchSessionInputSchema = Schema.Struct({
   sessionFile: Schema.String,
 });
 
+export const CreateSessionInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+});
+
 export const ListAttachableSessionsInputSchema = Schema.Struct({
   projectId: Schema.String,
 });
@@ -340,6 +345,7 @@ export type AgentMetadataList = typeof AgentMetadataListSchema.Type;
 export type ListAgentsInput = typeof ListAgentsInputSchema.Type;
 export type AttachSessionInput = typeof AttachSessionInputSchema.Type;
 export type SwitchSessionInput = typeof SwitchSessionInputSchema.Type;
+export type CreateSessionInput = typeof CreateSessionInputSchema.Type;
 export type ListAttachableSessionsInput = typeof ListAttachableSessionsInputSchema.Type;
 export type AgentThinkingLevel = typeof AgentThinkingLevelSchema.Type;
 export type AgentModel = typeof AgentModelSchema.Type;

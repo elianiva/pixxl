@@ -366,6 +366,61 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
       return updated;
     });
 
+    const createNewSession = Effect.fn("AgentService.createNewSession")(function* (input: {
+      agentId: string;
+    }) {
+      const metadataOpt = yield* getAgent({ agentId: input.agentId });
+      if (Option.isNone(metadataOpt)) {
+        return yield* new AgentUpdateError({
+          agentId: input.agentId,
+          cause: "Agent not found",
+        });
+      }
+
+      const metadata = metadataOpt.value;
+
+      const projectResult = yield* project.getProjectDetail({ id: metadata.projectId });
+      if (Option.isNone(projectResult)) {
+        return yield* new AgentUpdateError({
+          agentId: input.agentId,
+          cause: "Project not found",
+        });
+      }
+
+      const projectPath = projectResult.value.path;
+
+      // Create a new session
+      const sessionManager = SessionManager.create(projectPath);
+      const sessionId = sessionManager.newSession();
+      if (!sessionId) {
+        return yield* new AgentUpdateError({
+          agentId: input.agentId,
+          cause: "Failed to create new session",
+        });
+      }
+
+      const newSessionFile = sessionManager.getSessionFile();
+      if (!newSessionFile) {
+        return yield* new AgentUpdateError({
+          agentId: input.agentId,
+          cause: "Failed to get session file path",
+        });
+      }
+
+      // Remove old instance
+      removeInstance({ agentId: input.agentId });
+
+      // Update metadata with new session file
+      const updated = yield* updateAgent({
+        projectId: metadata.projectId,
+        id: input.agentId,
+        name: metadata.name,
+        sessionFile: newSessionFile,
+      });
+
+      return updated;
+    });
+
     const listSessions = Effect.fn("AgentService.listSessions")(function* (input: {
       projectId: string;
     }) {
@@ -543,6 +598,7 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
       getInstance,
       removeInstance,
       attachSession,
+      createNewSession,
       listSessions,
       listAvailableModels,
       getPiSettings,

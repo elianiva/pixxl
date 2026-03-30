@@ -10,6 +10,7 @@ import {
   AgentMetadataListSchema,
   AttachSessionInputSchema,
   SwitchSessionInputSchema,
+  CreateSessionInputSchema,
   ListAttachableSessionsInputSchema,
   PromptAgentInputSchema,
   ConfigureAgentSessionInputSchema,
@@ -59,6 +60,10 @@ export const attachSessionContract = oc
 
 export const switchSessionContract = oc
   .input(Schema.toStandardSchemaV1(SwitchSessionInputSchema))
+  .output(Schema.toStandardSchemaV1(Schema.NullOr(AgentMetadataSchema)));
+
+export const createSessionContract = oc
+  .input(Schema.toStandardSchemaV1(CreateSessionInputSchema))
   .output(Schema.toStandardSchemaV1(Schema.NullOr(AgentMetadataSchema)));
 
 export const listAttachableSessionsContract = oc

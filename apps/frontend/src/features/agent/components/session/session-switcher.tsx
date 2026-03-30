@@ -8,12 +8,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RiHistoryLine, RiLoader4Line } from "@remixicon/react";
+import { Button } from "@/components/ui/button";
+import { RiHistoryLine, RiLoader4Line, RiAddLine } from "@remixicon/react";
 
 interface SessionSwitcherProps {
   projectId?: string;
   agentId?: string;
-  currentSessionFile?: string;
 }
 
 function useAgentRouteParams() {
@@ -34,13 +34,19 @@ interface SessionOption {
 export function SessionSwitcher({
   projectId: propProjectId,
   agentId: propAgentId,
-  currentSessionFile,
 }: SessionSwitcherProps) {
   const routeParams = useAgentRouteParams();
   const projectId = propProjectId ?? routeParams.projectId;
   const agentId = propAgentId ?? routeParams.agentId;
 
   const queryClient = useQueryClient();
+
+  // Get current session from runtime
+  const { data: runtimeState } = useQuery({
+    queryKey: ["agent-runtime", projectId, agentId],
+    queryFn: () => rpc.agent.getAgentRuntime({ projectId: projectId!, agentId: agentId! }),
+    enabled: !!projectId && !!agentId,
+  });
 
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ["attachable-sessions", projectId],
@@ -57,6 +63,21 @@ export function SessionSwitcher({
       });
       void queryClient.invalidateQueries({ queryKey: ["agent-runtime", projectId, agentId] });
       void queryClient.invalidateQueries({ queryKey: ["agent-history", projectId, agentId] });
+      void queryClient.invalidateQueries({ queryKey: ["agent-interactions", projectId, agentId] });
+      void queryClient.invalidateQueries({ queryKey: ["attachable-sessions", projectId] });
+    },
+  });
+
+  const createSessionMutation = useMutation({
+    mutationFn: () => rpc.agent.createSession({ projectId: projectId!, agentId: agentId! }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["agent-session-details", projectId, agentId],
+      });
+      void queryClient.invalidateQueries({ queryKey: ["agent-runtime", projectId, agentId] });
+      void queryClient.invalidateQueries({ queryKey: ["agent-history", projectId, agentId] });
+      void queryClient.invalidateQueries({ queryKey: ["agent-interactions", projectId, agentId] });
+      void queryClient.invalidateQueries({ queryKey: ["attachable-sessions", projectId] });
     },
   });
 
@@ -66,14 +87,21 @@ export function SessionSwitcher({
     label: session.firstMessage || session.name || session.id,
   }));
 
-  const currentValue = currentSessionFile ?? "";
+  // Get current session from runtime state
+  const currentValue = runtimeState?.currentSessionFile ?? "";
 
   // Don't render if we're not on an agent route
   if (!projectId || !agentId) {
     return null;
   }
 
+  const handleCreateSession = () => {
+    createSessionMutation.mutate();
+  };
+
   const hasSessions = sessions.length > 0;
+
+  const isPending = switchSessionMutation.isPending || createSessionMutation.isPending;
 
   return (
     <div className="flex items-center gap-2">
@@ -81,20 +109,20 @@ export function SessionSwitcher({
       <Select
         value={currentValue}
         onValueChange={(sessionFile) => {
-          if (sessionFile && sessionFile !== currentSessionFile) {
+          if (sessionFile && sessionFile !== currentValue) {
             switchSessionMutation.mutate({ sessionFile });
           }
         }}
-        disabled={switchSessionMutation.isPending || isLoading || !hasSessions}
+        disabled={isPending || isLoading || !hasSessions}
       >
-        <SelectTrigger className="h-7 w-80 text-xs" size="sm">
-          {switchSessionMutation.isPending ? (
+        <SelectTrigger className="h-7 w-72 text-xs" size="sm">
+          {isPending ? (
             <RiLoader4Line className="size-3.5 animate-spin" />
           ) : (
             <SelectValue placeholder={hasSessions ? "Select session..." : "No sessions"} />
           )}
         </SelectTrigger>
-        <SelectContent className="max-h-80 w-80">
+        <SelectContent className="max-h-80 w-72">
           {sessionOptions.map((session) => (
             <SelectItem
               key={session.id}
@@ -109,6 +137,15 @@ export function SessionSwitcher({
           ))}
         </SelectContent>
       </Select>
+      <Button
+        variant="default"
+        onClick={handleCreateSession}
+        disabled={isPending}
+        title="New session"
+      >
+        <RiAddLine className="size-3.5" />
+        New Session
+      </Button>
     </div>
   );
 }
