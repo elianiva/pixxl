@@ -1,5 +1,7 @@
 "use client";
 
+import "streamdown/styles.css";
+
 import { Button } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -273,8 +275,19 @@ export type MessageResponseProps = ComponentProps<typeof Streamdown>;
 const streamdownPlugins = { cjk, code, math, mermaid };
 
 export const MessageResponse = memo(
-  ({ className, ...props }: MessageResponseProps) => (
-    <Streamdown className={className} plugins={streamdownPlugins} {...props} />
+  ({ className, isAnimating, ...props }: MessageResponseProps) => (
+    <Streamdown
+      className={className}
+      plugins={streamdownPlugins}
+      animated={{
+        animation: "blurIn",
+        duration: 150,
+        easing: "ease-out",
+        sep: "char",
+      }}
+      isAnimating={isAnimating}
+      {...props}
+    />
   ),
   (prevProps, nextProps) =>
     prevProps.children === nextProps.children && nextProps.isAnimating === prevProps.isAnimating,

@@ -19,46 +19,9 @@ import type { PiUsageSchemaType } from "@pixxl/shared";
 import { ModelSelector, type ModelOption } from "../settings/model-selector";
 import { ThinkingLevelSelector, type ThinkingLevel } from "../settings/thinking-selector";
 import { SessionSettingsDialog } from "../dialog/session-settings";
+import { LOADING_MESSAGES } from "./input-whimsical";
 
 const tooltipHandle = createTooltipHandle();
-
-// Whimsical loading messages
-const LOADING_MESSAGES = [
-  "Thinking...",
-  "Vibing...",
-  "Cogitating...",
-  "Ruminating...",
-  "Brewing...",
-  "Contemplating...",
-  "Pondering...",
-  "Musing...",
-  "Consulting the void...",
-  "Tickling the stack...",
-  "Herding pointers...",
-  "Warming up the hamsters...",
-  "Caffeinating...",
-  "Having a little think...",
-  "Staring into the abyss...",
-  "Channeling...",
-  "Concocting...",
-  "Transmuting...",
-  "Imagining...",
-  "Simmering...",
-  "Marinating...",
-  "Gestating...",
-  "Percolating...",
-  "Wrangling...",
-  "Tinkering...",
-  "Fiddling...",
-  "Noodling...",
-  "Jamming...",
-  "Bubbling...",
-  "Effervescing...",
-  "Synthesizing...",
-  "Spinning up...",
-  "Calculating...",
-  "Processing...",
-];
 
 function pickRandomMessage(): string {
   return LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)];
@@ -183,9 +146,8 @@ export function ChatInput({
 
       {/* Loading header - slides up from behind textbox */}
       <div
-        className={`overflow-hidden bg-mauve-100 transition-all duration-300 ease-out ${
-          isStreaming ? "max-h-10 opacity-100" : "max-h-0 opacity-0"
-        }`}
+        className={`overflow-hidden bg-mauve-100 transition-all duration-300 ease-out ${isStreaming ? "max-h-10 opacity-100" : "max-h-0 opacity-0"
+          }`}
       >
         <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
           {/* 3x3 Braille-ish animated dots */}
@@ -356,15 +318,14 @@ export function ChatInput({
                             ? `${(usage.totalTokens / contextWindow) * 50.27} 50.27`
                             : "0 50.27"
                         }
-                        className={`transition-all ${
-                          contextWindow > 0
+                        className={`transition-all ${contextWindow > 0
                             ? usage.totalTokens / contextWindow > 0.9
                               ? "text-destructive"
                               : usage.totalTokens / contextWindow > 0.7
                                 ? "text-amber-500"
                                 : "text-emerald-500"
                             : "text-muted-foreground"
-                        }`}
+                          }`}
                         transform="rotate(-90 10 10)"
                       />
                     </svg>

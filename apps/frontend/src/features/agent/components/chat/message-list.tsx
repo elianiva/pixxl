@@ -1,7 +1,6 @@
 import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { MessageBubble } from "./message-bubble";
-import { StreamingIndicator } from "./streaming-indicator";
 import { ActionItem } from "./action-item";
 import type { Message, TimelineItem, ActionItem as ActionItemType } from "../../hooks";
 
@@ -161,7 +160,6 @@ export function Timeline({ items, isStreaming, onFork }: TimelineProps) {
             <MessageBubble key={item.id} message={item} onFork={onFork} />
           ),
         )}
-        {isStreaming && <StreamingIndicator />}
       </div>
     );
   }
@@ -202,7 +200,6 @@ export function Timeline({ items, isStreaming, onFork }: TimelineProps) {
           })}
         </div>
       </div>
-      {isStreaming && <StreamingIndicator />}
     </div>
   );
 }
