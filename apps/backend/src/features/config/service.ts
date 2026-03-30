@@ -10,6 +10,7 @@ import {
 
 const APP_DIR = "pixxl";
 const CONFIG_FILE = "config.json";
+const PI_AGENT_DIR = ".pi/agent";
 
 type PartialAppConfig = typeof PartialAppConfigSchema.Type;
 
@@ -73,6 +74,7 @@ type ConfigServiceShape = {
     partial: PartialAppConfig,
   ) => Effect.Effect<AppConfig, ConfigNotFoundError | ConfigParseError | ConfigSerializeError>;
   readonly configPath: string;
+  readonly agentDir: string;
 };
 
 export class ConfigService extends ServiceMap.Service<ConfigService, ConfigServiceShape>()(
@@ -85,7 +87,9 @@ export class ConfigService extends ServiceMap.Service<ConfigService, ConfigServi
         Config.withDefault(`${process.env.HOME}/.config`),
       );
 
+      const homeDir = yield* Config.string("HOME").pipe(Config.withDefault("~"));
       const configDir = path.join(configBaseDir, APP_DIR);
+      const agentDir = path.join(homeDir, PI_AGENT_DIR);
       const configPath = path.join(configDir, CONFIG_FILE);
 
       const decodeConfig = Schema.decodeUnknownEffect(
@@ -185,7 +189,7 @@ export class ConfigService extends ServiceMap.Service<ConfigService, ConfigServi
         return merged;
       });
 
-      return { loadConfig, saveConfig, updateConfig, configPath } as const;
+      return { loadConfig, saveConfig, updateConfig, configPath, agentDir } as const;
     }),
   },
 ) {

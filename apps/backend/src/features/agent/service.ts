@@ -1,20 +1,27 @@
 import { Effect, Layer, Option, ServiceMap, FileSystem, Schedule } from "effect";
 import type { AgentMetadata, CreateAgentInput, UpdateAgentInput } from "@pixxl/shared";
 import { AgentMetadataSchema, EntityService } from "@pixxl/shared";
-import { SessionManager, createAgentSession, ModelRegistry } from "@mariozechner/pi-coding-agent";
+import {
+  SessionManager,
+  createAgentSession,
+  ModelRegistry,
+  SettingsManager,
+  DefaultResourceLoader,
+} from "@mariozechner/pi-coding-agent";
 import { AuthStorage } from "@mariozechner/pi-coding-agent";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
 import type { SessionInfo } from "@mariozechner/pi-coding-agent";
 import { AgentCreateError, AgentUpdateError, AgentDeleteError } from "./error";
 import { AgentInstance } from "./instance";
-import { ConfigService } from "../config/service";
-import { ProjectService } from "../project/service";
+import { ConfigService } from "@/features/config/service";
+import { ProjectService } from "@/features/project/service";
 
 export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/AgentService", {
   make: Effect.gen(function* () {
     const entity = yield* EntityService;
     const project = yield* ProjectService;
     const fs = yield* FileSystem.FileSystem;
+    const config = yield* ConfigService;
 
     const authStorage = AuthStorage.create();
     const modelRegistry = ModelRegistry.inMemory(authStorage);
@@ -120,6 +127,40 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
       const existing = instances.get(input.metadata.id);
       if (existing) return existing;
 
+      // Load config to get agent settings
+      const appConfig = yield* config.loadConfig();
+      const agentDir = config.agentDir;
+
+      // Create pi's SettingsManager with project and agent paths
+      const settingsManager = SettingsManager.create(input.projectPath, agentDir);
+
+      // Apply pixxl config to pi's settings
+      settingsManager.applyOverrides({
+        defaultProvider: appConfig.agent.defaultProvider,
+        defaultModel: appConfig.agent.defaultModel,
+        defaultThinkingLevel: appConfig.agent.defaultThinkingLevel as
+          | "off"
+          | "minimal"
+          | "low"
+          | "medium"
+          | "high"
+          | "xhigh",
+        compaction: appConfig.agent.compaction,
+        retry: appConfig.agent.retry,
+        hideThinkingBlock: appConfig.agent.hideThinkingBlock,
+        shellPath: appConfig.agent.shellPath || undefined,
+        shellCommandPrefix: appConfig.agent.shellCommandPrefix || undefined,
+        enableSkillCommands: appConfig.agent.enableSkillCommands,
+        terminal: appConfig.agent.terminal,
+        images: appConfig.agent.images,
+        markdown: appConfig.agent.markdown,
+        doubleEscapeAction: appConfig.agent.doubleEscapeAction,
+        treeFilterMode: appConfig.agent.treeFilterMode,
+        skills: [...appConfig.agent.skills],
+        prompts: [...appConfig.agent.prompts],
+        themes: [...appConfig.agent.themes],
+      });
+
       // Lazy session creation: if no session file, create a new session
       let sessionFile = input.metadata.pi.sessionFile;
       let sessionManager: SessionManager;
@@ -173,12 +214,26 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
         sessionManager = SessionManager.open(sessionFile);
       }
 
+      const resourceLoader = new DefaultResourceLoader({
+        cwd: input.projectPath,
+        agentDir,
+        settingsManager,
+        additionalSkillPaths: [...appConfig.agent.skills],
+        additionalPromptTemplatePaths: [...appConfig.agent.prompts],
+        additionalThemePaths: [...appConfig.agent.themes],
+      });
+
+      // Load resources
+      yield* Effect.promise(() => resourceLoader.reload());
+
       const result = yield* Effect.tryPromise({
         try: () =>
           createAgentSession({
             sessionManager,
             authStorage,
             modelRegistry,
+            settingsManager,
+            resourceLoader,
           }),
         catch: (cause) =>
           new AgentCreateError({
