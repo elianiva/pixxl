@@ -19,11 +19,25 @@ Domain terms used throughout pixxl. Use these terms consistently in code, UI, an
 
 ## Project
 
-| Term                | Definition                                             | Aliases (Don't Use)      |
-| ------------------- | ------------------------------------------------------ | ------------------------ |
-| **Project Path**    | Absolute filesystem path to the project root directory | root, dir, location      |
-| **Project Name**    | Normalized identifier derived from directory name      | id, slug, key            |
-| **Recent Projects** | List of projects sorted by last access time            | history, recent, recents |
+| Term                | Definition                                                                                                                        | Aliases (Don't Use)      |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| **Project Path**    | The **user-intended path** - absolute path the user provided during project creation (stored in metadata, displayed in UI)        | userPath, inputPath      |
+| **Storage Path**    | The actual filesystem location where project files are stored (inside workspace directory, derived from basename of Project Path) | physicalPath, actualPath |
+| **Project Name**    | Normalized identifier derived from directory name                                                                                 | id, slug, key            |
+| **Recent Projects** | List of projects sorted by last access time                                                                                       | history, recent, recents |
+
+**Important**: `Project Path` (metadata) ≠ `Storage Path` (filesystem). Never use metadata.path directly for file operations - always resolve storage path via workspace + basename(projectPath).
+
+### Workspace Storage Model
+
+- **Workspace** contains multiple projects stored as subdirectories
+- Each project in the workspace has a `project.json` with metadata
+- **Storage Path**: Projects are physically stored inside workspace directory using the basename of the user-intended path
+  - Example: User inputs `/Users/foo/my-project`, workspace is `/Users/foo/workspace`
+  - Metadata stores `path: "/Users/foo/my-project"` (user-intended)
+  - Files stored at `/Users/foo/workspace/my-project/` (storage path)
+- Duplicate check: Compare project name (basename of path) against existing projects in workspace
+- **Critical**: Never use `metadata.path` directly for filesystem operations - always resolve storage path from workspace + project name
 
 ---
 

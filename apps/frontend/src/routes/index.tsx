@@ -57,12 +57,12 @@ function RouteComponent() {
     return query;
   });
 
-  function handleCreateProject(name: string) {
+  function handleCreateProject(name: string, path: string) {
     if (!projects.collection) return;
     projectsCollection.insert({
       id: generateId(),
       name,
-      path: "", // will be set by server
+      path,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });

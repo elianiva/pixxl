@@ -12,18 +12,18 @@ import {
   ProjectCreateError,
   ProjectDeleteError,
   ProjectReadError,
+  InvalidProjectPathError,
   WorkspaceError,
 } from "./error";
 import { ConfigService } from "../config/service";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
-import { slugify } from "@/utils/slug";
 
 type ProjectServiceShape = {
   readonly createProject: (
     input: CreateProjectInput,
   ) => Effect.Effect<
     ProjectMetadata,
-    ProjectAlreadyExistsError | ProjectCreateError | WorkspaceError
+    ProjectAlreadyExistsError | ProjectCreateError | InvalidProjectPathError | WorkspaceError
   >;
   readonly deleteProject: (
     input: DeleteProjectInput,
@@ -46,22 +46,57 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
         Schema.fromJsonString(ProjectMetadataSchema),
       );
 
+      const expandHomeDir = (inputPath: string): string => {
+        if (inputPath.startsWith("~/")) {
+          return inputPath.replace("~", process.env.HOME ?? "~");
+        }
+        return inputPath;
+      };
+
       const createProject = Effect.fn("ProjectService.createProject")(function* (
         input: CreateProjectInput,
       ) {
         const cfg = yield* config.loadConfig();
 
-        const projectPath = path.join(cfg.workspace.directory, slugify(input.name));
-        const exists = yield* fs
-          .exists(projectPath)
-          .pipe(
-            Effect.mapError(
-              (cause) => new WorkspaceError({ directory: cfg.workspace.directory, cause }),
-            ),
-          );
+        if (!cfg.workspace.directory || cfg.workspace.directory.length === 0) {
+          return yield* new WorkspaceError({
+            directory: cfg.workspace.directory,
+            cause:
+              "Workspace directory is not configured. Please set a workspace directory in settings.",
+          });
+        }
 
-        if (exists) {
-          return yield* new ProjectAlreadyExistsError({ projectPath });
+        const expandedWorkspace = expandHomeDir(cfg.workspace.directory);
+        const expandedPath = expandHomeDir(input.path);
+
+        // Use the original input path for metadata (what user expects to see)
+        const metadataPath = expandedPath;
+
+        // Resolve storage path within workspace directory (where we actually store it)
+        const projectName = path.isAbsolute(expandedPath)
+          ? path.basename(expandedPath)
+          : expandedPath;
+        const projectPath = path.join(expandedWorkspace, projectName);
+        const existingProjects = yield* listProjects();
+        // Check for duplicate by comparing storage names (projectName is the directory name in workspace)
+        const duplicateStorage = existingProjects.find(
+          (p) => path.basename(expandHomeDir(p.path)) === projectName,
+        );
+
+        if (duplicateStorage) {
+          return yield* new ProjectAlreadyExistsError({
+            projectPath,
+            cause: "Project with this name already exists in workspace",
+          });
+        }
+
+        const duplicateName = existingProjects.find((p) => p.name === input.name);
+
+        if (duplicateName) {
+          return yield* new ProjectAlreadyExistsError({
+            projectName: input.name,
+            cause: "Project with this name already exists in workspace",
+          });
         }
 
         yield* fs
@@ -81,7 +116,7 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
         const metadata: ProjectMetadata = {
           id: input.id,
           name: input.name,
-          path: projectPath,
+          path: metadataPath,
           createdAt: now,
           updatedAt: now,
         };
@@ -99,6 +134,7 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
       const deleteProject = Effect.fn("ProjectService.deleteProject")(function* (
         input: DeleteProjectInput,
       ) {
+        const cfg = yield* config.loadConfig();
         const projects = yield* listProjects();
         const project = projects.find((p) => p.id === input.id);
 
@@ -106,28 +142,33 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
           return yield* new ProjectNotFoundError({ projectId: input.id });
         }
 
+        // Resolve the actual storage path in workspace (not the metadata path)
+        const projectName = path.basename(expandHomeDir(project.path));
+        const expandedWorkspace = expandHomeDir(cfg.workspace.directory);
+        const storagePath = path.join(expandedWorkspace, projectName);
+
         const exists = yield* fs
-          .exists(project.path)
+          .exists(storagePath)
           .pipe(
             Effect.mapError(
               (cause) =>
-                new ProjectDeleteError({ projectId: input.id, projectPath: project.path, cause }),
+                new ProjectDeleteError({ projectId: input.id, projectPath: storagePath, cause }),
             ),
           );
 
         if (!exists) {
           return yield* new ProjectNotFoundError({
             projectId: input.id,
-            projectPath: project.path,
+            projectPath: storagePath,
           });
         }
 
         yield* fs
-          .remove(project.path, { recursive: true })
+          .remove(storagePath, { recursive: true })
           .pipe(
             Effect.mapError(
               (cause) =>
-                new ProjectDeleteError({ projectId: input.id, projectPath: project.path, cause }),
+                new ProjectDeleteError({ projectId: input.id, projectPath: storagePath, cause }),
             ),
           );
       });

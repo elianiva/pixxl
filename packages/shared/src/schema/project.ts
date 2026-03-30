@@ -20,6 +20,7 @@ export const CreateProjectInputSchema = Schema.Struct({
       }),
     ),
   ),
+  path: Schema.String,
 });
 
 export const ProjectMetadataSchema = Schema.Struct({

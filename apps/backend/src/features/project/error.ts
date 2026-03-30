@@ -13,12 +13,13 @@ export class ProjectNotFoundError extends Schema.TaggedErrorClass<ProjectNotFoun
 ) {}
 
 /**
- * Project already exists at the specified path
+ * Project already exists in workspace (duplicate linked path or name)
  */
 export class ProjectAlreadyExistsError extends Schema.TaggedErrorClass<ProjectAlreadyExistsError>()(
   "ProjectAlreadyExistsError",
   {
-    projectPath: Schema.String,
+    projectPath: Schema.optionalKey(Schema.String),
+    projectName: Schema.optionalKey(Schema.String),
     cause: Schema.optionalKey(Schema.Unknown),
   },
 ) {}
