@@ -127,39 +127,13 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
       const existing = instances.get(input.metadata.id);
       if (existing) return existing;
 
-      // Load config to get agent settings
+      // Load config to get pixxl-specific resource paths
       const appConfig = yield* config.loadConfig();
       const agentDir = config.agentDir;
 
       // Create pi's SettingsManager with project and agent paths
+      // This loads existing pi config from user's settings files
       const settingsManager = SettingsManager.create(input.projectPath, agentDir);
-
-      // Apply pixxl config to pi's settings
-      settingsManager.applyOverrides({
-        defaultProvider: appConfig.agent.defaultProvider,
-        defaultModel: appConfig.agent.defaultModel,
-        defaultThinkingLevel: appConfig.agent.defaultThinkingLevel as
-          | "off"
-          | "minimal"
-          | "low"
-          | "medium"
-          | "high"
-          | "xhigh",
-        compaction: appConfig.agent.compaction,
-        retry: appConfig.agent.retry,
-        hideThinkingBlock: appConfig.agent.hideThinkingBlock,
-        shellPath: appConfig.agent.shellPath || undefined,
-        shellCommandPrefix: appConfig.agent.shellCommandPrefix || undefined,
-        enableSkillCommands: appConfig.agent.enableSkillCommands,
-        terminal: appConfig.agent.terminal,
-        images: appConfig.agent.images,
-        markdown: appConfig.agent.markdown,
-        doubleEscapeAction: appConfig.agent.doubleEscapeAction,
-        treeFilterMode: appConfig.agent.treeFilterMode,
-        skills: [...appConfig.agent.skills],
-        prompts: [...appConfig.agent.prompts],
-        themes: [...appConfig.agent.themes],
-      });
 
       // Lazy session creation: if no session file, create a new session
       let sessionFile = input.metadata.pi.sessionFile;

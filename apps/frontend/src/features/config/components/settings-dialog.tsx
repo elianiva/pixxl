@@ -180,12 +180,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                         onUpdate={(partial) => handleUpdate("terminal", partial)}
                       />
                     )}
-                    {activeSection === "agent" && (
-                      <AgentSettings
-                        agent={config.agent}
-                        onUpdate={(partial) => handleUpdate("agent", partial)}
-                      />
-                    )}
+                    {activeSection === "agent" && <AgentSettings />}
                     {activeSection === "appearance" && (
                       <AppearanceSettings
                         appearance={config.appearance}

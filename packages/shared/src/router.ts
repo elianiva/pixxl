@@ -1,4 +1,5 @@
 import { getConfigContract, updateConfigContract } from "./contracts/config";
+import { getPiSettingsContract, updatePiSettingsContract } from "./contracts/pi-settings";
 import {
   createProjectContract,
   deleteProjectContract,
@@ -42,6 +43,10 @@ export const routerContract = {
   config: {
     getConfig: getConfigContract,
     updateConfig: updateConfigContract,
+  },
+  pi: {
+    getSettings: getPiSettingsContract,
+    setSettings: updatePiSettingsContract,
   },
   project: {
     createProject: createProjectContract,

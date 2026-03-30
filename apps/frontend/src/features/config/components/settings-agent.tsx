@@ -7,13 +7,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { SelectEntry } from "@/components/ui/select";
-import { DEFAULT_CONFIG, type Agent } from "@pixxl/shared/schema/config";
+import { usePiSettings, useUpdatePiSettings } from "@/features/pi-settings/hooks/use-pi-settings";
 import { useModels } from "@/features/agent/hooks";
-
-interface AgentSettingsProps {
-  agent: Agent;
-  onUpdate: (agent: Partial<Agent>) => void;
-}
+import { Skeleton } from "@/components/ui/skeleton";
+import type { PiSettings, PiPartialSettings } from "@pixxl/shared/contracts/pi-settings";
 
 const thinkingLevels: SelectEntry[] = [
   { value: "off", label: "Off" },
@@ -35,6 +32,25 @@ const steeringModes: SelectEntry[] = [
   { value: "all", label: "All at Once" },
 ];
 
+const followUpModes: SelectEntry[] = [
+  { value: "one-at-a-time", label: "One at a Time" },
+  { value: "all", label: "All at Once" },
+];
+
+const doubleEscapeActions: SelectEntry[] = [
+  { value: "fork", label: "Fork" },
+  { value: "tree", label: "Tree" },
+  { value: "none", label: "None" },
+];
+
+const treeFilterModes: SelectEntry[] = [
+  { value: "default", label: "Default" },
+  { value: "no-tools", label: "No Tools" },
+  { value: "user-only", label: "User Only" },
+  { value: "labeled-only", label: "Labeled Only" },
+  { value: "all", label: "All" },
+];
+
 function providerLabel(provider: string) {
   return provider
     .split(/[-_]/g)
@@ -42,46 +58,61 @@ function providerLabel(provider: string) {
     .join(" ");
 }
 
-export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
+export function AgentSettings() {
+  const { data: settings, isLoading } = usePiSettings();
+  const updateSettings = useUpdatePiSettings();
   const availableModels = useModels();
+
+  if (isLoading || !settings) {
+    return (
+      <div>
+        <h3 className="mb-4 text-base font-semibold">Agent</h3>
+        <p className="mb-4 text-sm text-muted-foreground">Loading pi settings...</p>
+        <div className="border border-border space-y-4 p-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      </div>
+    );
+  }
 
   const providerOptions = Array.from(new Set(availableModels.map((model) => model.provider))).map(
     (provider) => ({ value: provider, label: providerLabel(provider) }),
   );
 
-  const fallbackProvider = providerOptions[0]?.value ?? DEFAULT_CONFIG.agent.defaultProvider;
-  const provider =
-    providerOptions.find((entry) => entry.value === agent.defaultProvider)?.value ??
-    fallbackProvider;
-
+  const currentProvider: string = settings.defaultProvider ?? providerOptions[0]?.value ?? "";
   const modelOptions = availableModels
-    .filter((model) => model.provider === provider)
+    .filter((model) => model.provider === currentProvider)
     .map((model) => ({ value: model.id, label: model.name }));
 
-  const thinkingLevel = agent.defaultThinkingLevel ?? DEFAULT_CONFIG.agent.defaultThinkingLevel;
-  const transport = agent.transport ?? DEFAULT_CONFIG.agent.transport;
-  const steeringMode = agent.steeringMode ?? DEFAULT_CONFIG.agent.steeringMode;
-  const selectedModel =
-    modelOptions.find((entry) => entry.value === agent.defaultModel)?.value ??
-    modelOptions[0]?.value ??
-    "";
+  const currentModel: string = settings.defaultModel ?? modelOptions[0]?.value ?? "";
+  const thinkingLevel = String(settings.defaultThinkingLevel ?? "medium");
+  const transport = String(settings.transport ?? "websocket");
+  const steeringMode = String(settings.steeringMode ?? "one-at-a-time");
+  const followUpMode = String(settings.followUpMode ?? "one-at-a-time");
+  const doubleEscapeAction = String(settings.doubleEscapeAction ?? "none");
+  const treeFilterMode = String(settings.treeFilterMode ?? "default");
+
+  const handleUpdate = (partial: PiPartialSettings) => {
+    updateSettings.mutate(partial);
+  };
 
   return (
     <div>
       <h3 className="mb-4 text-base font-semibold">Agent</h3>
       <p className="mb-4 text-sm text-muted-foreground">
-        Global default settings. Configure per-agent in the chat UI via the agent menu.
+        Edit your pi configuration. Changes are saved to pi&apos;s config files.
       </p>
       <div className="border border-border">
         <SettingRow label="Provider" description="AI provider for model selection">
           <Select
-            value={provider}
+            value={currentProvider}
             items={providerOptions}
             onValueChange={(nextProvider) => {
               if (!nextProvider) return;
-
               const nextModel = availableModels.find((model) => model.provider === nextProvider);
-              onUpdate({
+              handleUpdate({
                 defaultProvider: nextProvider,
                 ...(nextModel ? { defaultModel: nextModel.id } : {}),
               });
@@ -102,9 +133,9 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
 
         <SettingRow label="Model" description="Default AI model">
           <Select
-            value={selectedModel}
+            value={currentModel}
             items={modelOptions}
-            onValueChange={(v) => v && onUpdate({ defaultModel: v })}
+            onValueChange={(v) => v && handleUpdate({ defaultModel: v })}
           >
             <SelectTrigger className="w-56">
               <SelectValue placeholder="Select model" />
@@ -124,7 +155,7 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
             value={thinkingLevel}
             items={thinkingLevels}
             onValueChange={(v) =>
-              v && onUpdate({ defaultThinkingLevel: v as Agent["defaultThinkingLevel"] })
+              v && handleUpdate({ defaultThinkingLevel: v as PiSettings["defaultThinkingLevel"] })
             }
           >
             <SelectTrigger className="w-36">
@@ -144,7 +175,7 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
           <Select
             value={transport}
             items={transports}
-            onValueChange={(v) => v && onUpdate({ transport: v as Agent["transport"] })}
+            onValueChange={(v) => v && handleUpdate({ transport: v as PiSettings["transport"] })}
           >
             <SelectTrigger className="w-36">
               <SelectValue />
@@ -163,7 +194,9 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
           <Select
             value={steeringMode}
             items={steeringModes}
-            onValueChange={(v) => v && onUpdate({ steeringMode: v as Agent["steeringMode"] })}
+            onValueChange={(v) =>
+              v && handleUpdate({ steeringMode: v as PiSettings["steeringMode"] })
+            }
           >
             <SelectTrigger className="w-44">
               <SelectValue />
@@ -178,17 +211,136 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
           </Select>
         </SettingRow>
 
+        <SettingRow label="Follow-up Mode" description="How follow-up suggestions are handled">
+          <Select
+            value={followUpMode}
+            items={followUpModes}
+            onValueChange={(v) =>
+              v && handleUpdate({ followUpMode: v as PiSettings["followUpMode"] })
+            }
+          >
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {followUpModes.map((m) => (
+                <SelectItem key={m.value} value={m.value}>
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SettingRow>
+
         <SettingRow label="Hide Thinking" description="Hide thinking block from output">
           <SettingRowToggle
-            checked={agent.hideThinkingBlock ?? DEFAULT_CONFIG.agent.hideThinkingBlock}
-            onCheckedChange={(checked) => onUpdate({ hideThinkingBlock: checked })}
+            checked={settings.hideThinkingBlock ?? false}
+            onCheckedChange={(checked) => handleUpdate({ hideThinkingBlock: checked })}
           />
         </SettingRow>
 
         <SettingRow label="Skill Commands" description="Enable /skill:name commands">
           <SettingRowToggle
-            checked={agent.enableSkillCommands ?? DEFAULT_CONFIG.agent.enableSkillCommands}
-            onCheckedChange={(checked) => onUpdate({ enableSkillCommands: checked })}
+            checked={settings.enableSkillCommands ?? true}
+            onCheckedChange={(checked) => handleUpdate({ enableSkillCommands: checked })}
+          />
+        </SettingRow>
+
+        <SettingRow label="Double Escape Action" description="Action when pressing ESC twice">
+          <Select
+            value={doubleEscapeAction}
+            items={doubleEscapeActions}
+            onValueChange={(v) =>
+              v && handleUpdate({ doubleEscapeAction: v as PiSettings["doubleEscapeAction"] })
+            }
+          >
+            <SelectTrigger className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {doubleEscapeActions.map((a) => (
+                <SelectItem key={a.value} value={a.value}>
+                  {a.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SettingRow>
+
+        <SettingRow label="Tree Filter Mode" description="Filter mode for session tree view">
+          <Select
+            value={treeFilterMode}
+            items={treeFilterModes}
+            onValueChange={(v) =>
+              v && handleUpdate({ treeFilterMode: v as PiSettings["treeFilterMode"] })
+            }
+          >
+            <SelectTrigger className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {treeFilterModes.map((m) => (
+                <SelectItem key={m.value} value={m.value}>
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SettingRow>
+
+        <SettingRow label="Show Images" description="Show images in terminal">
+          <SettingRowToggle
+            checked={settings.terminal?.showImages ?? true}
+            onCheckedChange={(checked) =>
+              handleUpdate({
+                terminal: {
+                  showImages: checked,
+                  clearOnShrink: settings.terminal?.clearOnShrink ?? false,
+                },
+              })
+            }
+          />
+        </SettingRow>
+
+        <SettingRow label="Clear on Shrink" description="Clear terminal when resizing smaller">
+          <SettingRowToggle
+            checked={settings.terminal?.clearOnShrink ?? false}
+            onCheckedChange={(checked) =>
+              handleUpdate({
+                terminal: {
+                  showImages: settings.terminal?.showImages ?? true,
+                  clearOnShrink: checked,
+                },
+              })
+            }
+          />
+        </SettingRow>
+
+        <SettingRow label="Auto Resize Images" description="Automatically resize images">
+          <SettingRowToggle
+            checked={settings.images?.autoResize ?? true}
+            onCheckedChange={(checked) =>
+              handleUpdate({
+                images: {
+                  autoResize: checked,
+                  blockImages: settings.images?.blockImages ?? false,
+                },
+              })
+            }
+          />
+        </SettingRow>
+
+        <SettingRow label="Block Images" description="Block all images from displaying">
+          <SettingRowToggle
+            checked={settings.images?.blockImages ?? false}
+            onCheckedChange={(checked) =>
+              handleUpdate({
+                images: {
+                  autoResize: settings.images?.autoResize ?? true,
+                  blockImages: checked,
+                },
+              })
+            }
           />
         </SettingRow>
       </div>

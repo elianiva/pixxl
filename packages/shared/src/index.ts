@@ -2,6 +2,8 @@ export * from "./schema/agent";
 export * from "./contracts/agent";
 export * from "./schema/command";
 export * from "./schema/config";
+export * from "./contracts/config";
+export * from "./contracts/pi-settings";
 export * from "./schema/pi";
 export * from "./schema/project";
 export * from "./schema/terminal";

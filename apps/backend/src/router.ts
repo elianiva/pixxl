@@ -1,5 +1,6 @@
 import { os } from "./contract";
 import { getConfigRpc, updateConfigRpc } from "./features/config/rpc";
+import { getPiSettingsRpc, updatePiSettingsRpc } from "./features/pi-settings/rpc";
 import {
   createProjectRpc,
   deleteProjectRpc,
@@ -39,6 +40,10 @@ export const router = os.router({
   config: {
     getConfig: getConfigRpc,
     updateConfig: updateConfigRpc,
+  },
+  pi: {
+    getSettings: getPiSettingsRpc,
+    setSettings: updatePiSettingsRpc,
   },
   project: {
     createProject: createProjectRpc,
