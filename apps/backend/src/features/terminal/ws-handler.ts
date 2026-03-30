@@ -3,6 +3,7 @@ import { terminalManager } from "./manager";
 import { ConfigService } from "../config/service";
 import type { TerminalActor, Client } from "./actor";
 import type { TerminalClientMessage } from "@pixxl/shared";
+import { runtime } from "@/runtime";
 
 interface TerminalWsData {
   type: "terminal";
@@ -13,41 +14,41 @@ interface TerminalWsData {
 }
 
 export function handleTerminalConnection(terminalId: string, ws: Bun.ServerWebSocket<unknown>) {
-  void Effect.runPromise(
-    Effect.gen(function* () {
-      const service = yield* ConfigService;
-      return yield* service.loadConfig();
-    }).pipe(Effect.provide(ConfigService.live)),
-  ).then((cfg) => {
-    const actor = terminalManager.getOrCreate({
-      terminalId,
-      shell: cfg.terminal.shell,
-    });
-
-    const client: Client = {
-      send: (data) => ws.send(data),
-      closed: false,
-      close: () => ws.close(),
-    };
-
-    // Extend ws.data with actor and client (preserve terminalId from initial data)
-    const data = ws.data as TerminalWsData;
-    data.actor = actor;
-    data.client = client;
-
-    // Apply any pending resize that arrived before actor was ready
-    if (data.pendingResize) {
-      actor.send({
-        type: "RESIZE",
-        cols: data.pendingResize.cols,
-        rows: data.pendingResize.rows,
+  Effect.gen(function* () {
+    const service = yield* ConfigService;
+    return yield* service.loadConfig();
+  })
+    .pipe(runtime.runPromise)
+    .then((cfg) => {
+      const actor = terminalManager.getOrCreate({
+        terminalId,
+        shell: cfg.terminal.shell,
       });
-      data.pendingResize = undefined;
-    }
 
-    // Now connect the client (triggers spawn if first client)
-    actor.send({ type: "CLIENT_CONNECT", client });
-  });
+      const client: Client = {
+        send: (data) => ws.send(data),
+        closed: false,
+        close: () => ws.close(),
+      };
+
+      // Extend ws.data with actor and client (preserve terminalId from initial data)
+      const data = ws.data as TerminalWsData;
+      data.actor = actor;
+      data.client = client;
+
+      // Apply any pending resize that arrived before actor was ready
+      if (data.pendingResize) {
+        actor.send({
+          type: "RESIZE",
+          cols: data.pendingResize.cols,
+          rows: data.pendingResize.rows,
+        });
+        data.pendingResize = undefined;
+      }
+
+      // Now connect the client (triggers spawn if first client)
+      actor.send({ type: "CLIENT_CONNECT", client });
+    });
 }
 
 export function handleTerminalMessage(ws: Bun.ServerWebSocket<unknown>, message: string) {

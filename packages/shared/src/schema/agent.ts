@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import type { SessionEntry, SessionInfo } from "@mariozechner/pi-coding-agent";
+import type { SessionInfo } from "@mariozechner/pi-coding-agent";
 import { PiSessionEntrySchema, PiSessionInfoSchema, PiUsageSchema } from "./pi";
 
 export const CreateAgentInputSchema = Schema.Struct({
@@ -45,7 +45,6 @@ export const ListAgentsInputSchema = Schema.Struct({
 
 export const AgentMetadataListSchema = Schema.Array(AgentMetadataSchema);
 
-// Agent session attachment schemas
 export const AttachSessionInputSchema = Schema.Struct({
   projectId: Schema.String,
   agentId: Schema.String,
@@ -67,7 +66,6 @@ export const ListAttachableSessionsInputSchema = Schema.Struct({
   projectId: Schema.String,
 });
 
-// Immediate prompt schema
 export const AgentThinkingLevelSchema = Schema.Literals([
   "off",
   "minimal",
@@ -125,23 +123,25 @@ export const AgentFrontendConfigSchema = Schema.Struct({
   sessionDir: Schema.optional(Schema.String),
 });
 
-export const PromptAgentInputSchema = Schema.Struct({
-  projectId: Schema.String,
-  agentId: Schema.String,
-  text: Schema.String,
-  userOptimisticId: Schema.optional(Schema.String),
-  assistantOptimisticId: Schema.optional(Schema.String),
-});
-
-export const SubscribeAgentInputSchema = Schema.Struct({
-  projectId: Schema.String,
-  agentId: Schema.String,
-});
-
 export const AgentModelRefSchema = Schema.Struct({
   provider: Schema.String,
   id: Schema.String,
   name: Schema.String,
+});
+
+export const PromptAgentInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+  text: Schema.String,
+});
+
+export const EnqueuePromptModeSchema = Schema.Literals(["steer", "followUp"]);
+
+export const EnqueueAgentPromptInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+  text: Schema.String,
+  mode: EnqueuePromptModeSchema,
 });
 
 export const ConfigureAgentSessionInputSchema = Schema.Struct({
@@ -163,13 +163,9 @@ export const SetAgentThinkingLevelInputSchema = Schema.Struct({
   thinkingLevel: AgentThinkingLevelSchema,
 });
 
-export const EnqueuePromptModeSchema = Schema.Literals(["steer", "followUp"]);
-
-export const EnqueueAgentPromptInputSchema = Schema.Struct({
+export const AbortAgentInputSchema = Schema.Struct({
   projectId: Schema.String,
   agentId: Schema.String,
-  text: Schema.String,
-  mode: EnqueuePromptModeSchema,
 });
 
 export const GetAgentRuntimeInputSchema = Schema.Struct({
@@ -182,25 +178,166 @@ export const GetAgentHistoryInputSchema = Schema.Struct({
   agentId: Schema.String,
 });
 
-export const AbortAgentInputSchema = Schema.Struct({
-  projectId: Schema.String,
-  agentId: Schema.String,
-});
-
 export const GetAgentUsageInputSchema = Schema.Struct({
   projectId: Schema.String,
   agentId: Schema.String,
 });
 
-export const AgentUsageSchema = Schema.Struct({
+export const GetAgentSessionDetailsInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+});
+
+export const SubscribeAgentInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+});
+
+export const PiAgentStartEventSchema = Schema.Struct({
+  type: Schema.Literal("agent_start"),
+});
+
+export const PiAgentEndEventSchema = Schema.Struct({
+  type: Schema.Literal("agent_end"),
+  messages: Schema.Array(Schema.Unknown),
+});
+
+export const PiTurnStartEventSchema = Schema.Struct({
+  type: Schema.Literal("turn_start"),
+});
+
+export const PiTurnEndEventSchema = Schema.Struct({
+  type: Schema.Literal("turn_end"),
+  message: Schema.Unknown,
+  toolResults: Schema.Array(Schema.Unknown),
+});
+
+export const PiMessageStartEventSchema = Schema.Struct({
+  type: Schema.Literal("message_start"),
+  message: Schema.Unknown,
+});
+
+export const PiMessageUpdateEventSchema = Schema.Struct({
+  type: Schema.Literal("message_update"),
+  message: Schema.Unknown,
+  assistantMessageEvent: Schema.Unknown,
+});
+
+export const PiMessageEndEventSchema = Schema.Struct({
+  type: Schema.Literal("message_end"),
+  message: Schema.Unknown,
+});
+
+export const PiToolExecutionStartEventSchema = Schema.Struct({
+  type: Schema.Literal("tool_execution_start"),
+  toolCallId: Schema.String,
+  toolName: Schema.String,
+  args: Schema.Unknown,
+});
+
+export const PiToolExecutionUpdateEventSchema = Schema.Struct({
+  type: Schema.Literal("tool_execution_update"),
+  toolCallId: Schema.String,
+  toolName: Schema.String,
+  args: Schema.Unknown,
+  partialResult: Schema.Unknown,
+});
+
+export const PiToolExecutionEndEventSchema = Schema.Struct({
+  type: Schema.Literal("tool_execution_end"),
+  toolCallId: Schema.String,
+  toolName: Schema.String,
+  result: Schema.Unknown,
+  isError: Schema.Boolean,
+});
+
+export const PiQueueUpdateEventSchema = Schema.Struct({
+  type: Schema.Literal("queue_update"),
+  steering: Schema.Array(Schema.String),
+  followUp: Schema.Array(Schema.String),
+});
+
+export const PiCompactionStartEventSchema = Schema.Struct({
+  type: Schema.Literal("compaction_start"),
+  reason: Schema.Literals(["manual", "threshold", "overflow"]),
+});
+
+export const PiCompactionEndEventSchema = Schema.Struct({
+  type: Schema.Literal("compaction_end"),
+  reason: Schema.Literals(["manual", "threshold", "overflow"]),
+  aborted: Schema.Boolean,
+  willRetry: Schema.Boolean,
+});
+
+export const PiAutoRetryStartEventSchema = Schema.Struct({
+  type: Schema.Literal("auto_retry_start"),
+  attempt: Schema.Number,
+  maxAttempts: Schema.Number,
+  delayMs: Schema.Number,
+  errorMessage: Schema.String,
+});
+
+export const PiAutoRetryEndEventSchema = Schema.Struct({
+  type: Schema.Literal("auto_retry_end"),
+  success: Schema.Boolean,
+  attempt: Schema.Number,
+});
+
+export const PiAgentEventSchema = Schema.Union([
+  PiAgentStartEventSchema,
+  PiAgentEndEventSchema,
+  PiTurnStartEventSchema,
+  PiTurnEndEventSchema,
+  PiMessageStartEventSchema,
+  PiMessageUpdateEventSchema,
+  PiMessageEndEventSchema,
+  PiToolExecutionStartEventSchema,
+  PiToolExecutionUpdateEventSchema,
+  PiToolExecutionEndEventSchema,
+  PiQueueUpdateEventSchema,
+  PiCompactionStartEventSchema,
+  PiCompactionEndEventSchema,
+  PiAutoRetryStartEventSchema,
+  PiAutoRetryEndEventSchema,
+]);
+
+export const AgentSnapshotSchema = Schema.Struct({
+  type: Schema.Literal("snapshot"),
+  entries: Schema.Array(PiSessionEntrySchema),
+  status: Schema.Literals(["idle", "streaming", "error"]),
+  queuedSteering: Schema.Array(Schema.String),
+  queuedFollowUp: Schema.Array(Schema.String),
+});
+
+export const AgentStreamItemSchema = Schema.Union([AgentSnapshotSchema, PiAgentEventSchema]);
+
+export const AgentRuntimeStateSchema = Schema.Struct({
+  agentId: Schema.String,
+  projectId: Schema.String,
+  status: Schema.Literals(["idle", "streaming", "initializing", "switchingSession", "error"]),
+  queuedSteering: Schema.Array(Schema.String),
+  queuedFollowUp: Schema.Array(Schema.String),
+  currentSessionFile: Schema.String,
+  model: Schema.optionalKey(AgentModelSchema),
+  thinkingLevel: AgentThinkingLevelSchema,
   usage: Schema.optionalKey(PiUsageSchema),
   contextWindow: Schema.optionalKey(Schema.Number),
 });
 
-// Agent session details schema
-export const GetAgentSessionDetailsInputSchema = Schema.Struct({
-  projectId: Schema.String,
+export const AgentHistorySchema = Schema.Struct({
   agentId: Schema.String,
+  projectId: Schema.String,
+  sessionFile: Schema.String,
+  sessionId: Schema.String,
+  cwd: Schema.String,
+  sessionName: Schema.optional(Schema.String),
+  leafId: Schema.NullOr(Schema.String),
+  entries: Schema.Array(PiSessionEntrySchema),
+});
+
+export const AgentUsageSchema = Schema.Struct({
+  usage: Schema.optionalKey(PiUsageSchema),
+  contextWindow: Schema.optionalKey(Schema.Number),
 });
 
 export const AgentSessionStatsSchema = Schema.Struct({
@@ -232,132 +369,10 @@ export const AgentSessionDetailsSchema = Schema.Struct({
   tree: Schema.Array(SessionTreeNodeSchema),
 });
 
-// Re-export Pi types (unprefixed - the actual types from Pi packages)
 export type PiSessionInfo = SessionInfo;
-export type PiSessionEntry = SessionEntry;
+export type PiSessionEntry = typeof PiSessionEntrySchema.Type;
 
-// List schemas using Pi schemas
 export const PiSessionInfoListSchema = Schema.Array(PiSessionInfoSchema);
-
-// Agent runtime state schema
-export const AgentRuntimeStateSchema = Schema.Struct({
-  agentId: Schema.String,
-  projectId: Schema.String,
-  status: Schema.Literals(["idle", "streaming", "initializing", "switchingSession", "error"]),
-  queuedSteering: Schema.Array(Schema.String),
-  queuedFollowUp: Schema.Array(Schema.String),
-  currentSessionFile: Schema.String,
-  model: Schema.optionalKey(AgentModelSchema),
-  thinkingLevel: AgentThinkingLevelSchema,
-  usage: Schema.optionalKey(PiUsageSchema),
-  contextWindow: Schema.optionalKey(Schema.Number),
-});
-
-export const AgentHistorySchema = Schema.Struct({
-  agentId: Schema.String,
-  projectId: Schema.String,
-  sessionFile: Schema.String,
-  sessionId: Schema.String,
-  cwd: Schema.String,
-  sessionName: Schema.optional(Schema.String),
-  leafId: Schema.NullOr(Schema.String),
-  entries: Schema.Array(PiSessionEntrySchema),
-});
-
-// Streaming event schemas for the web UI (local to our app, not from Pi)
-const MessageDeltaEventSchema = Schema.Struct({
-  type: Schema.Literal("message_delta"),
-  sessionId: Schema.String,
-  entryId: Schema.String,
-  delta: Schema.String,
-});
-
-const ThinkingDeltaEventSchema = Schema.Struct({
-  type: Schema.Literal("thinking_delta"),
-  sessionId: Schema.String,
-  entryId: Schema.String,
-  delta: Schema.String,
-});
-
-const ToolStartEventSchema = Schema.Struct({
-  type: Schema.Literal("tool_start"),
-  sessionId: Schema.String,
-  toolName: Schema.String,
-  params: Schema.Unknown,
-});
-
-const ToolUpdateEventSchema = Schema.Struct({
-  type: Schema.Literal("tool_update"),
-  sessionId: Schema.String,
-  output: Schema.String,
-});
-
-const ToolEndEventSchema = Schema.Struct({
-  type: Schema.Literal("tool_end"),
-  sessionId: Schema.String,
-  result: Schema.Unknown,
-  error: Schema.optionalKey(Schema.String),
-});
-
-const StatusChangeEventSchema = Schema.Struct({
-  type: Schema.Literal("status_change"),
-  sessionId: Schema.String,
-  status: Schema.Literals(["idle", "streaming", "error"]),
-});
-
-const ErrorEventSchema = Schema.Struct({
-  type: Schema.Literal("error"),
-  sessionId: Schema.String,
-  message: Schema.String,
-});
-
-const SessionCreatedEventSchema = Schema.Struct({
-  type: Schema.Literal("session_created"),
-  sessionId: Schema.String,
-  name: Schema.String,
-});
-
-const SessionClosedEventSchema = Schema.Struct({
-  type: Schema.Literal("session_closed"),
-  sessionId: Schema.String,
-});
-
-const MessageFinalizedEventSchema = Schema.Struct({
-  type: Schema.Literal("message_finalized"),
-  sessionId: Schema.String,
-  optimisticId: Schema.String,
-  persistedId: Schema.String,
-  role: Schema.Literals(["user", "assistant"]),
-});
-
-/** Entry added to session - emitted when a new entry is persisted */
-const EntryAddedEventSchema = Schema.Struct({
-  type: Schema.Literal("entry_added"),
-  sessionId: Schema.String,
-  entry: PiSessionEntrySchema,
-});
-
-/** Entry updated in session - emitted when an assistant message is finalized */
-const EntryUpdatedEventSchema = Schema.Struct({
-  type: Schema.Literal("entry_updated"),
-  sessionId: Schema.String,
-  entry: PiSessionEntrySchema,
-});
-
-export const AgentEventSchema = Schema.Union([
-  MessageDeltaEventSchema,
-  ThinkingDeltaEventSchema,
-  ToolStartEventSchema,
-  ToolUpdateEventSchema,
-  ToolEndEventSchema,
-  StatusChangeEventSchema,
-  ErrorEventSchema,
-  SessionCreatedEventSchema,
-  SessionClosedEventSchema,
-  MessageFinalizedEventSchema,
-  EntryAddedEventSchema,
-  EntryUpdatedEventSchema,
-]);
 
 export type CreateAgentInput = typeof CreateAgentInputSchema.Type;
 export type GetAgentInput = typeof GetAgentInputSchema.Type;
@@ -377,22 +392,39 @@ export type PiAvailableModel = typeof PiAvailableModelSchema.Type;
 export type PiAvailableModelList = typeof PiAvailableModelListSchema.Type;
 export type AgentFrontendConfig = typeof AgentFrontendConfigSchema.Type;
 export type PromptAgentInput = typeof PromptAgentInputSchema.Type;
-export type SubscribeAgentInput = typeof SubscribeAgentInputSchema.Type;
+export type EnqueueAgentPromptInput = typeof EnqueueAgentPromptInputSchema.Type;
 export type ConfigureAgentSessionInput = typeof ConfigureAgentSessionInputSchema.Type;
 export type SetAgentModelInput = typeof SetAgentModelInputSchema.Type;
 export type SetAgentThinkingLevelInput = typeof SetAgentThinkingLevelInputSchema.Type;
 export type EnqueuePromptMode = typeof EnqueuePromptModeSchema.Type;
-export type EnqueueAgentPromptInput = typeof EnqueueAgentPromptInputSchema.Type;
 export type GetAgentRuntimeInput = typeof GetAgentRuntimeInputSchema.Type;
 export type GetAgentHistoryInput = typeof GetAgentHistoryInputSchema.Type;
 export type AbortAgentInput = typeof AbortAgentInputSchema.Type;
-export type GetAgentUsageInput = typeof GetAgentUsageInputSchema.Type;
 export type AgentUsage = typeof AgentUsageSchema.Type;
 export type PiSessionInfoList = typeof PiSessionInfoListSchema.Type;
 export type AgentRuntimeState = typeof AgentRuntimeStateSchema.Type;
 export type AgentHistory = typeof AgentHistorySchema.Type;
-export type AgentEvent = typeof AgentEventSchema.Type;
 export type GetAgentSessionDetailsInput = typeof GetAgentSessionDetailsInputSchema.Type;
 export type AgentSessionStats = typeof AgentSessionStatsSchema.Type;
 export type SessionTreeNode = typeof SessionTreeNodeSchema.Type;
 export type AgentSessionDetails = typeof AgentSessionDetailsSchema.Type;
+export type SubscribeAgentInput = typeof SubscribeAgentInputSchema.Type;
+export type AgentSnapshot = typeof AgentSnapshotSchema.Type;
+export type AgentStreamItem = typeof AgentStreamItemSchema.Type;
+
+export type PiAgentStartEvent = typeof PiAgentStartEventSchema.Type;
+export type PiAgentEndEvent = typeof PiAgentEndEventSchema.Type;
+export type PiTurnStartEvent = typeof PiTurnStartEventSchema.Type;
+export type PiTurnEndEvent = typeof PiTurnEndEventSchema.Type;
+export type PiMessageStartEvent = typeof PiMessageStartEventSchema.Type;
+export type PiMessageUpdateEvent = typeof PiMessageUpdateEventSchema.Type;
+export type PiMessageEndEvent = typeof PiMessageEndEventSchema.Type;
+export type PiToolExecutionStartEvent = typeof PiToolExecutionStartEventSchema.Type;
+export type PiToolExecutionUpdateEvent = typeof PiToolExecutionUpdateEventSchema.Type;
+export type PiToolExecutionEndEvent = typeof PiToolExecutionEndEventSchema.Type;
+export type PiQueueUpdateEvent = typeof PiQueueUpdateEventSchema.Type;
+export type PiCompactionStartEvent = typeof PiCompactionStartEventSchema.Type;
+export type PiCompactionEndEvent = typeof PiCompactionEndEventSchema.Type;
+export type PiAutoRetryStartEvent = typeof PiAutoRetryStartEventSchema.Type;
+export type PiAutoRetryEndEvent = typeof PiAutoRetryEndEventSchema.Type;
+export type PiAgentEvent = typeof PiAgentEventSchema.Type;
