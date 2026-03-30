@@ -15,33 +15,44 @@ export type EntityMetadata = {
   readonly updatedAt: string;
 };
 
+/**
+ * Base path for storing pixxl entities (agents, terminals, commands).
+ * This is the workspace storage path, NOT the user's actual project path.
+ */
+export type EntityBasePath = string;
+
 /** Input params for creating an entity */
 export type CreateEntityInput = {
   readonly id: string;
-  readonly projectPath: string;
+  /** Base path in workspace storage where entities are stored */
+  readonly entityBasePath: EntityBasePath;
 };
 
 /** Input params for reading an entity */
 export type GetEntityInput = {
-  readonly projectPath: string;
+  /** Base path in workspace storage where entities are stored */
+  readonly entityBasePath: EntityBasePath;
   readonly id: string;
 };
 
 /** Input params for updating an entity */
 export type UpdateEntityInput = {
   readonly id: string;
-  readonly projectPath: string;
+  /** Base path in workspace storage where entities are stored */
+  readonly entityBasePath: EntityBasePath;
 };
 
 /** Input params for deleting an entity */
 export type DeleteEntityInput = {
-  readonly projectPath: string;
+  /** Base path in workspace storage where entities are stored */
+  readonly entityBasePath: EntityBasePath;
   readonly id: string;
 };
 
 /** Input params for listing entities */
 export type ListEntityInput = {
-  readonly projectPath: string;
+  /** Base path in workspace storage where entities are stored */
+  readonly entityBasePath: EntityBasePath;
 };
 
 /** Definition for a specific entity type */
@@ -100,11 +111,11 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
       >(
         definition: EntityDefinition<TEntity, TCreate, TUpdate>,
       ): EntityOperations<TEntity, TCreate, TUpdate> => {
-        const entityPath = (projectPath: string) =>
-          path.join(projectPath, definition.directoryName);
+        const entityPath = (basePath: EntityBasePath) =>
+          path.join(basePath, definition.directoryName);
 
-        const filePath = (projectPath: string, id: string) =>
-          path.join(entityPath(projectPath), `${id}.json`);
+        const filePath = (basePath: EntityBasePath, id: string) =>
+          path.join(entityPath(basePath), `${id}.json`);
 
         const decodeEntity = Schema.decodeUnknownEffect(
           Schema.fromJsonString(definition.schema),
@@ -113,7 +124,7 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
         const create = Effect.fn("EntityService.create")(function* (
           input: TCreate & CreateEntityInput,
         ) {
-          const directoryPath = entityPath(input.projectPath);
+          const directoryPath = entityPath(input.entityBasePath);
 
           const dirExists = yield* fs
             .exists(directoryPath)
@@ -148,7 +159,7 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
             now,
           });
 
-          const fp = filePath(input.projectPath, entity.id);
+          const fp = filePath(input.entityBasePath, entity.id);
           const content = JSON.stringify(entity, null, 2);
 
           yield* fs
@@ -163,7 +174,7 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
         });
 
         const get = Effect.fn("EntityService.get")(function* (input: GetEntityInput) {
-          const fp = filePath(input.projectPath, input.id);
+          const fp = filePath(input.entityBasePath, input.id);
 
           const fileExists = yield* fs
             .exists(fp)
@@ -190,7 +201,7 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
               (_e) =>
                 new EntityDecodeError({
                   entityId: input.id,
-                  directory: entityPath(input.projectPath),
+                  directory: entityPath(input.entityBasePath),
                 }),
             ),
           );
@@ -201,7 +212,7 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
         const update = Effect.fn("EntityService.update")(function* (
           input: TUpdate & UpdateEntityInput,
         ) {
-          const fp = filePath(input.projectPath, input.id);
+          const fp = filePath(input.entityBasePath, input.id);
 
           const fileExists = yield* fs
             .exists(fp)
@@ -228,7 +239,7 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
               (_e) =>
                 new EntityDecodeError({
                   entityId: input.id,
-                  directory: entityPath(input.projectPath),
+                  directory: entityPath(input.entityBasePath),
                 }),
             ),
           );
@@ -250,7 +261,7 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
         });
 
         const remove = Effect.fn("EntityService.delete")(function* (input: DeleteEntityInput) {
-          const fp = filePath(input.projectPath, input.id);
+          const fp = filePath(input.entityBasePath, input.id);
 
           const fileExists = yield* fs
             .exists(fp)
@@ -274,7 +285,7 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
         });
 
         const list = Effect.fn("EntityService.list")(function* (input: ListEntityInput) {
-          const directoryPath = entityPath(input.projectPath);
+          const directoryPath = entityPath(input.entityBasePath);
 
           const dirExists = yield* fs
             .exists(directoryPath)

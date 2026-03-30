@@ -60,9 +60,11 @@ export class CommandService extends ServiceMap.Service<CommandService, CommandSe
           return Option.none();
         }
 
+        const storagePath = yield* project.resolveStoragePath(projectResult.value.path);
+
         const command = yield* commands
           .create({
-            projectPath: projectResult.value.path,
+            entityBasePath: storagePath,
             id: input.id,
             name: input.name,
             projectId: input.projectId,
@@ -93,9 +95,11 @@ export class CommandService extends ServiceMap.Service<CommandService, CommandSe
           return Option.none();
         }
 
+        const storagePath = yield* project.resolveStoragePath(projectResult.value.path);
+
         return yield* commands
           .get({
-            projectPath: projectResult.value.path,
+            entityBasePath: storagePath,
             id: input.id,
           })
           .pipe(
@@ -120,9 +124,11 @@ export class CommandService extends ServiceMap.Service<CommandService, CommandSe
           return Option.none<boolean>();
         }
 
+        const storagePath = yield* project.resolveStoragePath(projectResult.value.path);
+
         return yield* commands
           .delete({
-            projectPath: projectResult.value.path,
+            entityBasePath: storagePath,
             id: input.id,
           })
           .pipe(
@@ -146,8 +152,10 @@ export class CommandService extends ServiceMap.Service<CommandService, CommandSe
           return [];
         }
 
+        const storagePath = yield* project.resolveStoragePath(projectResult.value.path);
+
         return yield* commands.list({
-          projectPath: projectResult.value.path,
+          entityBasePath: storagePath,
         });
       });
 

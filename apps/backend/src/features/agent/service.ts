@@ -71,7 +71,7 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
           cause: new Error("Project not found"),
         });
       }
-      const projectPath = projectResult.value.path;
+      const storagePath = yield* project.resolveStoragePath(projectResult.value.path);
 
       // Lazy initialization: don't create session until first message
       // Store empty sessionFile initially
@@ -80,7 +80,7 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
           id: input.id,
           name: input.name,
           projectId: input.projectId,
-          projectPath,
+          entityBasePath: storagePath,
           sessionFile: "",
         })
         .pipe(Effect.mapError((cause) => new AgentCreateError({ name: input.name, cause })));
@@ -135,6 +135,9 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
 
     const getOrCreateInstance = Effect.fn("AgentService.getOrCreateInstance")(function* (input: {
       metadata: AgentMetadata;
+      /** Storage path in workspace where entity metadata is stored */
+      entityBasePath: string;
+      /** Actual project path (user's project directory) for SessionManager and resource loader */
       projectPath: string;
     }) {
       const existing = instances.get(input.metadata.id);
@@ -173,7 +176,7 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
           id: input.metadata.id,
           name: input.metadata.name,
           projectId: input.metadata.projectId,
-          projectPath: input.projectPath,
+          entityBasePath: input.entityBasePath,
           sessionFile,
         });
 
@@ -232,7 +235,8 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
       const projects = yield* project.listProjects();
 
       for (const p of projects) {
-        const result = yield* agents.get({ projectPath: p.path, id: input.agentId });
+        const storagePath = yield* project.resolveStoragePath(p.path);
+        const result = yield* agents.get({ entityBasePath: storagePath, id: input.agentId });
         return result;
       }
       return Option.none<AgentMetadata>();
@@ -246,14 +250,14 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
           cause: "Project not found",
         });
       }
-      const projectPath = projectResult.value.path;
+      const storagePath = yield* project.resolveStoragePath(projectResult.value.path);
 
       const metadata = yield* agents
         .update({
           id: input.id,
           name: input.name,
           projectId: input.projectId,
-          projectPath,
+          entityBasePath: storagePath,
           sessionFile: input.sessionFile,
         })
         .pipe(Effect.mapError((cause) => new AgentUpdateError({ agentId: input.id, cause })));
@@ -279,14 +283,14 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
           cause: "Project not found",
         });
       }
-      const projectPath = projectResult.value.path;
+      const storagePath = yield* project.resolveStoragePath(projectResult.value.path);
 
       // Dispose instance
       instances.get(input.agentId)?.dispose();
       instances.delete(input.agentId);
 
       yield* agents
-        .delete({ projectPath, id: input.agentId })
+        .delete({ entityBasePath: storagePath, id: input.agentId })
         .pipe(Effect.mapError((cause) => new AgentDeleteError({ agentId: input.agentId, cause })));
     });
 
@@ -295,7 +299,8 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
     }) {
       const projectResult = yield* project.getProjectDetail({ id: input.projectId });
       if (Option.isNone(projectResult)) return [];
-      return yield* agents.list({ projectPath: projectResult.value.path });
+      const storagePath = yield* project.resolveStoragePath(projectResult.value.path);
+      return yield* agents.list({ entityBasePath: storagePath });
     });
 
     const getInstance = Effect.fn("AgentService.getInstance")(function* (input: {
@@ -314,8 +319,10 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
         return Option.none<AgentInstance>();
       }
 
+      const storagePath = yield* project.resolveStoragePath(projectResult.value.path);
       const instance = yield* getOrCreateInstance({
         metadata: metadata.value,
+        entityBasePath: storagePath,
         projectPath: projectResult.value.path,
       });
       return Option.some(instance);

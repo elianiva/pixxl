@@ -32,6 +32,12 @@ type ProjectServiceShape = {
   readonly getProjectDetail: (
     input: GetProjectDetailInput,
   ) => Effect.Effect<Option.Option<ProjectMetadata>, WorkspaceError | ProjectReadError>;
+  /**
+   * Resolve storage path from project metadata path.
+   * Storage path is the actual filesystem location inside the workspace,
+   * while metadata path is the user-intended path displayed in UI.
+   */
+  readonly resolveStoragePath: (metadataPath: string) => Effect.Effect<string, WorkspaceError>;
 };
 
 export class ProjectService extends ServiceMap.Service<ProjectService, ProjectServiceShape>()(
@@ -243,11 +249,30 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
         return Option.some(project);
       });
 
+      const resolveStoragePath = Effect.fn("ProjectService.resolveStoragePath")(function* (
+        metadataPath: string,
+      ) {
+        const cfg = yield* config.loadConfig();
+
+        if (!cfg.workspace.directory || cfg.workspace.directory.length === 0) {
+          return yield* new WorkspaceError({
+            directory: cfg.workspace.directory,
+            cause:
+              "Workspace directory is not configured. Please set a workspace directory in settings.",
+          });
+        }
+
+        const expandedWorkspace = expandHomeDir(cfg.workspace.directory);
+        const projectName = path.basename(expandHomeDir(metadataPath));
+        return path.join(expandedWorkspace, projectName);
+      });
+
       return {
         createProject,
         deleteProject,
         listProjects,
         getProjectDetail,
+        resolveStoragePath,
       } as unknown as ProjectServiceShape;
     }),
   },

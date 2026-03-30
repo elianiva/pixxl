@@ -75,13 +75,15 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
           return Option.none();
         }
 
+        const storagePath = yield* project.resolveStoragePath(projectResult.value.path);
+
         // Get shell from config at creation time
         const cfg = yield* config.loadConfig();
         const shell = cfg.terminal.shell;
 
         const terminal = yield* terminals
           .create({
-            projectPath: projectResult.value.path,
+            entityBasePath: storagePath,
             id: input.id,
             name: input.name,
             projectId: input.projectId,
@@ -111,9 +113,11 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
           return Option.none();
         }
 
+        const storagePath = yield* project.resolveStoragePath(projectResult.value.path);
+
         return yield* terminals
           .get({
-            projectPath: projectResult.value.path,
+            entityBasePath: storagePath,
             id: input.id,
           })
           .pipe(
@@ -137,9 +141,11 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
           return Option.none();
         }
 
+        const storagePath = yield* project.resolveStoragePath(projectResult.value.path);
+
         // Get current terminal to preserve shell
         const currentResult = yield* terminals.get({
-          projectPath: projectResult.value.path,
+          entityBasePath: storagePath,
           id: input.id,
         });
 
@@ -149,7 +155,7 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
 
         return yield* terminals
           .update({
-            projectPath: projectResult.value.path,
+            entityBasePath: storagePath,
             id: input.id,
             name: input.name,
             projectId: input.projectId,
@@ -179,9 +185,11 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
           return Option.some(false); // Return false instead of none for consistent typing
         }
 
+        const storagePath = yield* project.resolveStoragePath(projectResult.value.path);
+
         const deleted = yield* terminals
           .delete({
-            projectPath: projectResult.value.path,
+            entityBasePath: storagePath,
             id: input.id,
           })
           .pipe(
@@ -207,8 +215,10 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
           return [];
         }
 
+        const storagePath = yield* project.resolveStoragePath(projectResult.value.path);
+
         return yield* terminals.list({
-          projectPath: projectResult.value.path,
+          entityBasePath: storagePath,
         });
       });
 
