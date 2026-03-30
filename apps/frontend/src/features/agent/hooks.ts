@@ -483,12 +483,10 @@ export function useAgentActions(projectId: string, agentId?: string) {
         thinkingLevel: options.thinkingLevel,
       });
 
-      // Refetch runtime to get updated model/thinking level
-      await queryClient.invalidateQueries({
-        queryKey: ["agent-runtime", projectId, resolvedAgentId],
-      });
+      // Refetch runtime and interactions (for model/thinking change entries in timeline)
+      await invalidateAgentQueries(resolvedAgentId);
     },
-    [projectId],
+    [projectId, invalidateAgentQueries],
   );
 
   const sendMessage = useCallback(
