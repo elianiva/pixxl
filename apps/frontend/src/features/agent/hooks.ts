@@ -389,6 +389,11 @@ export function useChatTimeline(agentId?: string): TimelineItem[] {
 
     if (!streamState) return timeline;
 
+    // Only show optimistic messages and filter history when actively streaming
+    if (!streamState.isStreaming) {
+      return timeline;
+    }
+
     // Build set of optimistic IDs currently in stream
     const activeOptimisticIds = new Set<string>();
     if (streamState.optimisticUserMessage) {
