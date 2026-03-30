@@ -14,6 +14,7 @@ import { NewProjectDialog } from "@/features/project/components/new-project-dial
 import { EditAgentDialog } from "@/features/agent/components/dialog/edit-agent";
 import { EditTerminalDialog } from "@/features/terminal/components/edit-terminal-dialog";
 import { SettingsDialog } from "@/features/config/components/settings-dialog";
+import { SessionSwitcher } from "@/features/agent/components/session/session-switcher";
 import type { AgentMetadata, TerminalMetadata, CommandMetadata } from "@pixxl/shared";
 import { generateId } from "@/lib/utils";
 
@@ -159,10 +160,13 @@ function RouteComponent() {
       />
       <SidebarInset className="h-svh flex flex-col">
         <header className="flex-none bg-background flex h-14 w-full items-center gap-2 border-b z-10">
-          <div className="flex items-center gap-2 px-4">
+          <div className="flex items-center gap-2 px-4 flex-1">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
             <AppBreadcrumb />
+          </div>
+          <div className="flex items-center px-4">
+            <SessionSwitcher />
           </div>
         </header>
         <div className="flex-1 min-h-0">

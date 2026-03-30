@@ -1,16 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { SettingRow } from "@/features/config/components/setting-row";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -20,7 +14,6 @@ import {
   RiFileCopyLine,
   RiCheckLine,
 } from "@remixicon/react";
-import { useMutation } from "@tanstack/react-query";
 import { rpc } from "@/lib/rpc";
 import type { AgentThinkingLevel } from "@pixxl/shared";
 import type { ModelOption } from "../settings/model-selector";
@@ -104,7 +97,6 @@ export function SessionSettingsDialog({
   onThinkingLevelChange,
 }: SessionSettingsDialogProps) {
   const [activeSection, setActiveSection] = React.useState<SessionSection>("settings");
-  const queryClient = useQueryClient();
 
   const { data: details, isLoading: isLoadingDetails } = useQuery({
     queryKey: ["agent-session-details", projectId, agentId],
@@ -112,23 +104,7 @@ export function SessionSettingsDialog({
     enabled: open,
   });
 
-  const { data: attachableSessions } = useQuery({
-    queryKey: ["attachable-sessions", projectId],
-    queryFn: () => rpc.agent.listAttachableSessions({ projectId }),
-    enabled: open && activeSection === "settings",
-  });
-
   const { configureSession } = useAgentActions(projectId, agentId);
-
-  const switchSessionMutation = useMutation({
-    mutationFn: ({ sessionFile }: { sessionFile: string }) =>
-      rpc.agent.switchSession({ projectId, agentId, sessionFile }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["agent-session-details", projectId, agentId] });
-      queryClient.invalidateQueries({ queryKey: ["agent-runtime", projectId, agentId] });
-      queryClient.invalidateQueries({ queryKey: ["agent-history", projectId, agentId] });
-    },
-  });
 
   const allModels = useModels();
 
@@ -198,7 +174,7 @@ export function SessionSettingsDialog({
                         />
                       </div>
 
-                      {(details || attachableSessions?.length) && (
+                      {details && (
                         <div>
                           <h3 className="mb-4 text-base font-semibold">Session</h3>
                           <div className="border border-border">
@@ -226,32 +202,6 @@ export function SessionSettingsDialog({
                                     </>
                                   )}
                                 </Button>
-                              </SettingRow>
-                            )}
-                            {attachableSessions && attachableSessions.length > 0 && (
-                              <SettingRow
-                                label="Switch Session"
-                                description="Attach to a different session"
-                              >
-                                <Select
-                                  onValueChange={(sessionFile: string | null) => {
-                                    if (sessionFile) {
-                                      switchSessionMutation.mutate({ sessionFile });
-                                    }
-                                  }}
-                                  disabled={switchSessionMutation.isPending}
-                                >
-                                  <SelectTrigger className="w-52">
-                                    <SelectValue placeholder="Select session..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {attachableSessions.map((session) => (
-                                      <SelectItem key={session.id} value={session.path}>
-                                        {session.name || session.id}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
                               </SettingRow>
                             )}
                           </div>
