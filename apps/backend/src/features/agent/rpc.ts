@@ -538,6 +538,43 @@ export const promptAgentRpc = os.agent.promptAgent.handler(async function* ({ in
   }
 });
 
+// Subscribe to agent events - for reconnection and initial sync
+export const subscribeAgentRpc = os.agent.subscribeAgent.handler(async function* ({ input }) {
+  const instance = await Effect.runPromise(
+    Effect.gen(function* () {
+      const service = yield* AgentService;
+      const instanceOpt = yield* service.getInstance({ agentId: input.agentId });
+
+      if (Option.isNone(instanceOpt)) {
+        return yield* new AgentNotFoundError({
+          agentId: input.agentId,
+          cause: "Agent not found or not initialized",
+        });
+      }
+
+      return instanceOpt.value;
+    }).pipe(Effect.provide(AgentService.layer)),
+  );
+
+  // Get replay stream with all entries + live events
+  const stream = instance.subscribeWithReplay();
+
+  try {
+    for await (const event of Stream.toAsyncIterable(stream)) {
+      yield event;
+
+      if (
+        event.type === "error" ||
+        (event.type === "status_change" && (event.status === "idle" || event.status === "error"))
+      ) {
+        break;
+      }
+    }
+  } finally {
+    // Stream cleanup
+  }
+});
+
 export const abortAgentRpc = os.agent.abortAgent.handler(({ input }) =>
   runPromise(
     Effect.gen(function* () {

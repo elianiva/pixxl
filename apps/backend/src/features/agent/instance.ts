@@ -1,10 +1,17 @@
 import { type AgentSession, type SessionManager } from "@mariozechner/pi-coding-agent";
 import { Effect, PubSub, Stream } from "effect";
-import type { AgentEvent, AgentMetadata } from "@pixxl/shared";
+import { generateId, type AgentEvent, type AgentMetadata } from "@pixxl/shared";
 import type { AgentModel, AgentModelRef, AgentThinkingLevel } from "@pixxl/shared";
 import { getModel } from "@mariozechner/pi-ai";
 
 export type AgentStatus = "idle" | "streaming" | "error";
+
+interface StreamingState {
+  entryId: string;
+  content: string;
+  reasoning?: string;
+  toolCalls: { name: string; params: unknown; output?: string; error?: string }[];
+}
 
 interface PendingOptimisticIds {
   userOptimisticId?: string;
@@ -17,6 +24,7 @@ export class AgentInstance {
   readonly events: PubSub.PubSub<AgentEvent>;
   private unsubscribe: (() => void) | undefined;
   private pendingIds: PendingOptimisticIds = {};
+  private streamingState: StreamingState | null = null;
 
   constructor(
     readonly metadata: AgentMetadata,
@@ -29,8 +37,12 @@ export class AgentInstance {
     // Subscribe to Pi events and fan out
     this.unsubscribe = session.subscribe((event) => {
       const mapped = this.mapPiEvent(event);
-      if (mapped) {
-        Effect.runFork(PubSub.publish(this.events, mapped));
+      if (!mapped) return;
+
+      // Handle both single events and arrays of events
+      const events = Array.isArray(mapped) ? mapped : [mapped];
+      for (const ev of events) {
+        Effect.runFork(PubSub.publish(this.events, ev));
       }
     });
   }
@@ -75,6 +87,56 @@ export class AgentInstance {
     return Stream.fromPubSub(this.events);
   }
 
+  // Subscribe with entry replay - for reconnection
+  subscribeWithReplay(): Stream.Stream<AgentEvent> {
+    const entries = this.sessionManager.getEntries();
+    const liveStream = Stream.fromPubSub(this.events);
+
+    // Build initial snapshot events from persisted entries
+    const initialEvents: AgentEvent[] = [];
+    for (const entry of entries) {
+      initialEvents.push({
+        type: "entry_added",
+        sessionId: this.metadata.id,
+        entry: entry as unknown as import("@pixxl/shared").PiSessionEntry,
+      });
+    }
+
+    // If currently streaming, add synthetic entry for partial state
+    if (this.status === "streaming" && this.streamingState) {
+      // Find the parent entry (the user message)
+      const parentEntry = entries.find((e) => e.id === this.streamingState?.entryId);
+      if (parentEntry) {
+        // Create synthetic assistant entry
+        const syntheticEntry = {
+          type: "message" as const,
+          id: this.streamingState.entryId, // Will be replaced on update
+          parentId: parentEntry.id,
+          timestamp: new Date().toISOString(),
+          message: {
+            role: "assistant" as const,
+            content: [{ type: "text" as const, text: this.streamingState.content }],
+          },
+        };
+        initialEvents.push({
+          type: "entry_added",
+          sessionId: this.metadata.id,
+          entry: syntheticEntry as unknown as import("@pixxl/shared").PiSessionEntry,
+        });
+
+        // Also emit status to indicate streaming
+        initialEvents.push({
+          type: "status_change",
+          sessionId: this.metadata.id,
+          status: "streaming",
+        });
+      }
+    }
+
+    // Concatenate: initial snapshot + live events
+    return Stream.concat(Stream.fromIterable(initialEvents), liveStream);
+  }
+
   get queuedSteering(): readonly string[] {
     return this.session.getSteeringMessages() ?? [];
   }
@@ -107,7 +169,7 @@ export class AgentInstance {
       : "off";
   }
 
-  private mapPiEvent(piEvent: unknown): AgentEvent | null {
+  private mapPiEvent(piEvent: unknown): AgentEvent | AgentEvent[] | null {
     if (!piEvent || typeof piEvent !== "object") return null;
     const event = piEvent as { type?: string };
 
@@ -115,17 +177,77 @@ export class AgentInstance {
       case "message_update": {
         const msg = piEvent as { assistantMessageEvent?: { type?: string; delta?: unknown } };
         const assistantEvent = msg.assistantMessageEvent;
+
+        // On first delta, emit user entry and start streaming
+        if (!this.streamingState) {
+          const entries = this.sessionManager.getEntries();
+          const latestEntry = entries.at(-1);
+          if (latestEntry?.type === "message" && latestEntry.message?.role === "user") {
+            // Start tracking streaming state
+            this.streamingState = {
+              entryId: generateId(), // Will be the assistant entry ID
+              content: "",
+              toolCalls: [],
+            };
+
+            // Emit user entry added + streaming status
+            const events: AgentEvent[] = [
+              {
+                type: "entry_added",
+                sessionId: this.metadata.id,
+                entry: latestEntry as unknown as import("@pixxl/shared").PiSessionEntry,
+              },
+              {
+                type: "status_change",
+                sessionId: this.metadata.id,
+                status: "streaming",
+              },
+            ];
+
+            // Then emit the delta with entryId
+            if (assistantEvent?.type === "text_delta") {
+              this.streamingState.content = String(assistantEvent.delta ?? "");
+              events.push({
+                type: "message_delta",
+                sessionId: this.metadata.id,
+                entryId: this.streamingState.entryId,
+                delta: String(assistantEvent.delta ?? ""),
+              });
+            } else if (assistantEvent?.type === "thinking_delta") {
+              this.streamingState.reasoning = String(assistantEvent.delta ?? "");
+              events.push({
+                type: "thinking_delta",
+                sessionId: this.metadata.id,
+                entryId: this.streamingState.entryId,
+                delta: String(assistantEvent.delta ?? ""),
+              });
+            }
+
+            return events;
+          }
+        }
+
+        // Normal delta handling when already streaming
         if (assistantEvent?.type === "text_delta") {
+          if (this.streamingState) {
+            this.streamingState.content += String(assistantEvent.delta ?? "");
+          }
           return {
             type: "message_delta",
             sessionId: this.metadata.id,
+            entryId: this.streamingState?.entryId ?? "",
             delta: String(assistantEvent.delta ?? ""),
           };
         }
         if (assistantEvent?.type === "thinking_delta") {
+          if (this.streamingState) {
+            this.streamingState.reasoning =
+              (this.streamingState.reasoning ?? "") + String(assistantEvent.delta ?? "");
+          }
           return {
             type: "thinking_delta",
             sessionId: this.metadata.id,
+            entryId: this.streamingState?.entryId ?? "",
             delta: String(assistantEvent.delta ?? ""),
           };
         }
@@ -139,57 +261,40 @@ export class AgentInstance {
         if (msg.message?.role !== "assistant") return null;
 
         const events: AgentEvent[] = [];
+        const entries = this.sessionManager.getEntries();
+        const latestEntry = entries.at(-1);
 
-        // Emit status change
+        // Emit entry_added for the assistant message
+        // This replaces any synthetic partial entry
+        if (
+          latestEntry &&
+          latestEntry.type === "message" &&
+          latestEntry.message?.role === "assistant"
+        ) {
+          events.push({
+            type: "entry_added",
+            sessionId: this.metadata.id,
+            entry: latestEntry as unknown as import("@pixxl/shared").PiSessionEntry,
+          });
+        }
+
+        // Clear streaming state
+        this.streamingState = null;
+
+        // Emit status change LAST so entry_added events are yielded first
         events.push({
           type: "status_change",
           sessionId: this.metadata.id,
           status: msg.message.stopReason === "error" ? "error" : "idle",
         });
 
-        // Emit finalization for assistant message if we have optimistic ID
-        if (this.pendingIds.assistantOptimisticId) {
-          // Get the latest entry (the just-created assistant message)
-          const entries = this.sessionManager.getEntries();
-          const latestEntry = entries.at(-1);
-          if (
-            latestEntry &&
-            latestEntry.type === "message" &&
-            latestEntry.message?.role === "assistant"
-          ) {
-            events.push({
-              type: "message_finalized",
-              sessionId: this.metadata.id,
-              optimisticId: this.pendingIds.assistantOptimisticId,
-              persistedId: latestEntry.id,
-              role: "assistant",
-            });
-          }
-        }
-
-        // Emit finalization for user message if we have optimistic ID
-        // User message is the parent of the assistant message
-        if (this.pendingIds.userOptimisticId) {
-          const entries = this.sessionManager.getEntries();
-          const latestEntry = entries.at(-1);
-          if (latestEntry?.parentId) {
-            events.push({
-              type: "message_finalized",
-              sessionId: this.metadata.id,
-              optimisticId: this.pendingIds.userOptimisticId,
-              persistedId: latestEntry.parentId,
-              role: "user",
-            });
-          }
-        }
-
-        // Publish all events
+        // Publish all events - order matters: entry_added before status_change
         for (const ev of events) {
           Effect.runFork(PubSub.publish(this.events, ev));
         }
 
-        // Return the first event (status_change) - the rest are published directly
-        return events[0] ?? null;
+        // Return null - all events already published above
+        return null;
       }
 
       case "tool_execution_start": {

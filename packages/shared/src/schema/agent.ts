@@ -133,6 +133,11 @@ export const PromptAgentInputSchema = Schema.Struct({
   assistantOptimisticId: Schema.optional(Schema.String),
 });
 
+export const SubscribeAgentInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+});
+
 export const AgentModelRefSchema = Schema.Struct({
   provider: Schema.String,
   id: Schema.String,
@@ -263,12 +268,14 @@ export const AgentHistorySchema = Schema.Struct({
 const MessageDeltaEventSchema = Schema.Struct({
   type: Schema.Literal("message_delta"),
   sessionId: Schema.String,
+  entryId: Schema.String,
   delta: Schema.String,
 });
 
 const ThinkingDeltaEventSchema = Schema.Struct({
   type: Schema.Literal("thinking_delta"),
   sessionId: Schema.String,
+  entryId: Schema.String,
   delta: Schema.String,
 });
 
@@ -323,6 +330,20 @@ const MessageFinalizedEventSchema = Schema.Struct({
   role: Schema.Literals(["user", "assistant"]),
 });
 
+/** Entry added to session - emitted when a new entry is persisted */
+const EntryAddedEventSchema = Schema.Struct({
+  type: Schema.Literal("entry_added"),
+  sessionId: Schema.String,
+  entry: PiSessionEntrySchema,
+});
+
+/** Entry updated in session - emitted when an assistant message is finalized */
+const EntryUpdatedEventSchema = Schema.Struct({
+  type: Schema.Literal("entry_updated"),
+  sessionId: Schema.String,
+  entry: PiSessionEntrySchema,
+});
+
 export const AgentEventSchema = Schema.Union([
   MessageDeltaEventSchema,
   ThinkingDeltaEventSchema,
@@ -334,6 +355,8 @@ export const AgentEventSchema = Schema.Union([
   SessionCreatedEventSchema,
   SessionClosedEventSchema,
   MessageFinalizedEventSchema,
+  EntryAddedEventSchema,
+  EntryUpdatedEventSchema,
 ]);
 
 export type CreateAgentInput = typeof CreateAgentInputSchema.Type;
@@ -354,6 +377,7 @@ export type PiAvailableModel = typeof PiAvailableModelSchema.Type;
 export type PiAvailableModelList = typeof PiAvailableModelListSchema.Type;
 export type AgentFrontendConfig = typeof AgentFrontendConfigSchema.Type;
 export type PromptAgentInput = typeof PromptAgentInputSchema.Type;
+export type SubscribeAgentInput = typeof SubscribeAgentInputSchema.Type;
 export type ConfigureAgentSessionInput = typeof ConfigureAgentSessionInputSchema.Type;
 export type SetAgentModelInput = typeof SetAgentModelInputSchema.Type;
 export type SetAgentThinkingLevelInput = typeof SetAgentThinkingLevelInputSchema.Type;

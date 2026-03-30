@@ -1,23 +1,17 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useStore } from "@tanstack/react-store";
-import { useLiveQuery } from "@tanstack/react-db";
 import { projectStore } from "@/lib/project-store";
 import { rpc } from "@/lib/rpc";
-import { queryClient } from "@/lib/query-client";
-import { getInteractionsCollection } from "./interactions-collection";
 import { agentStore, selectAgent } from "./store";
 import {
   applyAgentEvent,
-  beginAgentStream,
-  failAgentStream,
-  finishAgentStream,
   getStreamStateForAgent,
+  setAgentEntries,
   streamStore,
-  type StreamMessage,
 } from "./stream-store";
-import { getModelsCollection } from "@/features/config/models-collection";
 import type { ChatSubmitOptions } from "./components/chat/input";
-import type { PiAvailableModel } from "@pixxl/shared";
+import type { PiAvailableModel, PiSessionEntry } from "@pixxl/shared";
+import { useQuery } from "@tanstack/react-query";
 
 export type MessageBlock =
   | { type: "text"; text: string }
@@ -74,7 +68,6 @@ function extractBlocksFromContent(content: unknown): MessageBlock[] {
     const block = item as { type?: string };
 
     if (block.type === "text" && typeof (item as { text?: string }).text === "string") {
-      // Flush any accumulated thinking before adding text
       if (currentThinking) {
         blocks.push({ type: "thinking", thinking: currentThinking });
         currentThinking = "";
@@ -84,16 +77,12 @@ function extractBlocksFromContent(content: unknown): MessageBlock[] {
       block.type === "thinking" &&
       typeof (item as { thinking?: string }).thinking === "string"
     ) {
-      // Accumulate consecutive thinking blocks into a single chain
       currentThinking += (item as { thinking: string }).thinking;
     } else if (
       block.type === "toolCall" &&
       typeof (item as { id?: string }).id === "string" &&
       typeof (item as { name?: string }).name === "string"
     ) {
-      // Flush thinking BEFORE tool calls (not after)
-      // This ensures: [thinking_before_tool] [tool] [thinking_after_tool] [text]
-      // becomes: [thinking_before + thinking_after] [tool] [text]
       if (currentThinking) {
         blocks.push({ type: "thinking", thinking: currentThinking });
         currentThinking = "";
@@ -107,17 +96,14 @@ function extractBlocksFromContent(content: unknown): MessageBlock[] {
     }
   }
 
-  // Flush any remaining thinking at the end
   if (currentThinking) {
     blocks.push({ type: "thinking", thinking: currentThinking });
   }
 
-  // Post-process: merge consecutive thinking blocks
-  // (can happen when thinking is split across tool calls)
+  // Merge consecutive thinking blocks
   const mergedBlocks: MessageBlock[] = [];
   for (const block of blocks) {
     if (block.type === "thinking") {
-      // Merge consecutive thinking blocks
       const lastBlock = mergedBlocks.at(-1);
       if (lastBlock?.type === "thinking") {
         lastBlock.thinking += block.thinking;
@@ -132,303 +118,269 @@ function extractBlocksFromContent(content: unknown): MessageBlock[] {
   return mergedBlocks;
 }
 
+function entryToMessage(
+  entry: PiSessionEntry,
+  toolResults?: Map<string, { output?: string; error?: string; isError: boolean }>,
+): Message | null {
+  if (entry.type !== "message") return null;
+  const msg = entry.message as
+    | {
+      role?: "user" | "assistant" | "toolResult";
+      content?: unknown;
+      thinking?: string;
+      toolCallId?: string;
+    }
+    | undefined;
+  if (!msg || msg.role === "toolResult") return null;
+
+  const blocks = extractBlocksFromContent(msg.content);
+
+  let text = "";
+  let thinking: string | undefined;
+  const toolCalls: Message["toolCalls"] = [];
+
+  for (const block of blocks) {
+    if (block.type === "text") text += block.text;
+    else if (block.type === "thinking") thinking = (thinking ?? "") + block.thinking;
+    else if (block.type === "toolCall") {
+      const resultKey = `${entry.id}:${block.id}`;
+      const result = toolResults?.get(resultKey);
+      toolCalls.push({
+        id: block.id,
+        name: block.name,
+        params: block.arguments,
+        status: result ? (result.isError ? "error" : "complete") : "running",
+        output: result?.output,
+        error: result?.error,
+      });
+    }
+  }
+
+  return {
+    id: entry.id,
+    role: msg.role === "assistant" ? "assistant" : "user",
+    content: text,
+    reasoning: thinking,
+    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+    blocks,
+  };
+}
+
+function entryToActionItem(entry: PiSessionEntry): ActionItem | null {
+  let action: ActionType | undefined;
+
+  switch (entry.type) {
+    case "model_change": {
+      const provider = entry.provider as string | undefined;
+      const modelId = entry.modelId as string | undefined;
+      if (provider && modelId) {
+        action = { type: "model_change", provider, modelId };
+      }
+      break;
+    }
+    case "thinking_level_change": {
+      const thinkingLevel = entry.thinkingLevel as string | undefined;
+      if (thinkingLevel) {
+        action = { type: "thinking_level_change", thinkingLevel };
+      }
+      break;
+    }
+    case "compaction": {
+      const summary = entry.summary as string | undefined;
+      const firstKeptEntryId = entry.firstKeptEntryId as string | undefined;
+      const tokensBefore = entry.tokensBefore as number | undefined;
+      if (summary && firstKeptEntryId) {
+        action = { type: "compaction", summary, firstKeptEntryId, tokensBefore: tokensBefore ?? 0 };
+      }
+      break;
+    }
+    case "branch_summary": {
+      const fromId = entry.fromId as string | undefined;
+      const summary = entry.summary as string | undefined;
+      if (fromId && summary) {
+        action = { type: "branch_summary", fromId, summary };
+      }
+      break;
+    }
+    case "session_info": {
+      const name = entry.name as string | undefined;
+      action = { type: "session_info", name };
+      break;
+    }
+    case "label": {
+      const targetId = entry.targetId as string | undefined;
+      const label = entry.label as string | undefined;
+      if (targetId) {
+        action = { type: "label", targetId, label };
+      }
+      break;
+    }
+    case "custom": {
+      const customType = entry.customType as string | undefined;
+      const data = entry.data;
+      if (customType) {
+        action = { type: "custom", customType, data };
+      }
+      break;
+    }
+    case "custom_message": {
+      const customType = entry.customType as string | undefined;
+      const display = entry.display as boolean | undefined;
+      const content = entry.content;
+      if (customType && display) {
+        action = { type: "custom_message", customType, content };
+      }
+      break;
+    }
+  }
+
+  if (!action) return null;
+
+  return {
+    id: entry.id,
+    timestamp: entry.timestamp,
+    action,
+  };
+}
+
 export function useActiveAgentId(): string | null {
   return useStore(agentStore, (state) => state.activeAgentId);
 }
 
-function toMessage(message: StreamMessage): Message {
-  return {
-    id: message.id,
-    role: message.role,
-    content: message.content,
-    reasoning: message.reasoning,
-    isStreaming: message.isStreaming,
-    toolCalls: message.toolCalls,
-  };
+// Subscribe to agent events - for initial load and reconnection
+function useAgentSubscription(agentId: string | null, projectId: string | null) {
+  const streamState = useStore(streamStore, (state) =>
+    agentId ? getStreamStateForAgent(state, agentId) : null,
+  );
+
+  useEffect(() => {
+    if (!agentId || !projectId) return;
+
+    let isActive = true;
+    const abortController = new AbortController();
+
+    const subscribe = async () => {
+      try {
+        // First, load existing history
+        const history = await rpc.agent.getAgentHistory({ projectId, agentId });
+        if (history?.entries && isActive) {
+          setAgentEntries(agentId, history.entries as PiSessionEntry[]);
+        }
+
+        // Then subscribe to live events
+        const stream = await rpc.agent.subscribeAgent({ projectId, agentId });
+
+        for await (const event of stream) {
+          if (!isActive || abortController.signal.aborted) break;
+          applyAgentEvent(agentId, null, event);
+
+          if (
+            event.type === "error" ||
+            (event.type === "status_change" &&
+              (event.status === "idle" || event.status === "error"))
+          ) {
+            break;
+          }
+        }
+      } catch (error) {
+        console.error("Agent subscription error:", error);
+      }
+    };
+
+    subscribe();
+
+    return () => {
+      isActive = false;
+      abortController.abort();
+    };
+  }, [agentId, projectId]);
+
+  return streamState;
 }
 
 export function useChatTimeline(agentId?: string): TimelineItem[] {
   const activeAgentId = useActiveAgentId();
   const targetAgentId = agentId ?? activeAgentId;
   const projectId = useStore(projectStore, (state) => state.currentProjectId);
-  const streamState = useStore(streamStore, (state) =>
-    targetAgentId ? getStreamStateForAgent(state, targetAgentId) : null,
-  );
 
-  const { data: historyMessages = [] } = useLiveQuery(
-    getInteractionsCollection(projectId as string, targetAgentId as string),
-  );
+  const streamState = useAgentSubscription(targetAgentId, projectId);
 
   return useMemo(() => {
-    // First pass: collect tool results keyed by (parentId, toolCallId)
+    if (!streamState) return [];
+
+    // Build tool results map from entries
     const toolResults = new Map<string, { output?: string; error?: string; isError: boolean }>();
-
-    for (const item of historyMessages) {
-      const entry = item.entry as {
-        type?: string;
-        id: string;
-        parentId?: string | null;
-        message?: {
-          role?: "user" | "assistant" | "toolResult";
-          content?: unknown;
-          thinking?: string;
-          toolCallId?: string;
-          toolName?: string;
-          isError?: boolean;
-        };
-      };
-
+    for (const entry of streamState.entries) {
       if (
         entry.type === "message" &&
-        entry.message?.role === "toolResult" &&
-        entry.message.toolCallId &&
+        (entry.message as { role?: string })?.role === "toolResult" &&
+        (entry.message as { toolCallId?: string })?.toolCallId &&
         entry.parentId
       ) {
-        // Store result keyed by "parentId:toolCallId"
-        const key = `${entry.parentId}:${entry.message.toolCallId}`;
-        const content = entry.message.content;
-
-        // Extract text from content (handle both string and array of content parts)
-        let resultText: string;
+        const key = `${entry.parentId}:${(entry.message as { toolCallId: string }).toolCallId}`;
+        const content = (entry.message as { content?: unknown }).content;
+        let resultText = "";
         if (typeof content === "string") {
           resultText = content;
         } else if (Array.isArray(content)) {
           resultText = content
             .map((c) => {
-              if (typeof c === "object" && c !== null) {
-                if (c.type === "text" && typeof c.text === "string") {
-                  return c.text;
-                }
-                // Handle any other content part types
-                return JSON.stringify(c);
+              if (
+                typeof c === "object" &&
+                c !== null &&
+                c.type === "text" &&
+                typeof c.text === "string"
+              ) {
+                return c.text;
               }
-              return String(c);
+              return JSON.stringify(c);
             })
             .join("");
-        } else {
-          resultText = String(content ?? "");
         }
-
         toolResults.set(key, {
           output: resultText,
-          isError: entry.message.isError ?? false,
+          isError: (entry.message as { isError?: boolean }).isError ?? false,
         });
       }
     }
 
-    // Second pass: process all entries into timeline items
-    const timeline = historyMessages
-      .toSorted((a, b) => a.order - b.order)
-      .reduce<TimelineItem[]>((acc, item) => {
-        const entry = item.entry as {
-          type?: string;
-          id: string;
-          timestamp: string;
-          message?: {
-            role?: "user" | "assistant" | "toolResult";
-            content?: unknown;
-            thinking?: string;
-          };
-          // Action fields
-          provider?: string;
-          modelId?: string;
-          thinkingLevel?: string;
-          summary?: string;
-          firstKeptEntryId?: string;
-          tokensBefore?: number;
-          fromId?: string;
-          name?: string;
-          targetId?: string;
-          label?: string;
-          customType?: string;
-          data?: unknown;
-          content?: unknown;
-          display?: boolean;
-        };
+    // Convert entries to timeline items
+    const timeline: TimelineItem[] = [];
 
-        if (!entry.type) return acc;
-
-        // Process message entries
-        if (entry.type === "message") {
-          if (!entry.message || entry.message.role === "toolResult") return acc;
-
-          const message = entry.message;
-          const blocks = extractBlocksFromContent(message.content);
-
-          let text = "";
-          let thinking: string | undefined;
-          const toolCalls: Array<{
-            id: string;
-            name: string;
-            params: unknown;
-            status: "running" | "complete" | "error";
-            output?: string;
-            error?: string;
-          }> = [];
-
-          for (const block of blocks) {
-            if (block.type === "text") text += block.text;
-            else if (block.type === "thinking") thinking = (thinking ?? "") + block.thinking;
-            else if (block.type === "toolCall") {
-              const resultKey = `${entry.id}:${block.id}`;
-              const result = toolResults.get(resultKey);
-
-              toolCalls.push({
-                id: block.id,
-                name: block.name,
-                params: block.arguments,
-                status: result ? (result.isError ? "error" : "complete") : "running",
-                output: result?.output,
-                error: result?.error,
-              });
-            }
-          }
-
-          acc.push({
-            kind: "message",
-            data: {
-              id: entry.id,
-              role: message.role === "assistant" ? "assistant" : "user",
-              content: text,
-              reasoning: thinking,
-              toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-              blocks,
-            },
-          });
-          return acc;
+    for (const entry of streamState.entries) {
+      if (entry.type === "message") {
+        const msg = entryToMessage(entry, toolResults);
+        if (msg) {
+          timeline.push({ kind: "message", data: msg });
         }
-
-        // Process action entries
-        let action: ActionType | undefined;
-
-        switch (entry.type) {
-          case "model_change":
-            if (entry.provider && entry.modelId) {
-              action = {
-                type: "model_change",
-                provider: entry.provider,
-                modelId: entry.modelId,
-              };
-            }
-            break;
-          case "thinking_level_change":
-            if (entry.thinkingLevel) {
-              action = {
-                type: "thinking_level_change",
-                thinkingLevel: entry.thinkingLevel,
-              };
-            }
-            break;
-          case "compaction":
-            if (entry.summary && entry.firstKeptEntryId) {
-              action = {
-                type: "compaction",
-                summary: entry.summary,
-                firstKeptEntryId: entry.firstKeptEntryId,
-                tokensBefore: entry.tokensBefore ?? 0,
-              };
-            }
-            break;
-          case "branch_summary":
-            if (entry.fromId && entry.summary) {
-              action = {
-                type: "branch_summary",
-                fromId: entry.fromId,
-                summary: entry.summary,
-              };
-            }
-            break;
-          case "session_info":
-            action = {
-              type: "session_info",
-              name: entry.name,
-            };
-            break;
-          case "label":
-            if (entry.targetId) {
-              action = {
-                type: "label",
-                targetId: entry.targetId,
-                label: entry.label,
-              };
-            }
-            break;
-          case "custom":
-            if (entry.customType) {
-              action = {
-                type: "custom",
-                customType: entry.customType,
-                data: entry.data,
-              };
-            }
-            break;
-          case "custom_message":
-            if (entry.customType && entry.display) {
-              action = {
-                type: "custom_message",
-                customType: entry.customType,
-                content: entry.content ?? {},
-              };
-            }
-            break;
-        }
-
+      } else {
+        const action = entryToActionItem(entry);
         if (action) {
-          acc.push({
-            kind: "action",
-            data: {
-              id: entry.id,
-              timestamp: entry.timestamp,
-              action,
-            },
-          });
+          timeline.push({ kind: "action", data: action });
         }
-
-        return acc;
-      }, []);
-
-    if (!streamState) return timeline;
-
-    // Only show optimistic messages and filter history when actively streaming
-    if (!streamState.isStreaming) {
-      return timeline;
-    }
-
-    // Build set of optimistic IDs currently in stream
-    const activeOptimisticIds = new Set<string>();
-    if (streamState.optimisticUserMessage) {
-      activeOptimisticIds.add(streamState.optimisticUserMessage.optimisticId);
-    }
-    if (streamState.draftAssistantMessage) {
-      activeOptimisticIds.add(streamState.draftAssistantMessage.optimisticId);
-    }
-
-    // Filter out history entries that have active optimistic versions
-    // and replace their IDs with optimistic IDs for smooth transition
-    const filteredTimeline = timeline.filter((item) => {
-      if (item.kind !== "message") return true;
-
-      // Check if this history entry was finalized from an optimistic message
-      const optimisticId = streamState.idMap.get(item.data.id);
-      if (optimisticId && activeOptimisticIds.has(optimisticId)) {
-        // Skip this history entry - optimistic version is showing
-        return false;
       }
-
-      return true;
-    });
-
-    // Add optimistic messages at the end
-    const optimistic: TimelineItem[] = [];
-    if (streamState.optimisticUserMessage) {
-      optimistic.push({ kind: "message", data: toMessage(streamState.optimisticUserMessage) });
-    }
-    if (streamState.draftAssistantMessage) {
-      optimistic.push({ kind: "message", data: toMessage(streamState.draftAssistantMessage) });
     }
 
-    return [...filteredTimeline, ...optimistic];
-  }, [historyMessages, streamState]);
+    // Add partial entry if streaming
+    if (streamState.isStreaming && streamState.partialEntry) {
+      timeline.push({
+        kind: "message",
+        data: {
+          id: streamState.partialEntry.entryId,
+          role: "assistant",
+          content: streamState.partialEntry.content,
+          reasoning: streamState.partialEntry.reasoning,
+          isStreaming: true,
+          toolCalls:
+            streamState.partialEntry.toolCalls.length > 0
+              ? streamState.partialEntry.toolCalls
+              : undefined,
+        },
+      });
+    }
+
+    return timeline;
+  }, [streamState]);
 }
 
 /** @deprecated Use useChatTimeline instead */
@@ -460,25 +412,11 @@ export function useAgentActions(projectId: string, agentId?: string) {
     selectAgent(nextAgentId);
   }, []);
 
-  const invalidateAgentQueries = useCallback(
-    async (resolvedAgentId: string) => {
-      await queryClient.invalidateQueries({
-        queryKey: ["agent-runtime", projectId, resolvedAgentId],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ["agent-interactions", projectId, resolvedAgentId],
-      });
-    },
-    [projectId],
-  );
-
   const configureSession = useCallback(
     async (resolvedAgentId: string, options?: ChatSubmitOptions) => {
       if (!options) return;
 
-      // Call separate RPCs for model and thinking level changes
       if (options.model && options.thinkingLevel) {
-        // Both changed - use the combined RPC for backwards compatibility
         await rpc.agent.configureAgentSession({
           projectId,
           agentId: resolvedAgentId,
@@ -486,25 +424,20 @@ export function useAgentActions(projectId: string, agentId?: string) {
           thinkingLevel: options.thinkingLevel,
         });
       } else if (options.model) {
-        // Only model changed
         await rpc.agent.setAgentModel({
           projectId,
           agentId: resolvedAgentId,
           model: options.model,
         });
       } else if (options.thinkingLevel) {
-        // Only thinking level changed
         await rpc.agent.setAgentThinkingLevel({
           projectId,
           agentId: resolvedAgentId,
           thinkingLevel: options.thinkingLevel,
         });
       }
-
-      // Refetch runtime and interactions (for model/thinking change entries in timeline)
-      await invalidateAgentQueries(resolvedAgentId);
     },
-    [projectId, invalidateAgentQueries],
+    [projectId],
   );
 
   const sendMessage = useCallback(
@@ -516,55 +449,27 @@ export function useAgentActions(projectId: string, agentId?: string) {
       const resolvedAgentId = targetAgentId;
       if (!resolvedAgentId) return;
 
-      const streamResult = mode === "immediate" ? beginAgentStream(resolvedAgentId, text) : null;
-      const requestId = streamResult?.requestId ?? null;
+      await configureSession(resolvedAgentId, options);
 
-      try {
-        await configureSession(resolvedAgentId, options);
-
-        if (mode !== "immediate") {
-          await rpc.agent.enqueueAgentPrompt({
-            projectId,
-            agentId: resolvedAgentId,
-            text,
-            mode,
-          });
-
-          return;
-        }
-
-        if (!requestId || !streamResult) {
-          throw new Error("Missing request id for immediate prompt");
-        }
-
-        const stream = await rpc.agent.promptAgent({
+      if (mode !== "immediate") {
+        await rpc.agent.enqueueAgentPrompt({
           projectId,
           agentId: resolvedAgentId,
           text,
-          userOptimisticId: streamResult.userOptimisticId,
-          assistantOptimisticId: streamResult.assistantOptimisticId,
+          mode,
         });
-
-        let eventCount = 0;
-        for await (const event of stream) {
-          eventCount++;
-          applyAgentEvent(resolvedAgentId, requestId, event);
-        }
-
-        finishAgentStream(resolvedAgentId, requestId);
-      } catch (error) {
-        if (requestId) {
-          failAgentStream(
-            resolvedAgentId,
-            requestId,
-            error instanceof Error ? error.message : "Prompt failed",
-          );
-        }
-      } finally {
-        await invalidateAgentQueries(resolvedAgentId);
+        return;
       }
+
+      // For immediate mode, start the prompt
+      // The subscription will handle the stream events
+      await rpc.agent.promptAgent({
+        projectId,
+        agentId: resolvedAgentId,
+        text,
+      });
     },
-    [configureSession, invalidateAgentQueries, projectId, targetAgentId],
+    [configureSession, projectId, targetAgentId],
   );
 
   const abortMessage = useCallback(async () => {
@@ -575,9 +480,7 @@ export function useAgentActions(projectId: string, agentId?: string) {
       projectId,
       agentId: resolvedAgentId,
     });
-
-    await invalidateAgentQueries(resolvedAgentId);
-  }, [invalidateAgentQueries, projectId, targetAgentId]);
+  }, [projectId, targetAgentId]);
 
   return {
     selectAgent: select,
@@ -588,9 +491,11 @@ export function useAgentActions(projectId: string, agentId?: string) {
   };
 }
 
-const modelsCollection = getModelsCollection();
-
-export function useModels(): PiAvailableModel[] {
-  const { data: models = [] } = useLiveQuery((q) => q.from({ model: modelsCollection }));
-  return models as PiAvailableModel[];
+export function useModels(): readonly PiAvailableModel[] {
+  const { data: models = [] } = useQuery({
+    queryKey: ["available-models"],
+    queryFn: () => rpc.agent.listAvailableModels(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+  return models as readonly PiAvailableModel[];
 }

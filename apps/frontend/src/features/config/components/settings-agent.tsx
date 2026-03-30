@@ -8,9 +8,9 @@ import {
 } from "@/components/ui/select";
 import type { SelectEntry } from "@/components/ui/select";
 import { usePiSettings, useUpdatePiSettings } from "@/features/pi-settings/hooks/use-pi-settings";
-import { useModels } from "@/features/agent/hooks";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { PiSettings, PiPartialSettings } from "@pixxl/shared/contracts/pi-settings";
+import { useModels } from "@/features/agent";
 
 const thinkingLevels: SelectEntry[] = [
   { value: "off", label: "Off" },

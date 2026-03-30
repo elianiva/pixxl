@@ -1,34 +1,28 @@
 import { Store } from "@tanstack/react-store";
-import { generateId, type AgentEvent } from "@pixxl/shared";
+import { generateId, type AgentEvent, type PiSessionEntry } from "@pixxl/shared";
 
-export interface StreamToolCall {
-  id: string;
-  name: string;
-  params: unknown;
-  status: "running" | "complete" | "error";
-  output?: string;
-  error?: string;
-}
-
-export interface StreamMessage {
-  id: string;
-  optimisticId: string;
-  persistedId?: string;
-  role: "user" | "assistant";
+export interface StreamPartialEntry {
+  entryId: string;
+  parentId: string;
   content: string;
   reasoning?: string;
-  isStreaming?: boolean;
-  toolCalls?: StreamToolCall[];
+  role: "assistant";
+  toolCalls: {
+    id: string;
+    name: string;
+    params: unknown;
+    status: "running" | "complete" | "error";
+    output?: string;
+    error?: string;
+  }[];
 }
 
 export interface AgentStreamState {
   requestId: string | null;
   isStreaming: boolean;
-  optimisticUserMessage: StreamMessage | null;
-  draftAssistantMessage: StreamMessage | null;
+  entries: PiSessionEntry[]; // Session entries from getAgentHistory
+  partialEntry: StreamPartialEntry | null;
   error: string | null;
-  // Map of persistedId -> optimisticId for lookup when merging with history
-  idMap: Map<string, string>;
 }
 
 export interface StreamState {
@@ -38,10 +32,9 @@ export interface StreamState {
 const initialAgentState = (): AgentStreamState => ({
   requestId: null,
   isStreaming: false,
-  optimisticUserMessage: null,
-  draftAssistantMessage: null,
+  entries: [],
+  partialEntry: null,
   error: null,
-  idMap: new Map(),
 });
 
 const initialState: StreamState = {
@@ -66,51 +59,39 @@ function updateAgentState(agentId: string, updater: (state: AgentStreamState) =>
 
 export interface BeginStreamResult {
   requestId: string;
-  userOptimisticId: string;
-  assistantOptimisticId: string;
 }
 
-export function beginAgentStream(agentId: string, userText: string): BeginStreamResult {
+export function beginAgentStream(agentId: string): BeginStreamResult {
   const requestId = generateId();
-  const userOptimisticId = generateId();
-  const assistantOptimisticId = generateId();
 
-  updateAgentState(agentId, () => ({
+  updateAgentState(agentId, (state) => ({
+    ...state,
     requestId,
     isStreaming: true,
     error: null,
-    idMap: new Map(),
-    optimisticUserMessage: {
-      id: userOptimisticId,
-      optimisticId: userOptimisticId,
-      role: "user",
-      content: userText,
-    },
-    draftAssistantMessage: {
-      id: assistantOptimisticId,
-      optimisticId: assistantOptimisticId,
-      role: "assistant",
-      content: "",
-      reasoning: "",
-      isStreaming: true,
-      toolCalls: [],
-    },
+    // Keep existing entries, will append new ones as they arrive
+    partialEntry: null, // Will be created on first delta
   }));
 
-  return { requestId, userOptimisticId, assistantOptimisticId };
+  return { requestId };
+}
+
+export function setAgentEntries(agentId: string, entries: PiSessionEntry[]) {
+  // Validate entries have id property before casting
+  updateAgentState(agentId, (state) => ({
+    ...state,
+    entries,
+  }));
 }
 
 export function finishAgentStream(agentId: string, requestId: string) {
   updateAgentState(agentId, (state) => {
     if (state.requestId !== requestId) return state;
-    // Don't immediately clear - let hooks see final state
-    // The next beginAgentStream will reset properly
     return {
       ...state,
       isStreaming: false,
       requestId: null,
-      // Keep optimistic messages briefly so history can sync
-      // They'll be replaced on next stream start
+      partialEntry: null, // Clear partial on finish
     };
   });
 }
@@ -126,107 +107,128 @@ export function failAgentStream(agentId: string, requestId: string, message: str
       ...state,
       isStreaming: false,
       requestId: null,
-      draftAssistantMessage: state.draftAssistantMessage
-        ? {
-            ...state.draftAssistantMessage,
-            isStreaming: false,
-          }
-        : null,
+      partialEntry: null,
       error: message,
     };
   });
 }
 
-export function applyAgentEvent(agentId: string, requestId: string, event: AgentEvent) {
+export function applyAgentEvent(agentId: string, requestId: string | null, event: AgentEvent) {
   updateAgentState(agentId, (state) => {
-    if (state.requestId !== requestId) return state;
+    // For initial sync, requestId might be null
+    if (requestId && state.requestId !== requestId) return state;
 
-    const draftAssistantMessage = state.draftAssistantMessage
-      ? { ...state.draftAssistantMessage }
-      : {
-          id: "",
-          optimisticId: "",
-          role: "assistant" as const,
-          content: "",
-          reasoning: "",
-          isStreaming: true,
-          toolCalls: [],
-        };
-
-    const toolCalls = [...(draftAssistantMessage.toolCalls ?? [])];
-    const idMap = new Map(state.idMap);
+    const newState = { ...state };
 
     switch (event.type) {
-      case "thinking_delta":
-        draftAssistantMessage.reasoning = `${draftAssistantMessage.reasoning ?? ""}${event.delta}`;
-        break;
-      case "message_delta":
-        draftAssistantMessage.content = `${draftAssistantMessage.content}${event.delta}`;
-        break;
-      case "tool_start":
-        toolCalls.push({
-          id: generateId(),
-          name: event.toolName,
-          params: event.params,
-          status: "running",
-        });
-        draftAssistantMessage.toolCalls = toolCalls;
-        break;
-      case "tool_update": {
-        const current = toolCalls.at(-1);
-        if (current) {
-          current.output = `${current.output ?? ""}${event.output}`;
-          draftAssistantMessage.toolCalls = toolCalls;
+      case "entry_added": {
+        const entry = event.entry as PiSessionEntry;
+        const exists = newState.entries.some((e) => e.id === entry.id);
+        if (!exists) {
+          newState.entries = [...newState.entries, entry];
         }
         break;
       }
-      case "tool_end": {
-        const current = toolCalls.at(-1);
-        if (current) {
-          current.status = event.error ? "error" : "complete";
-          current.error = event.error;
-          draftAssistantMessage.toolCalls = toolCalls;
-        }
-        break;
-      }
-      case "message_finalized": {
-        // Map persistedId -> optimisticId for timeline merging
-        idMap.set(event.persistedId, event.optimisticId);
 
-        if (
-          event.role === "assistant" &&
-          draftAssistantMessage.optimisticId === event.optimisticId
-        ) {
-          draftAssistantMessage.persistedId = event.persistedId;
-          draftAssistantMessage.id = event.persistedId;
+      case "entry_updated": {
+        const entry = event.entry as PiSessionEntry;
+        newState.entries = newState.entries.map((e) => (e.id === entry.id ? entry : e));
+        if (newState.partialEntry?.entryId === entry.id) {
+          newState.partialEntry = null;
         }
         break;
       }
-      case "error":
-        return {
-          ...state,
-          isStreaming: false,
-          draftAssistantMessage: {
-            ...draftAssistantMessage,
-            isStreaming: false,
-          },
-          error: event.message,
-          idMap,
-        };
-      case "status_change":
-        if (event.status !== "streaming") {
-          draftAssistantMessage.isStreaming = false;
+
+      case "message_delta": {
+        // Append to partial entry
+        if (!newState.partialEntry) {
+          // Create new partial entry on first delta
+          newState.partialEntry = {
+            entryId: event.entryId,
+            parentId: newState.entries.at(-1)?.id ?? "",
+            content: event.delta,
+            role: "assistant",
+            toolCalls: [],
+          };
+        } else if (newState.partialEntry.entryId === event.entryId) {
+          newState.partialEntry = {
+            ...newState.partialEntry,
+            content: newState.partialEntry.content + event.delta,
+          };
         }
         break;
+      }
+
+      case "thinking_delta": {
+        if (newState.partialEntry?.entryId === event.entryId) {
+          newState.partialEntry = {
+            ...newState.partialEntry,
+            reasoning: (newState.partialEntry.reasoning ?? "") + event.delta,
+          };
+        }
+        break;
+      }
+
+      case "tool_start": {
+        if (newState.partialEntry) {
+          newState.partialEntry = {
+            ...newState.partialEntry,
+            toolCalls: [
+              ...newState.partialEntry.toolCalls,
+              {
+                id: generateId(),
+                name: event.toolName,
+                params: event.params,
+                status: "running",
+              },
+            ],
+          };
+        }
+        break;
+      }
+
+      case "tool_update": {
+        if (newState.partialEntry?.toolCalls.length) {
+          const toolCalls = [...newState.partialEntry.toolCalls];
+          const current = toolCalls.at(-1);
+          if (current) {
+            current.output = (current.output ?? "") + event.output;
+          }
+          newState.partialEntry = { ...newState.partialEntry, toolCalls };
+        }
+        break;
+      }
+
+      case "tool_end": {
+        if (newState.partialEntry?.toolCalls.length) {
+          const toolCalls = [...newState.partialEntry.toolCalls];
+          const current = toolCalls.at(-1);
+          if (current) {
+            current.status = event.error ? "error" : "complete";
+            current.error = event.error;
+          }
+          newState.partialEntry = { ...newState.partialEntry, toolCalls };
+        }
+        break;
+      }
+
+      case "status_change": {
+        newState.isStreaming = event.status === "streaming";
+        if (event.status !== "streaming") {
+          newState.partialEntry = null;
+        }
+        break;
+      }
+
+      case "error": {
+        newState.isStreaming = false;
+        newState.error = event.message;
+        newState.partialEntry = null;
+        break;
+      }
     }
 
-    return {
-      ...state,
-      isStreaming:
-        event.type === "status_change" ? event.status === "streaming" : state.isStreaming,
-      draftAssistantMessage,
-      idMap,
-    };
+    return newState;
   });
 }
 
