@@ -102,8 +102,8 @@ export function ChainSteps({ steps, isStreaming, streamingReasoning }: ChainStep
                 status={group.status}
               >
                 <div className="space-y-1">
-                  {step.calls.map((tool) => (
-                    <ToolCallItem key={tool.id} tool={tool} />
+                  {step.calls.map((tool, index) => (
+                    <ToolCallItem key={`${tool.id}-${index}`} tool={tool} />
                   ))}
                 </div>
               </CollapsibleStep>

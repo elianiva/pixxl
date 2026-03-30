@@ -287,7 +287,7 @@ function useAgentSubscription(agentId: string | null, projectId: string | null) 
       }
     };
 
-    subscribe();
+    void subscribe();
 
     return () => {
       isActive = false;

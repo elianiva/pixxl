@@ -1,10 +1,5 @@
 import { memo, useCallback, useMemo } from "react";
-import {
-  RiArrowDownSLine,
-  RiArrowRightSLine,
-  RiFileCopyLine,
-  RiGitBranchLine,
-} from "@remixicon/react";
+import { RiFileCopyLine, RiGitBranchLine } from "@remixicon/react";
 import { MessageResponse, MessageActions, MessageAction } from "@/components/ai-elements/message";
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning";
 import { CodeBlock } from "@/components/ai-elements/code-block";
@@ -297,7 +292,7 @@ export const MessageContent = memo(function MessageContent({
     <div className="max-w-none">
       {/* Render individual blocks */}
       {renderBlocks.map((block, index) => {
-        const key = "id" in block ? (block as ToolCallFromBlock).id : `block-${index}`;
+        const key = "id" in block ? `${(block as ToolCallFromBlock).id}-${index}` : `block-${index}`;
         return <BlockRenderer key={key} block={block} toolCalls={message.toolCalls} />;
       })}
 
