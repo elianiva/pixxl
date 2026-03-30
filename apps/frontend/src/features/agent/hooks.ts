@@ -125,11 +125,11 @@ function entryToMessage(
   if (entry.type !== "message") return null;
   const msg = entry.message as
     | {
-      role?: "user" | "assistant" | "toolResult";
-      content?: unknown;
-      thinking?: string;
-      toolCallId?: string;
-    }
+        role?: "user" | "assistant" | "toolResult";
+        content?: unknown;
+        thinking?: string;
+        toolCallId?: string;
+      }
     | undefined;
   if (!msg || msg.role === "toolResult") return null;
 

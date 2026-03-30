@@ -226,7 +226,9 @@ export const getAgentUsageRpc = os.agent.getAgentUsage.handler(({ input }) =>
           const cacheRead = maxCacheRead;
           const cacheWrite = maxCacheWrite;
           const output = totalOutput;
-          const totalTokens = input + output + cacheRead + cacheWrite;
+          // Context window usage = input + cacheRead (what's sent to API)
+          // Output/cacheWrite are generated tokens, not part of context window
+          const totalTokens = input + cacheRead;
           const contextWindow = instance.currentModel?.contextWindow;
 
           return {
@@ -410,12 +412,10 @@ export const getAgentSessionDetailsRpc = os.agent.getAgentSessionDetails.handler
       }
 
       // Calculate stats from entries in current branch only
-      // Note: input/cacheRead/cacheWrite represent TOTAL context sent to API,
-      // so we take max (latest message). Output is summed (additive per message).
+      // Note: input/cacheRead represent TOTAL context sent to API,
+      // so we take max (latest message). Cost is summed for statistics.
       let maxInput = 0;
       let maxCacheRead = 0;
-      let maxCacheWrite = 0;
-      let totalOutput = 0;
       let messageCount = 0;
       let toolCallCount = 0;
       let totalCost = 0;
@@ -441,16 +441,16 @@ export const getAgentSessionDetailsRpc = os.agent.getAgentSessionDetails.handler
               // Take max of input/cache since they represent total context size
               maxInput = Math.max(maxInput, msg.usage.input ?? 0);
               maxCacheRead = Math.max(maxCacheRead, msg.usage.cacheRead ?? 0);
-              maxCacheWrite = Math.max(maxCacheWrite, msg.usage.cacheWrite ?? 0);
-              // Sum outputs (additive per message)
-              totalOutput += msg.usage.output ?? 0;
+              // Sum outputs/cost for statistics (not part of context window)
               totalCost += msg.usage.cost?.total ?? 0;
             }
           }
         }
       }
 
-      const totalTokens = maxInput + totalOutput + maxCacheRead + maxCacheWrite;
+      // Context window tokens = input + cacheRead (what's sent to API)
+      // Output/cacheWrite are generated tokens, not part of context window
+      const totalTokens = maxInput + maxCacheRead;
 
       // Build label lookup map from label entries (label entries reference targetId)
       const labelMap = new Map<string, string>();
