@@ -22,6 +22,48 @@ import { SessionSettingsDialog } from "../dialog/session-settings";
 
 const tooltipHandle = createTooltipHandle();
 
+// Whimsical loading messages
+const LOADING_MESSAGES = [
+  "Thinking...",
+  "Vibing...",
+  "Cogitating...",
+  "Ruminating...",
+  "Brewing...",
+  "Contemplating...",
+  "Pondering...",
+  "Musing...",
+  "Consulting the void...",
+  "Tickling the stack...",
+  "Herding pointers...",
+  "Warming up the hamsters...",
+  "Caffeinating...",
+  "Having a little think...",
+  "Staring into the abyss...",
+  "Channeling...",
+  "Concocting...",
+  "Transmuting...",
+  "Imagining...",
+  "Simmering...",
+  "Marinating...",
+  "Gestating...",
+  "Percolating...",
+  "Wrangling...",
+  "Tinkering...",
+  "Fiddling...",
+  "Noodling...",
+  "Jamming...",
+  "Bubbling...",
+  "Effervescing...",
+  "Synthesizing...",
+  "Spinning up...",
+  "Calculating...",
+  "Processing...",
+];
+
+function pickRandomMessage(): string {
+  return LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)];
+}
+
 interface QueuedMessage {
   text: string;
   type: "steer" | "followUp";
@@ -79,11 +121,13 @@ export function ChatInput({
 }: ChatInputProps) {
   const [inputText, setInputText] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = useEffectEvent(() => {
     const trimmed = inputText.trim();
     if (!trimmed || isStreaming || !model) return;
+    setLoadingMessage(pickRandomMessage());
     onSubmit(trimmed, { model, thinkingLevel });
     setInputText("");
     textareaRef.current?.focus();
@@ -136,6 +180,86 @@ export function ChatInput({
           </div>
         </div>
       )}
+
+      {/* Loading header - slides up from behind textbox */}
+      <div
+        className={`overflow-hidden bg-mauve-100 transition-all duration-300 ease-out ${
+          isStreaming ? "max-h-10 opacity-100" : "max-h-0 opacity-0"
+        }`}
+      >
+        <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+          {/* 3x3 Braille-ish animated dots */}
+          <svg className="size-4" viewBox="0 0 16 16" fill="none">
+            {/* Row 1 */}
+            <circle
+              cx="3"
+              cy="3"
+              r="1.5"
+              className="fill-current animate-pulse"
+              style={{ animationDelay: "0ms" }}
+            />
+            <circle
+              cx="8"
+              cy="3"
+              r="1.5"
+              className="fill-current animate-pulse"
+              style={{ animationDelay: "150ms" }}
+            />
+            <circle
+              cx="13"
+              cy="3"
+              r="1.5"
+              className="fill-current animate-pulse"
+              style={{ animationDelay: "300ms" }}
+            />
+            {/* Row 2 */}
+            <circle
+              cx="3"
+              cy="8"
+              r="1.5"
+              className="fill-current animate-pulse"
+              style={{ animationDelay: "450ms" }}
+            />
+            <circle
+              cx="8"
+              cy="8"
+              r="1.5"
+              className="fill-current animate-pulse"
+              style={{ animationDelay: "600ms" }}
+            />
+            <circle
+              cx="13"
+              cy="8"
+              r="1.5"
+              className="fill-current animate-pulse"
+              style={{ animationDelay: "750ms" }}
+            />
+            {/* Row 3 */}
+            <circle
+              cx="3"
+              cy="13"
+              r="1.5"
+              className="fill-current animate-pulse"
+              style={{ animationDelay: "900ms" }}
+            />
+            <circle
+              cx="8"
+              cy="13"
+              r="1.5"
+              className="fill-current animate-pulse"
+              style={{ animationDelay: "1050ms" }}
+            />
+            <circle
+              cx="13"
+              cy="13"
+              r="1.5"
+              className="fill-current animate-pulse"
+              style={{ animationDelay: "1200ms" }}
+            />
+          </svg>
+          <span className="font-medium">{loadingMessage}</span>
+        </div>
+      </div>
 
       <div className="relative border-b">
         <Textarea
