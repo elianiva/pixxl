@@ -27,10 +27,10 @@ export const PiImageSettingsSchema = Schema.Struct({
 });
 
 export const PiThinkingBudgetsSchema = Schema.Struct({
-  minimal: Schema.Number,
-  low: Schema.Number,
-  medium: Schema.Number,
-  high: Schema.Number,
+  minimal: Schema.optional(Schema.Number),
+  low: Schema.optional(Schema.Number),
+  medium: Schema.optional(Schema.Number),
+  high: Schema.optional(Schema.Number),
 });
 
 export const PiMarkdownSettingsSchema = Schema.Struct({
@@ -71,15 +71,14 @@ const PiSettingsBaseSchema = Schema.Struct({
   themes: Schema.Array(Schema.String),
   doubleEscapeAction: Schema.Literals(["fork", "tree", "none"]),
   treeFilterMode: Schema.Literals(["default", "no-tools", "user-only", "labeled-only", "all"]),
-  thinkingBudgets: PiThinkingBudgetsSchema,
+  thinkingBudgets: Schema.optional(PiThinkingBudgetsSchema),
   packages: Schema.Array(PiPackageSourceSchema),
   extensions: Schema.Array(Schema.String),
   enabledModels: Schema.Array(Schema.String),
   sessionDir: Schema.String,
 });
 
-// Make all fields optional
-export const PiSettingsSchema = PiSettingsBaseSchema.mapFields(Struct.map(Schema.optionalKey));
+export const PiSettingsSchema = PiSettingsBaseSchema.mapFields(Struct.map(Schema.optional));
 
 export type PiSettings = typeof PiSettingsSchema.Type;
 export type PiPartialSettings = Partial<PiSettings>;

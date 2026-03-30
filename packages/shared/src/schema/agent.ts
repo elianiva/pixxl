@@ -112,6 +112,8 @@ export const PromptAgentInputSchema = Schema.Struct({
   projectId: Schema.String,
   agentId: Schema.String,
   text: Schema.String,
+  userOptimisticId: Schema.optional(Schema.String),
+  assistantOptimisticId: Schema.optional(Schema.String),
 });
 
 export const AgentModelRefSchema = Schema.Struct({
@@ -284,6 +286,14 @@ const SessionClosedEventSchema = Schema.Struct({
   sessionId: Schema.String,
 });
 
+const MessageFinalizedEventSchema = Schema.Struct({
+  type: Schema.Literal("message_finalized"),
+  sessionId: Schema.String,
+  optimisticId: Schema.String,
+  persistedId: Schema.String,
+  role: Schema.Literals(["user", "assistant"]),
+});
+
 export const AgentEventSchema = Schema.Union([
   MessageDeltaEventSchema,
   ThinkingDeltaEventSchema,
@@ -294,6 +304,7 @@ export const AgentEventSchema = Schema.Union([
   ErrorEventSchema,
   SessionCreatedEventSchema,
   SessionClosedEventSchema,
+  MessageFinalizedEventSchema,
 ]);
 
 export type CreateAgentInput = typeof CreateAgentInputSchema.Type;

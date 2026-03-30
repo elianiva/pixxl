@@ -1,4 +1,3 @@
-import { useEffect, useRef } from "react";
 import { MessageBubble } from "./message-bubble";
 import { StreamingIndicator } from "./streaming-indicator";
 import { ActionItem } from "./action-item";
@@ -8,7 +7,6 @@ interface TimelineProps {
   items: TimelineItem[];
   isStreaming: boolean;
   onFork?: (content: string) => void;
-  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 type DisplayMessage = Message;
@@ -128,33 +126,8 @@ function processTimelineItems(items: TimelineItem[]): DisplayItem[] {
   return result;
 }
 
-export function Timeline({ items, isStreaming, onFork, scrollContainerRef }: TimelineProps) {
+export function Timeline({ items, isStreaming, onFork }: TimelineProps) {
   const processedItems = processTimelineItems(items);
-  const lastScrollKeyRef = useRef<string | null>(null);
-
-  const lastItem = processedItems.at(-1);
-  const scrollKey = lastItem
-    ? isDisplayAction(lastItem)
-      ? lastItem.id
-      : `${lastItem.id}-${lastItem.content.length}`
-    : "empty";
-
-  useEffect(() => {
-    if (lastScrollKeyRef.current === scrollKey) return;
-    lastScrollKeyRef.current = scrollKey;
-
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    const timeoutId = setTimeout(() => {
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: "smooth",
-      });
-    }, 0);
-
-    return () => clearTimeout(timeoutId);
-  }, [scrollKey, scrollContainerRef]);
 
   return (
     <div className="space-y-1">

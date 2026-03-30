@@ -131,9 +131,7 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
       const appConfig = yield* config.loadConfig();
       const agentDir = config.agentDir;
 
-      // Create pi's SettingsManager with project and agent paths
-      // This loads existing pi config from user's settings files
-      const settingsManager = SettingsManager.create(input.projectPath, agentDir);
+      const settingsManager = SettingsManager.create(undefined, agentDir);
 
       // Lazy session creation: if no session file, create a new session
       let sessionFile = input.metadata.pi.sessionFile;

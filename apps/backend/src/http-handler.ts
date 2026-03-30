@@ -15,7 +15,7 @@ const RPC_PATH = "/rpc";
  * Handle HTTP requests.
  * Returns Response or void (for WebSocket upgrades that handle their own response).
  */
-export async function handleRequest(req: Request, server: Server): Promise<Response | void> {
+export async function handleRequest(req: Request, server: Server<WsData>): Promise<Response | void> {
   const url = new URL(req.url);
   const pathname = url.pathname;
 

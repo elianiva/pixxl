@@ -3,7 +3,7 @@ import { os } from "@/contract";
 import { runPromise } from "@/lib/error";
 import { PiSettingsService } from "./service";
 
-export const getPiSettingsRpc = os.piSettings.getPiSettings.handler(() =>
+export const getPiSettingsRpc = os.pi.getSettings.handler(() =>
   runPromise(
     Effect.gen(function* () {
       const service = yield* PiSettingsService;
@@ -13,7 +13,7 @@ export const getPiSettingsRpc = os.piSettings.getPiSettings.handler(() =>
   ),
 );
 
-export const updatePiSettingsRpc = os.piSettings.updatePiSettings.handler(({ input }) =>
+export const updatePiSettingsRpc = os.pi.setSettings.handler(({ input }) =>
   runPromise(
     Effect.gen(function* () {
       const service = yield* PiSettingsService;

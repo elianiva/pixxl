@@ -12,6 +12,8 @@ export interface StreamToolCall {
 
 export interface StreamMessage {
   id: string;
+  optimisticId: string;
+  persistedId?: string;
   role: "user" | "assistant";
   content: string;
   reasoning?: string;
@@ -25,6 +27,8 @@ export interface AgentStreamState {
   optimisticUserMessage: StreamMessage | null;
   draftAssistantMessage: StreamMessage | null;
   error: string | null;
+  // Map of persistedId -> optimisticId for lookup when merging with history
+  idMap: Map<string, string>;
 }
 
 export interface StreamState {
@@ -37,6 +41,7 @@ const initialAgentState = (): AgentStreamState => ({
   optimisticUserMessage: null,
   draftAssistantMessage: null,
   error: null,
+  idMap: new Map(),
 });
 
 const initialState: StreamState = {
@@ -59,20 +64,31 @@ function updateAgentState(agentId: string, updater: (state: AgentStreamState) =>
   }));
 }
 
-export function beginAgentStream(agentId: string, userText: string): string {
+export interface BeginStreamResult {
+  requestId: string;
+  userOptimisticId: string;
+  assistantOptimisticId: string;
+}
+
+export function beginAgentStream(agentId: string, userText: string): BeginStreamResult {
   const requestId = generateId();
+  const userOptimisticId = generateId();
+  const assistantOptimisticId = generateId();
 
   updateAgentState(agentId, () => ({
     requestId,
     isStreaming: true,
     error: null,
+    idMap: new Map(),
     optimisticUserMessage: {
-      id: `optimistic-user-${requestId}`,
+      id: userOptimisticId,
+      optimisticId: userOptimisticId,
       role: "user",
       content: userText,
     },
     draftAssistantMessage: {
-      id: `draft-assistant-${requestId}`,
+      id: assistantOptimisticId,
+      optimisticId: assistantOptimisticId,
       role: "assistant",
       content: "",
       reasoning: "",
@@ -81,14 +97,26 @@ export function beginAgentStream(agentId: string, userText: string): string {
     },
   }));
 
-  return requestId;
+  return { requestId, userOptimisticId, assistantOptimisticId };
 }
 
 export function finishAgentStream(agentId: string, requestId: string) {
   updateAgentState(agentId, (state) => {
     if (state.requestId !== requestId) return state;
-    return initialAgentState();
+    // Don't immediately clear - let hooks see final state
+    // The next beginAgentStream will reset properly
+    return {
+      ...state,
+      isStreaming: false,
+      requestId: null,
+      // Keep optimistic messages briefly so history can sync
+      // They'll be replaced on next stream start
+    };
   });
+}
+
+export function clearStreamState(agentId: string) {
+  updateAgentState(agentId, () => initialAgentState());
 }
 
 export function failAgentStream(agentId: string, requestId: string, message: string) {
@@ -97,6 +125,7 @@ export function failAgentStream(agentId: string, requestId: string, message: str
     return {
       ...state,
       isStreaming: false,
+      requestId: null,
       draftAssistantMessage: state.draftAssistantMessage
         ? {
             ...state.draftAssistantMessage,
@@ -115,7 +144,8 @@ export function applyAgentEvent(agentId: string, requestId: string, event: Agent
     const draftAssistantMessage = state.draftAssistantMessage
       ? { ...state.draftAssistantMessage }
       : {
-          id: `draft-assistant-${requestId}`,
+          id: "",
+          optimisticId: "",
           role: "assistant" as const,
           content: "",
           reasoning: "",
@@ -124,6 +154,7 @@ export function applyAgentEvent(agentId: string, requestId: string, event: Agent
         };
 
     const toolCalls = [...(draftAssistantMessage.toolCalls ?? [])];
+    const idMap = new Map(state.idMap);
 
     switch (event.type) {
       case "thinking_delta":
@@ -158,6 +189,19 @@ export function applyAgentEvent(agentId: string, requestId: string, event: Agent
         }
         break;
       }
+      case "message_finalized": {
+        // Map persistedId -> optimisticId for timeline merging
+        idMap.set(event.persistedId, event.optimisticId);
+
+        if (
+          event.role === "assistant" &&
+          draftAssistantMessage.optimisticId === event.optimisticId
+        ) {
+          draftAssistantMessage.persistedId = event.persistedId;
+          draftAssistantMessage.id = event.persistedId;
+        }
+        break;
+      }
       case "error":
         return {
           ...state,
@@ -167,6 +211,7 @@ export function applyAgentEvent(agentId: string, requestId: string, event: Agent
             isStreaming: false,
           },
           error: event.message,
+          idMap,
         };
       case "status_change":
         if (event.status !== "streaming") {
@@ -180,6 +225,7 @@ export function applyAgentEvent(agentId: string, requestId: string, event: Agent
       isStreaming:
         event.type === "status_change" ? event.status === "streaming" : state.isStreaming,
       draftAssistantMessage,
+      idMap,
     };
   });
 }

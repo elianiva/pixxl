@@ -389,6 +389,30 @@ export function useChatTimeline(agentId?: string): TimelineItem[] {
 
     if (!streamState) return timeline;
 
+    // Build set of optimistic IDs currently in stream
+    const activeOptimisticIds = new Set<string>();
+    if (streamState.optimisticUserMessage) {
+      activeOptimisticIds.add(streamState.optimisticUserMessage.optimisticId);
+    }
+    if (streamState.draftAssistantMessage) {
+      activeOptimisticIds.add(streamState.draftAssistantMessage.optimisticId);
+    }
+
+    // Filter out history entries that have active optimistic versions
+    // and replace their IDs with optimistic IDs for smooth transition
+    const filteredTimeline = timeline.filter((item) => {
+      if (item.kind !== "message") return true;
+
+      // Check if this history entry was finalized from an optimistic message
+      const optimisticId = streamState.idMap.get(item.data.id);
+      if (optimisticId && activeOptimisticIds.has(optimisticId)) {
+        // Skip this history entry - optimistic version is showing
+        return false;
+      }
+
+      return true;
+    });
+
     // Add optimistic messages at the end
     const optimistic: TimelineItem[] = [];
     if (streamState.optimisticUserMessage) {
@@ -398,7 +422,7 @@ export function useChatTimeline(agentId?: string): TimelineItem[] {
       optimistic.push({ kind: "message", data: toMessage(streamState.draftAssistantMessage) });
     }
 
-    return [...timeline, ...optimistic];
+    return [...filteredTimeline, ...optimistic];
   }, [historyMessages, streamState]);
 }
 
@@ -471,7 +495,8 @@ export function useAgentActions(projectId: string, agentId?: string) {
       const resolvedAgentId = targetAgentId;
       if (!resolvedAgentId) return;
 
-      const requestId = mode === "immediate" ? beginAgentStream(resolvedAgentId, text) : null;
+      const streamResult = mode === "immediate" ? beginAgentStream(resolvedAgentId, text) : null;
+      const requestId = streamResult?.requestId ?? null;
 
       try {
         await configureSession(resolvedAgentId, options);
@@ -487,7 +512,7 @@ export function useAgentActions(projectId: string, agentId?: string) {
           return;
         }
 
-        if (!requestId) {
+        if (!requestId || !streamResult) {
           throw new Error("Missing request id for immediate prompt");
         }
 
@@ -495,6 +520,8 @@ export function useAgentActions(projectId: string, agentId?: string) {
           projectId,
           agentId: resolvedAgentId,
           text,
+          userOptimisticId: streamResult.userOptimisticId,
+          assistantOptimisticId: streamResult.assistantOptimisticId,
         });
 
         let eventCount = 0;

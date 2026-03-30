@@ -1,6 +1,6 @@
-import { Config, Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, ServiceMap } from "effect";
 import { SettingsManager } from "@mariozechner/pi-coding-agent";
-import type { PiSettings, PiPartialSettings } from "@pixxl/shared";
+import type { PiSettings, PiPartialSettings, PackageSource } from "@pixxl/shared";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
 
 const PI_AGENT_DIR = ".pi/agent";
@@ -8,12 +8,10 @@ const PI_AGENT_DIR = ".pi/agent";
 export class PiSettingsService extends ServiceMap.Service<PiSettingsService>()(
   "@pixxl/PiSettingsService",
   {
-    make: Effect.gen(function* () {
-      const homeDir = yield* Config.string("HOME").pipe(Config.withDefault("~"));
+    make: Effect.sync(() => {
+      const homeDir = process.env.HOME ?? "~";
       const agentDir = `${homeDir}/${PI_AGENT_DIR}`;
 
-      // Create SettingsManager that loads from pi's config files
-      // We use current working directory as undefined to load global settings
       const settingsManager = SettingsManager.create(undefined, agentDir);
 
       const getSettings = Effect.sync(() => {
@@ -42,15 +40,15 @@ export class PiSettingsService extends ServiceMap.Service<PiSettingsService>()(
           markdown: {
             codeBlockIndent: settingsManager.getCodeBlockIndent(),
           },
-          skills: settingsManager.getSkillPaths(),
-          prompts: settingsManager.getPromptTemplatePaths(),
-          themes: settingsManager.getThemePaths(),
+          skills: settingsManager.getSkillPaths() as PiSettings["skills"],
+          prompts: settingsManager.getPromptTemplatePaths() as PiSettings["prompts"],
+          themes: settingsManager.getThemePaths() as PiSettings["themes"],
           doubleEscapeAction: settingsManager.getDoubleEscapeAction(),
           treeFilterMode: settingsManager.getTreeFilterMode(),
           thinkingBudgets: settingsManager.getThinkingBudgets(),
-          packages: settingsManager.getPackages(),
-          extensions: settingsManager.getExtensionPaths(),
-          enabledModels: settingsManager.getEnabledModels(),
+          packages: (settingsManager.getPackages() ?? []) as PiSettings["packages"],
+          extensions: settingsManager.getExtensionPaths() as PiSettings["extensions"],
+          enabledModels: settingsManager.getEnabledModels() as PiSettings["enabledModels"],
           sessionDir: settingsManager.getSessionDir(),
         };
         return settings;
@@ -127,13 +125,13 @@ export class PiSettingsService extends ServiceMap.Service<PiSettingsService>()(
           }
         }
         if (partial.skills !== undefined) {
-          settingsManager.setSkillPaths(partial.skills);
+          settingsManager.setSkillPaths(partial.skills as string[]);
         }
         if (partial.prompts !== undefined) {
-          settingsManager.setPromptTemplatePaths(partial.prompts);
+          settingsManager.setPromptTemplatePaths(partial.prompts as string[]);
         }
         if (partial.themes !== undefined) {
-          settingsManager.setThemePaths(partial.themes);
+          settingsManager.setThemePaths(partial.themes as string[]);
         }
         if (partial.doubleEscapeAction !== undefined) {
           settingsManager.setDoubleEscapeAction(partial.doubleEscapeAction);
@@ -145,13 +143,13 @@ export class PiSettingsService extends ServiceMap.Service<PiSettingsService>()(
           // Note: getThinkingBudgets exists but no setter - using applyOverrides
         }
         if (partial.packages !== undefined) {
-          settingsManager.setPackages(partial.packages);
+          settingsManager.setPackages(partial.packages as PackageSource[]);
         }
         if (partial.extensions !== undefined) {
-          settingsManager.setExtensionPaths(partial.extensions);
+          settingsManager.setExtensionPaths(partial.extensions as string[]);
         }
         if (partial.enabledModels !== undefined) {
-          settingsManager.setEnabledModels(partial.enabledModels);
+          settingsManager.setEnabledModels(partial.enabledModels as string[]);
         }
         if (partial.sessionDir !== undefined) {
           // Note: getSessionDir exists but no setter - using applyOverrides

@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { rpc } from "@/lib/rpc";
 import { ChatInput, type ChatSubmitOptions } from "./input";
@@ -101,25 +101,18 @@ export function Chat({ projectId, agentId }: ChatProps) {
     void configureSession(agentId, { model: initialModel, thinkingLevel });
   };
 
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-
   // Count only message items for empty state check
   const messageCount = timeline.filter((item) => item.kind === "message").length;
 
   return (
     <div className="h-full flex flex-col">
-      {/* Scrollable message area */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overscroll-y-none py-4 px-4">
+      {/* Scrollable message area - flex-col-reverse keeps content at bottom */}
+      <div className="flex-1 overflow-y-auto overscroll-y-none flex flex-col-reverse py-4 px-4">
         {messageCount < 1 ? (
           <EmptyChatState />
         ) : (
-          <div className="max-w-3xl mx-auto">
-            <Timeline
-              items={timeline}
-              isStreaming={isStreaming}
-              onFork={handleFork}
-              scrollContainerRef={scrollContainerRef}
-            />
+          <div className="max-w-3xl mx-auto w-full">
+            <Timeline items={timeline} isStreaming={isStreaming} onFork={handleFork} />
           </div>
         )}
       </div>

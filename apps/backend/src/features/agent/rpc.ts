@@ -426,7 +426,10 @@ export const promptAgentRpc = os.agent.promptAgent.handler(async function* ({ in
   );
 
   // Start prompt in background
-  void instance.prompt(input.text);
+  void instance.prompt(input.text, {
+    userOptimisticId: input.userOptimisticId,
+    assistantOptimisticId: input.assistantOptimisticId,
+  });
 
   // Stream events directly from instance subscription
   const stream = instance.subscribe();

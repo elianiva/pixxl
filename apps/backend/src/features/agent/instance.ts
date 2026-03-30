@@ -6,11 +6,17 @@ import { getModel } from "@mariozechner/pi-ai";
 
 export type AgentStatus = "idle" | "streaming" | "error";
 
+interface PendingOptimisticIds {
+  userOptimisticId?: string;
+  assistantOptimisticId?: string;
+}
+
 export class AgentInstance {
   status: AgentStatus = "idle";
   error: string | undefined;
   readonly events: PubSub.PubSub<AgentEvent>;
   private unsubscribe: (() => void) | undefined;
+  private pendingIds: PendingOptimisticIds = {};
 
   constructor(
     readonly metadata: AgentMetadata,
@@ -34,9 +40,10 @@ export class AgentInstance {
     Effect.runSync(PubSub.shutdown(this.events));
   }
 
-  async prompt(text: string): Promise<void> {
+  async prompt(text: string, optimisticIds?: PendingOptimisticIds): Promise<void> {
     this.status = "streaming";
     this.error = undefined;
+    this.pendingIds = optimisticIds ?? {};
 
     try {
       await this.session.prompt(text);
@@ -44,6 +51,8 @@ export class AgentInstance {
     } catch (cause) {
       this.status = "error";
       this.error = String(cause);
+    } finally {
+      this.pendingIds = {};
     }
   }
 
@@ -129,11 +138,58 @@ export class AgentInstance {
         };
         if (msg.message?.role !== "assistant") return null;
 
-        return {
+        const events: AgentEvent[] = [];
+
+        // Emit status change
+        events.push({
           type: "status_change",
           sessionId: this.metadata.id,
           status: msg.message.stopReason === "error" ? "error" : "idle",
-        };
+        });
+
+        // Emit finalization for assistant message if we have optimistic ID
+        if (this.pendingIds.assistantOptimisticId) {
+          // Get the latest entry (the just-created assistant message)
+          const entries = this.sessionManager.getEntries();
+          const latestEntry = entries.at(-1);
+          if (
+            latestEntry &&
+            latestEntry.type === "message" &&
+            latestEntry.message?.role === "assistant"
+          ) {
+            events.push({
+              type: "message_finalized",
+              sessionId: this.metadata.id,
+              optimisticId: this.pendingIds.assistantOptimisticId,
+              persistedId: latestEntry.id,
+              role: "assistant",
+            });
+          }
+        }
+
+        // Emit finalization for user message if we have optimistic ID
+        // User message is the parent of the assistant message
+        if (this.pendingIds.userOptimisticId) {
+          const entries = this.sessionManager.getEntries();
+          const latestEntry = entries.at(-1);
+          if (latestEntry?.parentId) {
+            events.push({
+              type: "message_finalized",
+              sessionId: this.metadata.id,
+              optimisticId: this.pendingIds.userOptimisticId,
+              persistedId: latestEntry.parentId,
+              role: "user",
+            });
+          }
+        }
+
+        // Publish all events
+        for (const ev of events) {
+          Effect.runFork(PubSub.publish(this.events, ev));
+        }
+
+        // Return the first event (status_change) - the rest are published directly
+        return events[0] ?? null;
       }
 
       case "tool_execution_start": {
