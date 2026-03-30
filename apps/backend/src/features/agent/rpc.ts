@@ -1,7 +1,6 @@
 import { Effect, Option, Stream } from "effect";
 import { os } from "@/contract";
 import { AgentService } from "./service";
-import { ConfigService } from "@/features/config/service";
 import { runPromise } from "@/lib/error";
 import { AgentNotFoundError } from "./error";
 
@@ -262,14 +261,26 @@ export const configureAgentSessionRpc = os.agent.configureAgentSession.handler((
 export const getAgentFrontendConfigRpc = os.agent.getAgentFrontendConfig.handler(() =>
   runPromise(
     Effect.gen(function* () {
-      const configService = yield* ConfigService;
-      const config = yield* configService.loadConfig();
+      const service = yield* AgentService;
+      const settings = yield* service.getPiSettings;
       return {
-        defaultProvider: config.agent.defaultProvider,
-        defaultModel: config.agent.defaultModel,
-        defaultThinkingLevel: config.agent.defaultThinkingLevel,
+        defaultProvider: settings.defaultProvider ?? "",
+        defaultModel: settings.defaultModel ?? "",
+        defaultThinkingLevel: settings.defaultThinkingLevel ?? "medium",
+        transport: settings.transport ?? "websocket",
+        steeringMode: settings.steeringMode ?? "one-at-a-time",
+        followUpMode: settings.followUpMode ?? "one-at-a-time",
+        theme: settings.theme,
+        hideThinkingBlock: settings.hideThinkingBlock ?? false,
+        shellPath: settings.shellPath,
+        shellCommandPrefix: settings.shellCommandPrefix,
+        enableSkillCommands: settings.enableSkillCommands ?? true,
+        doubleEscapeAction: settings.doubleEscapeAction ?? "tree",
+        treeFilterMode: settings.treeFilterMode ?? "default",
+        enabledModels: settings.enabledModels,
+        sessionDir: settings.sessionDir,
       };
-    }).pipe(Effect.provide(ConfigService.live)),
+    }).pipe(Effect.provide(AgentService.layer)),
   ),
 );
 

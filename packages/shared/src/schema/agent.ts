@@ -106,6 +106,18 @@ export const AgentFrontendConfigSchema = Schema.Struct({
   defaultProvider: Schema.String,
   defaultModel: Schema.String,
   defaultThinkingLevel: AgentThinkingLevelSchema,
+  transport: Schema.Literals(["sse", "websocket", "auto"]),
+  steeringMode: Schema.Literals(["all", "one-at-a-time"]),
+  followUpMode: Schema.Literals(["all", "one-at-a-time"]),
+  theme: Schema.optional(Schema.String),
+  hideThinkingBlock: Schema.Boolean,
+  shellPath: Schema.optional(Schema.String),
+  shellCommandPrefix: Schema.optional(Schema.String),
+  enableSkillCommands: Schema.Boolean,
+  doubleEscapeAction: Schema.Literals(["fork", "tree", "none"]),
+  treeFilterMode: Schema.Literals(["default", "no-tools", "user-only", "labeled-only", "all"]),
+  enabledModels: Schema.optional(Schema.Array(Schema.String)),
+  sessionDir: Schema.optional(Schema.String),
 });
 
 export const PromptAgentInputSchema = Schema.Struct({

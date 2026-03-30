@@ -94,7 +94,6 @@ export const AppearanceSchema = Schema.Struct({
 export const AppConfigSchema = Schema.Struct({
   workspace: WorkspaceSchema,
   terminal: TerminalSchema,
-  agent: AgentSchema,
   appearance: AppearanceSchema,
 });
 
@@ -122,8 +121,6 @@ export const PartialMarkdownSettingsSchema = MarkdownSettingsSchema.mapFields(
   Struct.map(Schema.optionalKey),
 );
 
-export const PartialAgentSchema = AgentSchema.mapFields(Struct.map(Schema.optionalKey));
-
 export const PartialWorkspaceSchema = WorkspaceSchema.mapFields(Struct.map(Schema.optionalKey));
 
 export const PartialTerminalSchema = TerminalSchema.mapFields(Struct.map(Schema.optionalKey));
@@ -133,14 +130,12 @@ export const PartialAppearanceSchema = AppearanceSchema.mapFields(Struct.map(Sch
 export const PartialAppConfigSchema = Schema.Struct({
   workspace: Schema.optionalKey(PartialWorkspaceSchema),
   terminal: Schema.optionalKey(PartialTerminalSchema),
-  agent: Schema.optionalKey(PartialAgentSchema),
   appearance: Schema.optionalKey(PartialAppearanceSchema),
 });
 
 export type AppConfig = typeof AppConfigSchema.Type;
 export type Workspace = typeof WorkspaceSchema.Type;
 export type Terminal = typeof TerminalSchema.Type;
-export type Agent = typeof AgentSchema.Type;
 export type Appearance = typeof AppearanceSchema.Type;
 export type CompactionSettings = typeof CompactionSettingsSchema.Type;
 export type RetrySettings = typeof RetrySettingsSchema.Type;
@@ -162,53 +157,6 @@ export const DEFAULT_CONFIG: AppConfig = {
     cursorStyle: "block",
     cursorBlink: true,
     shell: "/bin/zsh",
-  },
-  agent: {
-    defaultProvider: "openrouter",
-    defaultModel: "kimi-k2.5",
-    defaultThinkingLevel: "medium",
-    transport: "websocket",
-    steeringMode: "one-at-a-time",
-    followUpMode: "one-at-a-time",
-    compaction: {
-      enabled: true,
-      reserveTokens: 16384,
-      keepRecentTokens: 20000,
-    },
-    retry: {
-      enabled: true,
-      maxRetries: 3,
-      baseDelayMs: 2000,
-      maxDelayMs: 60000,
-    },
-    hideThinkingBlock: false,
-    shellPath: "",
-    shellCommandPrefix: "",
-    packages: [],
-    extensions: [],
-    skills: [],
-    prompts: [],
-    themes: [],
-    enableSkillCommands: true,
-    thinkingBudgets: {
-      minimal: 0,
-      low: 0,
-      medium: 0,
-      high: 0,
-    },
-    terminal: {
-      showImages: true,
-      clearOnShrink: false,
-    },
-    images: {
-      autoResize: true,
-      blockImages: false,
-    },
-    markdown: {
-      codeBlockIndent: "  ",
-    },
-    doubleEscapeAction: "none",
-    treeFilterMode: "default",
   },
   appearance: {
     colorScheme: "dark",

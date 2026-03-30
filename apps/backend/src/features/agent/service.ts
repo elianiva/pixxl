@@ -1,6 +1,13 @@
 import { Effect, Layer, Option, ServiceMap, FileSystem, Schedule } from "effect";
-import type { AgentMetadata, CreateAgentInput, UpdateAgentInput } from "@pixxl/shared";
+import type {
+  AgentMetadata,
+  CreateAgentInput,
+  UpdateAgentInput,
+  PiSettings,
+  PiPartialSettings,
+} from "@pixxl/shared";
 import { AgentMetadataSchema, EntityService } from "@pixxl/shared";
+import type { PackageSource } from "@pixxl/shared";
 import {
   SessionManager,
   createAgentSession,
@@ -25,6 +32,12 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
 
     const authStorage = AuthStorage.create();
     const modelRegistry = ModelRegistry.inMemory(authStorage);
+
+    // Pi settings manager (shared across all agents)
+    const PI_AGENT_DIR = ".pi/agent";
+    const homeDir = process.env.HOME ?? "~";
+    const agentDir = `${homeDir}/${PI_AGENT_DIR}`;
+    const settingsManager = SettingsManager.create(undefined, agentDir);
 
     const instances = new Map<string, AgentInstance>();
 
@@ -127,8 +140,7 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
       const existing = instances.get(input.metadata.id);
       if (existing) return existing;
 
-      // Load config to get pixxl-specific resource paths
-      const appConfig = yield* config.loadConfig();
+      // Get agent directory from config service
       const agentDir = config.agentDir;
 
       const settingsManager = SettingsManager.create(undefined, agentDir);
@@ -190,9 +202,6 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
         cwd: input.projectPath,
         agentDir,
         settingsManager,
-        additionalSkillPaths: [...appConfig.agent.skills],
-        additionalPromptTemplatePaths: [...appConfig.agent.prompts],
-        additionalThemePaths: [...appConfig.agent.themes],
       });
 
       // Load resources
@@ -379,6 +388,152 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
       }));
     });
 
+    const getPiSettings = Effect.sync((): PiSettings => {
+      return {
+        defaultProvider: settingsManager.getDefaultProvider(),
+        defaultModel: settingsManager.getDefaultModel(),
+        defaultThinkingLevel: settingsManager.getDefaultThinkingLevel(),
+        transport: settingsManager.getTransport(),
+        steeringMode: settingsManager.getSteeringMode(),
+        followUpMode: settingsManager.getFollowUpMode(),
+        theme: settingsManager.getTheme(),
+        compaction: settingsManager.getCompactionSettings(),
+        retry: settingsManager.getRetrySettings(),
+        hideThinkingBlock: settingsManager.getHideThinkingBlock(),
+        shellPath: settingsManager.getShellPath(),
+        shellCommandPrefix: settingsManager.getShellCommandPrefix(),
+        enableSkillCommands: settingsManager.getEnableSkillCommands(),
+        terminal: {
+          showImages: settingsManager.getShowImages(),
+          clearOnShrink: settingsManager.getClearOnShrink(),
+        },
+        images: {
+          autoResize: settingsManager.getImageAutoResize(),
+          blockImages: settingsManager.getBlockImages(),
+        },
+        markdown: {
+          codeBlockIndent: settingsManager.getCodeBlockIndent(),
+        },
+        skills: settingsManager.getSkillPaths() as PiSettings["skills"],
+        prompts: settingsManager.getPromptTemplatePaths() as PiSettings["prompts"],
+        themes: settingsManager.getThemePaths() as PiSettings["themes"],
+        doubleEscapeAction: settingsManager.getDoubleEscapeAction(),
+        treeFilterMode: settingsManager.getTreeFilterMode(),
+        thinkingBudgets: settingsManager.getThinkingBudgets(),
+        packages: (settingsManager.getPackages() ?? []) as PiSettings["packages"],
+        extensions: settingsManager.getExtensionPaths() as PiSettings["extensions"],
+        enabledModels: settingsManager.getEnabledModels() as PiSettings["enabledModels"],
+        sessionDir: settingsManager.getSessionDir(),
+      };
+    });
+
+    const updatePiSettings = Effect.fn("AgentService.updatePiSettings")(function* (
+      partial: PiPartialSettings,
+    ) {
+      if (partial.defaultProvider !== undefined) {
+        settingsManager.setDefaultProvider(partial.defaultProvider);
+      }
+      if (partial.defaultModel !== undefined) {
+        settingsManager.setDefaultModel(partial.defaultModel);
+      }
+      if (partial.defaultThinkingLevel !== undefined) {
+        settingsManager.setDefaultThinkingLevel(partial.defaultThinkingLevel);
+      }
+      if (partial.transport !== undefined) {
+        settingsManager.setTransport(partial.transport);
+      }
+      if (partial.steeringMode !== undefined) {
+        settingsManager.setSteeringMode(partial.steeringMode);
+      }
+      if (partial.followUpMode !== undefined) {
+        settingsManager.setFollowUpMode(partial.followUpMode);
+      }
+      if (partial.theme !== undefined) {
+        settingsManager.setTheme(partial.theme);
+      }
+      if (partial.compaction !== undefined && partial.compaction.enabled !== undefined) {
+        settingsManager.setCompactionEnabled(partial.compaction.enabled);
+      }
+      if (partial.retry !== undefined && partial.retry.enabled !== undefined) {
+        settingsManager.setRetryEnabled(partial.retry.enabled);
+      }
+      if (partial.hideThinkingBlock !== undefined) {
+        settingsManager.setHideThinkingBlock(partial.hideThinkingBlock);
+      }
+      if (partial.shellPath !== undefined) {
+        settingsManager.setShellPath(partial.shellPath || undefined);
+      }
+      if (partial.shellCommandPrefix !== undefined) {
+        settingsManager.setShellCommandPrefix(partial.shellCommandPrefix || undefined);
+      }
+      if (partial.enableSkillCommands !== undefined) {
+        settingsManager.setEnableSkillCommands(partial.enableSkillCommands);
+      }
+      if (partial.terminal?.showImages !== undefined) {
+        settingsManager.setShowImages(partial.terminal.showImages);
+      }
+      if (partial.terminal?.clearOnShrink !== undefined) {
+        settingsManager.setClearOnShrink(partial.terminal.clearOnShrink);
+      }
+      if (partial.images?.autoResize !== undefined) {
+        settingsManager.setImageAutoResize(partial.images.autoResize);
+      }
+      if (partial.images?.blockImages !== undefined) {
+        settingsManager.setBlockImages(partial.images.blockImages);
+      }
+      if (partial.skills !== undefined) {
+        settingsManager.setSkillPaths(partial.skills as string[]);
+      }
+      if (partial.prompts !== undefined) {
+        settingsManager.setPromptTemplatePaths(partial.prompts as string[]);
+      }
+      if (partial.themes !== undefined) {
+        settingsManager.setThemePaths(partial.themes as string[]);
+      }
+      if (partial.doubleEscapeAction !== undefined) {
+        settingsManager.setDoubleEscapeAction(partial.doubleEscapeAction);
+      }
+      if (partial.treeFilterMode !== undefined) {
+        settingsManager.setTreeFilterMode(partial.treeFilterMode);
+      }
+      if (partial.packages !== undefined) {
+        settingsManager.setPackages(partial.packages as PackageSource[]);
+      }
+      if (partial.extensions !== undefined) {
+        settingsManager.setExtensionPaths(partial.extensions as string[]);
+      }
+      if (partial.enabledModels !== undefined) {
+        settingsManager.setEnabledModels(partial.enabledModels as string[]);
+      }
+
+      const overrides: Record<string, unknown> = {};
+      if (partial.compaction !== undefined) {
+        overrides.compaction = partial.compaction;
+      }
+      if (partial.retry !== undefined) {
+        overrides.retry = partial.retry;
+      }
+      if (partial.markdown?.codeBlockIndent !== undefined) {
+        overrides.markdown = partial.markdown;
+      }
+      if (partial.thinkingBudgets !== undefined) {
+        overrides.thinkingBudgets = partial.thinkingBudgets;
+      }
+      if (partial.sessionDir !== undefined) {
+        overrides.sessionDir = partial.sessionDir;
+      }
+
+      if (Object.keys(overrides).length > 0) {
+        settingsManager.applyOverrides(
+          overrides as Parameters<typeof settingsManager.applyOverrides>[0],
+        );
+      }
+
+      yield* Effect.promise(() => settingsManager.flush());
+      settingsManager.reload();
+      return yield* getPiSettings;
+    });
+
     return {
       createAgent,
       getAgent,
@@ -390,6 +545,8 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
       attachSession,
       listSessions,
       listAvailableModels,
+      getPiSettings,
+      updatePiSettings,
     } as const;
   }),
 }) {
