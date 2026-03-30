@@ -15,7 +15,7 @@ export const TaskItemFile = ({ children, className, ...props }: TaskItemFileProp
     )}
     {...props}
   >
-    <span dir="rtl" className="max-w-96 overflow-hidden text-ellipsis whitespace-nowrap">
+    <span dir="rtl" className="max-w-120 overflow-hidden text-ellipsis whitespace-nowrap">
       {children}
     </span>
   </div>

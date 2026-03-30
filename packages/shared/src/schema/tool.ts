@@ -25,7 +25,7 @@ export const WriteToolSchema = Schema.Struct({
   name: Schema.Literal("write"),
   id: Schema.String,
   arguments: Schema.Struct({
-    file: Schema.String,
+    path: Schema.String,
     content: Schema.String,
   }),
 });
@@ -38,7 +38,7 @@ export const EditToolSchema = Schema.Struct({
   name: Schema.Literal("edit"),
   id: Schema.String,
   arguments: Schema.Struct({
-    target: Schema.String,
+    path: Schema.String,
     edits: Schema.Array(
       Schema.Struct({
         oldText: Schema.String,

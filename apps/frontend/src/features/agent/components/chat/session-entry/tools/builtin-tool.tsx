@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { RiLoader2Line, RiTerminalBoxLine, RiCloseCircleLine } from "@remixicon/react";
 import {
   Task,
@@ -9,7 +10,35 @@ import {
 import { CodeBlock } from "@/components/ai-elements/code-block";
 import { extensionToLanguage } from "@/components/ai-elements/code-block-language-map";
 import type { BundledLanguage } from "shiki";
+import { type FileContents, MultiFileDiff } from "@pierre/diffs/react";
 import type { BuiltinTool } from "@pixxl/shared";
+import type { EditTool, WriteTool } from "@pixxl/shared";
+
+interface FileDiffProps {
+  oldFile: FileContents;
+  newFile: FileContents;
+}
+
+function FileDiff({ oldFile, newFile }: FileDiffProps) {
+  return (
+    <MultiFileDiff
+      style={
+        {
+          "--diffs-font-family": "var(--font-mono)",
+          "--diffs-font-size": "var(--text-xs)",
+        } as React.CSSProperties
+      }
+      oldFile={oldFile}
+      newFile={newFile}
+      options={{
+        theme: "github-light",
+        diffStyle: "unified",
+        disableFileHeader: true,
+        hunkSeparators: "line-info-basic",
+      }}
+    />
+  );
+}
 
 interface BuiltinToolTaskProps {
   tool: BuiltinTool;
@@ -63,11 +92,9 @@ export function BuiltinToolTask({ tool, isStreaming, result, toolCount }: Builti
       case "grep":
         return `/${tool.arguments.pattern}/`;
       case "read":
-        return tool.arguments.path;
       case "write":
-        return tool.arguments.file;
       case "edit":
-        return tool.arguments.target;
+        return tool.arguments.path;
       default:
         return "unknown";
     }
@@ -138,14 +165,43 @@ export function BuiltinToolTask({ tool, isStreaming, result, toolCount }: Builti
 
   // Get the file path for language detection
   const filePath =
-    tool.name === "read"
+    tool.name === "read" || tool.name === "write" || tool.name === "edit"
       ? tool.arguments.path
-      : tool.name === "write"
-        ? tool.arguments.file
-        : tool.name === "edit"
-          ? tool.arguments.target
-          : undefined;
+      : undefined;
   const outputLanguage = filePath ? getLanguageFromPath(filePath) : "markdown";
+
+  // Generate diff for edit/write operations
+  const diffs = useMemo(() => {
+    if (tool.name === "edit") {
+      const editTool = tool as EditTool;
+      return editTool.arguments.edits.map((edit, index) => {
+        const oldFile: FileContents = {
+          name: filePath ?? "edit.diff",
+          contents: edit.oldText,
+        };
+        const newFile: FileContents = {
+          name: filePath ?? "edit.diff",
+          contents: edit.newText,
+        };
+        return { oldFile, newFile, key: `edit-${index}` };
+      });
+    }
+    if (tool.name === "write") {
+      const writeTool = tool as WriteTool;
+      const oldFile: FileContents = {
+        name: writeTool.arguments.path,
+        contents: "",
+      };
+      const newFile: FileContents = {
+        name: writeTool.arguments.path,
+        contents: writeTool.arguments.content,
+      };
+      return [{ oldFile, newFile, key: "write" }];
+    }
+    return [];
+  }, [tool, filePath]);
+
+  const showDiff = diffs.length > 0 && isComplete;
 
   // If only one tool, render directly without Task wrapper
   if (toolCount === 1) {
@@ -158,11 +214,19 @@ export function BuiltinToolTask({ tool, isStreaming, result, toolCount }: Builti
         {/* Output when available */}
         {result?.output && (
           <div className="mt-2 border-l-2 border-muted pl-4">
-            <CodeBlock
-              code={isComplete ? result.output : JSON.stringify(tool.arguments, null, 2)}
-              language={outputLanguage}
-              contentClassName="text-xs"
-            />
+            {showDiff ? (
+              <div className="space-y-3">
+                {diffs.map(({ oldFile, newFile, key }) => (
+                  <FileDiff key={key} oldFile={oldFile} newFile={newFile} />
+                ))}
+              </div>
+            ) : (
+              <CodeBlock
+                code={result.output}
+                language={outputLanguage}
+                contentClassName="text-xs"
+              />
+            )}
           </div>
         )}
         {result?.error && (
@@ -175,7 +239,7 @@ export function BuiltinToolTask({ tool, isStreaming, result, toolCount }: Builti
   }
 
   return (
-    <Task defaultOpen className="mb-4">
+    <Task defaultOpen={isStreaming} className="mb-4">
       <TaskTrigger title={`${tool.name} ${label}`}>
         <div className="flex w-full items-center gap-2 text-muted-foreground text-sm hover:text-foreground">
           {statusIcon}
@@ -185,7 +249,13 @@ export function BuiltinToolTask({ tool, isStreaming, result, toolCount }: Builti
       <TaskContent>
         {result?.output ? (
           <div className="mt-2">
-            {isComplete ? (
+            {showDiff ? (
+              <div className="space-y-3">
+                {diffs.map(({ oldFile, newFile, key }) => (
+                  <FileDiff key={key} oldFile={oldFile} newFile={newFile} />
+                ))}
+              </div>
+            ) : isComplete ? (
               <CodeBlock
                 code={result.output}
                 language={outputLanguage}

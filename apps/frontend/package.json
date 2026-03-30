@@ -16,6 +16,7 @@
     "@fontsource/iosevka": "^5.2.5",
     "@orpc/client": "^1.13.13",
     "@orpc/contract": "catalog:",
+    "@pierre/diffs": "^1.1.7",
     "@pixxl/shared": "workspace:*",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@remixicon/react": "^4.9.0",

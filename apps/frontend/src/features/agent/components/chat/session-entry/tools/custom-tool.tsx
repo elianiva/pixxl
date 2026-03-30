@@ -26,7 +26,7 @@ export function CustomToolBlock({
   // If only one tool, render directly with minimal UI
   if (toolCount === 1) {
     return (
-      <div className="mb-4 p-2.5 border border-border rounded-md bg-card">
+      <div className="mb-4 p-2.5 border border-border bg-card">
         <div className="flex items-center gap-2 text-sm">
           <RiCommandLine className="size-4 text-muted-foreground" />
           <span className="font-medium">{name}</span>
@@ -34,8 +34,8 @@ export function CustomToolBlock({
         </div>
         <ToolInput input={args} />
         {result?.output && (
-          <div className="mt-2 pt-2 border-t border-border">
-            <CodeBlock code={result.output} language="json" className="text-xs" />
+          <div className="mt-2 border-border">
+            <CodeBlock code={result.output} language="markdown" contentClassName="text-xs" />
           </div>
         )}
         {result?.error && (
@@ -48,7 +48,7 @@ export function CustomToolBlock({
   }
 
   return (
-    <Tool className="mb-4" defaultOpen>
+    <Tool className="mb-4" defaultOpen={isStreaming}>
       <ToolHeader type="dynamic-tool" state={state} toolName={name} />
       <ToolContent>
         <ToolInput input={args} />

@@ -79,7 +79,7 @@ export function AssistantMessageEntry({
     <div className="w-full px-0 py-1">
       {/* Separate thinking from persisted message */}
       {hasSeparateThinking && !hasThinkingInBlocks && (
-        <ThinkingRenderer thinking={msg.thinking!} isStreaming={isStreaming} />
+        <ThinkingRenderer thinking={msg.thinking?.trim() ?? ""} isStreaming={isStreaming} />
       )}
 
       {/* Ordered content blocks */}
@@ -87,23 +87,23 @@ export function AssistantMessageEntry({
 
       {/* Text content with smooth streaming */}
       {textContent && (
-        <div className="leading-tight">
+        <div className="leading-relaxed">
           <MessageResponse mode={isStreaming ? "streaming" : "static"} isAnimating={isStreaming}>
-            {textContent}
+            {textContent.trim()}
           </MessageResponse>
         </div>
       )}
 
       {/* Empty streaming placeholder */}
       {!textContent && isStreaming && orderedElements.length === 0 && (
-        <div className="leading-tight">
+        <div className="leading-relaxed">
           <MessageResponse mode="streaming" isAnimating />
         </div>
       )}
 
       {/* Error state */}
       {msg.stopReason === "error" && msg.errorMessage && (
-        <div className="mx-4 mt-3 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
+        <div className="p-3 bg-destructive/10 text-destructive text-sm">
           <strong>Error:</strong> {msg.errorMessage}
         </div>
       )}
