@@ -7,6 +7,7 @@ export * from "./contracts/pi-settings";
 export * from "./schema/pi";
 export * from "./schema/project";
 export * from "./schema/terminal";
+export * from "./schema/tool";
 export * from "./services";
 export * from "./types";
 export * from "./utils";

@@ -237,7 +237,9 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
       for (const p of projects) {
         const storagePath = yield* project.resolveStoragePath(p.path);
         const result = yield* agents.get({ entityBasePath: storagePath, id: input.agentId });
-        return result;
+        if (Option.isSome(result)) {
+          return result;
+        }
       }
       return Option.none<AgentMetadata>();
     });

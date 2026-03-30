@@ -2,11 +2,11 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { rpc } from "@/lib/rpc";
 import { ChatInput, type ChatSubmitOptions } from "./input";
-import { Timeline } from "./message-list";
+import { MessageList } from "./message-list";
 import { type ModelOption } from "../settings/model-selector";
 import { type ThinkingLevel } from "../settings/thinking-selector";
 import { EmptyChatState } from "./empty-state";
-import { useAgentActions, useChatTimeline, useIsStreaming } from "../../hooks";
+import { useAgentActions, useAgentEntries, useIsStreaming } from "../../hooks";
 import { useAgentFrontendConfig } from "@/features/config/hooks/use-config";
 
 import { useLiveQuery } from "@tanstack/react-db";
@@ -37,7 +37,7 @@ function pickInitialModel(
 
 const modelsCollection = getModelsCollection();
 export function Chat({ projectId, agentId }: ChatProps) {
-  const timeline = useChatTimeline(agentId);
+  const { entries } = useAgentEntries(agentId, projectId);
   const { sendMessage, abortMessage, configureSession } = useAgentActions(projectId, agentId);
   const isStreaming = useIsStreaming(agentId);
   const { data: models = [] } = useLiveQuery(modelsCollection);
@@ -88,11 +88,6 @@ export function Chat({ projectId, agentId }: ChatProps) {
     });
   };
 
-  const handleFork = (content: string) => {
-    if (!initialModel) return;
-    console.log("implement this", content);
-  };
-
   const handleModelChange = (model: ModelOption) =>
     configureSession(agentId, { model, thinkingLevel: initialThinkingLevel });
 
@@ -102,7 +97,7 @@ export function Chat({ projectId, agentId }: ChatProps) {
   };
 
   // Count only message items for empty state check
-  const messageCount = timeline.filter((item) => item.kind === "message").length;
+  const messageCount = entries.filter((e) => e.type === "message").length;
 
   return (
     <div className="h-full flex flex-col">
@@ -112,7 +107,7 @@ export function Chat({ projectId, agentId }: ChatProps) {
           <EmptyChatState />
         ) : (
           <div className="max-w-3xl mx-auto w-full">
-            <Timeline items={timeline} isStreaming={isStreaming} onFork={handleFork} />
+            <MessageList entries={entries} isStreaming={isStreaming} />
           </div>
         )}
       </div>

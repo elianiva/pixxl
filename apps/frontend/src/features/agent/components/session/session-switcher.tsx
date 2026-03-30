@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useParams, useRouterState } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import { rpc } from "@/lib/rpc";
 import {
   Select,
@@ -87,8 +88,15 @@ export function SessionSwitcher({
     label: session.firstMessage || session.name || session.id,
   }));
 
-  // Get current session from runtime state
-  const currentValue = runtimeState?.currentSessionFile ?? "";
+  // Track selected value locally for immediate UI feedback
+  const [selectedSession, setSelectedSession] = useState(runtimeState?.currentSessionFile ?? "");
+
+  // Sync with server state when it changes (e.g., after create/mutation success)
+  useEffect(() => {
+    if (runtimeState?.currentSessionFile) {
+      setSelectedSession(runtimeState.currentSessionFile);
+    }
+  }, [runtimeState?.currentSessionFile]);
 
   // Don't render if we're not on an agent route
   if (!projectId || !agentId) {
@@ -107,9 +115,10 @@ export function SessionSwitcher({
     <div className="flex items-center gap-2">
       <RiHistoryLine className="size-3.5 text-muted-foreground" />
       <Select
-        value={currentValue}
+        value={selectedSession}
         onValueChange={(sessionFile) => {
-          if (sessionFile && sessionFile !== currentValue) {
+          if (sessionFile && sessionFile !== selectedSession) {
+            setSelectedSession(sessionFile);
             switchSessionMutation.mutate({ sessionFile });
           }
         }}

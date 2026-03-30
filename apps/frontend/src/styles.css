@@ -179,5 +179,5 @@ body,
 }
 
 [data-streamdown="code-block-body"] {
-  @apply rounded-none border-accent px-0 py-2 border-x-0 border-t mt-0;
+  @apply rounded-none border-accent px-0 py-2 border-x-0 border-t mt-0 text-xs;
 }
