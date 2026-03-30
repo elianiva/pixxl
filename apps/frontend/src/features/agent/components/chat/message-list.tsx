@@ -1,3 +1,5 @@
+import { useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { MessageBubble } from "./message-bubble";
 import { StreamingIndicator } from "./streaming-indicator";
 import { ActionItem } from "./action-item";
@@ -126,18 +128,80 @@ function processTimelineItems(items: TimelineItem[]): DisplayItem[] {
   return result;
 }
 
+// Estimate height for initial render (will be adjusted dynamically)
+const ESTIMATED_ITEM_HEIGHT = 80;
+// Number of items to render outside viewport
+const OVERSCAN = 5;
+
 export function Timeline({ items, isStreaming, onFork }: TimelineProps) {
   const processedItems = processTimelineItems(items);
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: processedItems.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ESTIMATED_ITEM_HEIGHT,
+    overscan: OVERSCAN,
+    // Dynamic measurement for variable height content
+    measureElement: (element: HTMLElement) => element.getBoundingClientRect().height,
+  });
+
+  const virtualItems = virtualizer.getVirtualItems();
+
+  // Don't virtualize if small number of items (prevents unnecessary overhead)
+  const shouldVirtualize = processedItems.length > 20;
+
+  if (!shouldVirtualize) {
+    return (
+      <div className="space-y-1">
+        {processedItems.map((item) =>
+          isDisplayAction(item) ? (
+            <ActionItem key={item.id} action={item.action} />
+          ) : (
+            <MessageBubble key={item.id} message={item} onFork={onFork} />
+          ),
+        )}
+        {isStreaming && <StreamingIndicator />}
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-1">
-      {processedItems.map((item) =>
-        isDisplayAction(item) ? (
-          <ActionItem key={item.id} action={item.action} />
-        ) : (
-          <MessageBubble key={item.id} message={item} onFork={onFork} />
-        ),
-      )}
+    <div ref={parentRef} className="space-y-1 overflow-hidden">
+      <div
+        style={{
+          height: virtualizer.getTotalSize(),
+          width: "100%",
+          position: "relative",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            transform: `translateY(${virtualItems[0]?.start ?? 0}px)`,
+          }}
+        >
+          {virtualItems.map((virtualRow) => {
+            const item = processedItems[virtualRow.index];
+            return (
+              <div
+                key={virtualRow.key}
+                data-index={virtualRow.index}
+                ref={virtualizer.measureElement}
+              >
+                {isDisplayAction(item) ? (
+                  <ActionItem action={item.action} />
+                ) : (
+                  <MessageBubble message={item} onFork={onFork} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
       {isStreaming && <StreamingIndicator />}
     </div>
   );

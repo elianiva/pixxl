@@ -33,6 +33,7 @@
     "@tanstack/react-router": "latest",
     "@tanstack/react-router-devtools": "latest",
     "@tanstack/react-store": "^0.9.3",
+    "@tanstack/react-virtual": "^3.13.6",
     "ai": "^6.0.141",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

@@ -292,7 +292,8 @@ export const MessageContent = memo(function MessageContent({
     <div className="max-w-none">
       {/* Render individual blocks */}
       {renderBlocks.map((block, index) => {
-        const key = "id" in block ? `${(block as ToolCallFromBlock).id}-${index}` : `block-${index}`;
+        const key =
+          "id" in block ? `${(block as ToolCallFromBlock).id}-${index}` : `block-${index}`;
         return <BlockRenderer key={key} block={block} toolCalls={message.toolCalls} />;
       })}
 
