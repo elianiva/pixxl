@@ -476,12 +476,30 @@ export function useAgentActions(projectId: string, agentId?: string) {
     async (resolvedAgentId: string, options?: ChatSubmitOptions) => {
       if (!options) return;
 
-      await rpc.agent.configureAgentSession({
-        projectId,
-        agentId: resolvedAgentId,
-        model: options.model,
-        thinkingLevel: options.thinkingLevel,
-      });
+      // Call separate RPCs for model and thinking level changes
+      if (options.model && options.thinkingLevel) {
+        // Both changed - use the combined RPC for backwards compatibility
+        await rpc.agent.configureAgentSession({
+          projectId,
+          agentId: resolvedAgentId,
+          model: options.model,
+          thinkingLevel: options.thinkingLevel,
+        });
+      } else if (options.model) {
+        // Only model changed
+        await rpc.agent.setAgentModel({
+          projectId,
+          agentId: resolvedAgentId,
+          model: options.model,
+        });
+      } else if (options.thinkingLevel) {
+        // Only thinking level changed
+        await rpc.agent.setAgentThinkingLevel({
+          projectId,
+          agentId: resolvedAgentId,
+          thinkingLevel: options.thinkingLevel,
+        });
+      }
 
       // Refetch runtime and interactions (for model/thinking change entries in timeline)
       await invalidateAgentQueries(resolvedAgentId);

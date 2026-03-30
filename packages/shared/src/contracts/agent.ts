@@ -13,6 +13,8 @@ import {
   ListAttachableSessionsInputSchema,
   PromptAgentInputSchema,
   ConfigureAgentSessionInputSchema,
+  SetAgentModelInputSchema,
+  SetAgentThinkingLevelInputSchema,
   EnqueueAgentPromptInputSchema,
   GetAgentRuntimeInputSchema,
   GetAgentHistoryInputSchema,
@@ -78,6 +80,14 @@ export const getAgentUsageContract = oc
 
 export const configureAgentSessionContract = oc
   .input(Schema.toStandardSchemaV1(ConfigureAgentSessionInputSchema))
+  .output(Schema.toStandardSchemaV1(Schema.Null));
+
+export const setAgentModelContract = oc
+  .input(Schema.toStandardSchemaV1(SetAgentModelInputSchema))
+  .output(Schema.toStandardSchemaV1(Schema.Null));
+
+export const setAgentThinkingLevelContract = oc
+  .input(Schema.toStandardSchemaV1(SetAgentThinkingLevelInputSchema))
   .output(Schema.toStandardSchemaV1(Schema.Null));
 
 export const promptAgentContract = oc

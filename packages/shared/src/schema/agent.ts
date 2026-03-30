@@ -141,6 +141,18 @@ export const ConfigureAgentSessionInputSchema = Schema.Struct({
   thinkingLevel: AgentThinkingLevelSchema,
 });
 
+export const SetAgentModelInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+  model: AgentModelRefSchema,
+});
+
+export const SetAgentThinkingLevelInputSchema = Schema.Struct({
+  projectId: Schema.String,
+  agentId: Schema.String,
+  thinkingLevel: AgentThinkingLevelSchema,
+});
+
 export const EnqueuePromptModeSchema = Schema.Literals(["steer", "followUp"]);
 
 export const EnqueueAgentPromptInputSchema = Schema.Struct({
@@ -337,6 +349,8 @@ export type PiAvailableModelList = typeof PiAvailableModelListSchema.Type;
 export type AgentFrontendConfig = typeof AgentFrontendConfigSchema.Type;
 export type PromptAgentInput = typeof PromptAgentInputSchema.Type;
 export type ConfigureAgentSessionInput = typeof ConfigureAgentSessionInputSchema.Type;
+export type SetAgentModelInput = typeof SetAgentModelInputSchema.Type;
+export type SetAgentThinkingLevelInput = typeof SetAgentThinkingLevelInputSchema.Type;
 export type EnqueuePromptMode = typeof EnqueuePromptModeSchema.Type;
 export type EnqueueAgentPromptInput = typeof EnqueueAgentPromptInputSchema.Type;
 export type GetAgentRuntimeInput = typeof GetAgentRuntimeInputSchema.Type;

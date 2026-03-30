@@ -251,8 +251,73 @@ export const configureAgentSessionRpc = os.agent.configureAgentSession.handler((
       }
 
       const instance = instanceOpt.value;
-      yield* instance.setModel(input.model);
-      instance.setThinkingLevel(input.thinkingLevel);
+      const currentModel = instance.currentModel;
+
+      // Only set model if it actually changed
+      const modelChanged =
+        !currentModel ||
+        currentModel.provider !== input.model.provider ||
+        currentModel.id !== input.model.id;
+      if (modelChanged) {
+        yield* instance.setModel(input.model);
+      }
+
+      // Only set thinking level if it actually changed
+      const currentThinkingLevel = instance.thinkingLevel;
+      if (currentThinkingLevel !== input.thinkingLevel) {
+        instance.setThinkingLevel(input.thinkingLevel);
+      }
+
+      return null;
+    }).pipe(Effect.provide(AgentService.layer)),
+  ),
+);
+
+export const setAgentModelRpc = os.agent.setAgentModel.handler(({ input }) =>
+  runPromise(
+    Effect.gen(function* () {
+      const service = yield* AgentService;
+      const instanceOpt = yield* service.getInstance({ agentId: input.agentId });
+
+      if (Option.isNone(instanceOpt)) {
+        return yield* new AgentNotFoundError({ agentId: input.agentId });
+      }
+
+      const instance = instanceOpt.value;
+      const currentModel = instance.currentModel;
+
+      // Only set model if it actually changed
+      const modelChanged =
+        !currentModel ||
+        currentModel.provider !== input.model.provider ||
+        currentModel.id !== input.model.id;
+      if (modelChanged) {
+        yield* instance.setModel(input.model);
+      }
+
+      return null;
+    }).pipe(Effect.provide(AgentService.layer)),
+  ),
+);
+
+export const setAgentThinkingLevelRpc = os.agent.setAgentThinkingLevel.handler(({ input }) =>
+  runPromise(
+    Effect.gen(function* () {
+      const service = yield* AgentService;
+      const instanceOpt = yield* service.getInstance({ agentId: input.agentId });
+
+      if (Option.isNone(instanceOpt)) {
+        return yield* new AgentNotFoundError({ agentId: input.agentId });
+      }
+
+      const instance = instanceOpt.value;
+      const currentThinkingLevel = instance.thinkingLevel;
+
+      // Only set thinking level if it actually changed
+      if (currentThinkingLevel !== input.thinkingLevel) {
+        instance.setThinkingLevel(input.thinkingLevel);
+      }
+
       return null;
     }).pipe(Effect.provide(AgentService.layer)),
   ),

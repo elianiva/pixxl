@@ -28,8 +28,8 @@ interface QueuedMessage {
 }
 
 export interface ChatSubmitOptions {
-  model: ModelOption;
-  thinkingLevel: ThinkingLevel;
+  model?: ModelOption;
+  thinkingLevel?: ThinkingLevel;
 }
 
 interface ChatInputProps {
