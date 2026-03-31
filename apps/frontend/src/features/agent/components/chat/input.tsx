@@ -37,6 +37,11 @@ export interface ChatSubmitOptions {
   thinkingLevel?: ThinkingLevel;
 }
 
+export interface FileEditStats {
+  additions: number;
+  deletions: number;
+}
+
 interface ChatInputProps {
   onSubmit: (text: string, options: ChatSubmitOptions) => void;
   onAbort?: () => void;
@@ -56,6 +61,8 @@ interface ChatInputProps {
   projectId?: string;
   /** Agent ID for session operations */
   agentId?: string;
+  /** File edit statistics to show in header */
+  fileEditStats?: FileEditStats;
 }
 
 /** Format number compactly: 12500 -> 12.5k, 1_250_000 -> 1.2m */
@@ -81,6 +88,7 @@ export function ChatInput({
   contextWindow = 0,
   projectId,
   agentId,
+  fileEditStats,
 }: ChatInputProps) {
   const [inputText, setInputText] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -147,80 +155,92 @@ export function ChatInput({
       {/* Loading header - slides up from behind textbox */}
       <div
         className={`overflow-hidden bg-mauve-100 transition-all duration-300 ease-out ${
-          isStreaming ? "max-h-10 opacity-100" : "max-h-0 opacity-0"
+          isStreaming ||
+          (fileEditStats && (fileEditStats.additions > 0 || fileEditStats.deletions > 0))
+            ? "max-h-10 opacity-100"
+            : "max-h-0 opacity-0"
         }`}
       >
-        <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
-          {/* 3x3 Braille-ish animated dots */}
-          <svg className="size-4" viewBox="0 0 16 16" fill="none">
-            {/* Row 1 */}
-            <circle
-              cx="3"
-              cy="3"
-              r="1.5"
-              className="fill-current animate-pulse"
-              style={{ animationDelay: "0ms" }}
-            />
-            <circle
-              cx="8"
-              cy="3"
-              r="1.5"
-              className="fill-current animate-pulse"
-              style={{ animationDelay: "150ms" }}
-            />
-            <circle
-              cx="13"
-              cy="3"
-              r="1.5"
-              className="fill-current animate-pulse"
-              style={{ animationDelay: "300ms" }}
-            />
-            {/* Row 2 */}
-            <circle
-              cx="3"
-              cy="8"
-              r="1.5"
-              className="fill-current animate-pulse"
-              style={{ animationDelay: "450ms" }}
-            />
-            <circle
-              cx="8"
-              cy="8"
-              r="1.5"
-              className="fill-current animate-pulse"
-              style={{ animationDelay: "600ms" }}
-            />
-            <circle
-              cx="13"
-              cy="8"
-              r="1.5"
-              className="fill-current animate-pulse"
-              style={{ animationDelay: "750ms" }}
-            />
-            {/* Row 3 */}
-            <circle
-              cx="3"
-              cy="13"
-              r="1.5"
-              className="fill-current animate-pulse"
-              style={{ animationDelay: "900ms" }}
-            />
-            <circle
-              cx="8"
-              cy="13"
-              r="1.5"
-              className="fill-current animate-pulse"
-              style={{ animationDelay: "1050ms" }}
-            />
-            <circle
-              cx="13"
-              cy="13"
-              r="1.5"
-              className="fill-current animate-pulse"
-              style={{ animationDelay: "1200ms" }}
-            />
-          </svg>
-          <span className="font-medium">{loadingMessage}</span>
+        <div className="flex items-center justify-between px-3 py-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            {/* 3x3 Braille-ish animated dots */}
+            <svg className="size-4" viewBox="0 0 16 16" fill="none">
+              {/* Row 1 */}
+              <circle
+                cx="3"
+                cy="3"
+                r="1.5"
+                className="fill-current animate-pulse"
+                style={{ animationDelay: "0ms" }}
+              />
+              <circle
+                cx="8"
+                cy="3"
+                r="1.5"
+                className="fill-current animate-pulse"
+                style={{ animationDelay: "150ms" }}
+              />
+              <circle
+                cx="13"
+                cy="3"
+                r="1.5"
+                className="fill-current animate-pulse"
+                style={{ animationDelay: "300ms" }}
+              />
+              {/* Row 2 */}
+              <circle
+                cx="3"
+                cy="8"
+                r="1.5"
+                className="fill-current animate-pulse"
+                style={{ animationDelay: "450ms" }}
+              />
+              <circle
+                cx="8"
+                cy="8"
+                r="1.5"
+                className="fill-current animate-pulse"
+                style={{ animationDelay: "600ms" }}
+              />
+              <circle
+                cx="13"
+                cy="8"
+                r="1.5"
+                className="fill-current animate-pulse"
+                style={{ animationDelay: "750ms" }}
+              />
+              {/* Row 3 */}
+              <circle
+                cx="3"
+                cy="13"
+                r="1.5"
+                className="fill-current animate-pulse"
+                style={{ animationDelay: "900ms" }}
+              />
+              <circle
+                cx="8"
+                cy="13"
+                r="1.5"
+                className="fill-current animate-pulse"
+                style={{ animationDelay: "1050ms" }}
+              />
+              <circle
+                cx="13"
+                cy="13"
+                r="1.5"
+                className="fill-current animate-pulse"
+                style={{ animationDelay: "1200ms" }}
+              />
+            </svg>
+            <span className="font-medium">{loadingMessage}</span>
+          </div>
+          {/* File edit stats - always show if we have diffs */}
+          {fileEditStats && (fileEditStats.additions > 0 || fileEditStats.deletions > 0) && (
+            <div className="flex items-center gap-2 tabular-nums">
+              <span className="text-emerald-600">+{fileEditStats.additions}</span>
+              <span className="text-rose-600">-{fileEditStats.deletions}</span>
+            </div>
+          )}
         </div>
       </div>
 

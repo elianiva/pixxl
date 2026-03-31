@@ -29,13 +29,13 @@ export type ToolHeaderProps = {
   title?: string;
   className?: string;
 } & (
-    | { type: ToolUIPart["type"]; state: ToolUIPart["state"]; toolName?: never }
-    | {
+  | { type: ToolUIPart["type"]; state: ToolUIPart["state"]; toolName?: never }
+  | {
       type: DynamicToolUIPart["type"];
       state: DynamicToolUIPart["state"];
       toolName: string;
     }
-  );
+);
 
 const statusLabels: Record<ToolPart["state"], string> = {
   "approval-requested": "Awaiting Approval",
@@ -111,7 +111,11 @@ export const ToolInput = ({ className, input, ...props }: ToolInputProps) => (
       Parameters
     </h4>
     <div className="bg-muted/50">
-      <CodeBlock code={JSON.stringify(input, null, 2)} language="json" contentClassName="text-xs!" />
+      <CodeBlock
+        code={JSON.stringify(input, null, 2)}
+        language="json"
+        contentClassName="text-xs!"
+      />
     </div>
   </div>
 );
