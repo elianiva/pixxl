@@ -149,9 +149,6 @@ importers:
       cmdk:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      ghostty-web:
-        specifier: ^0.4.0
-        version: 0.4.0
       lucide-react:
         specifier: ^1.7.0
         version: 1.7.0(react@19.2.4)
@@ -167,6 +164,9 @@ importers:
       react-dom:
         specifier: ^19.2.4
         version: 19.2.4(react@19.2.4)
+      restty:
+        specifier: ^0.1.35
+        version: 0.1.35(typescript@6.0.2)
       shadcn:
         specifier: ^4.1.1
         version: 4.1.1(@types/node@25.5.0)(typescript@6.0.2)
@@ -3617,9 +3617,6 @@ packages:
     resolution: {integrity: sha512-b1O07XYq8eRuVzBNgJLstU6FYc1tS6wnMtF1I1D9lE8LxZSOGZ7LhxN54yPP6mGw5f2CkXY2BQUL9Fx41qvcIg==}
     engines: {node: '>= 14'}
 
-  ghostty-web@0.4.0:
-    resolution: {integrity: sha512-0puDBik2qapbD/QQBW9o5ZHfXnZBqZWx/ctBiVtKZ6ZLds4NYb+wZuw1cRLXZk9zYovIQ908z3rvFhexAvc5Hg==}
-
   glob-parent@5.1.2:
     resolution: {integrity: sha512-AOIgSQCepiJYwP3ARnGx+5VnTu2HBYdzbGP45eLw1vr3zB3vZLeyed1sC9hnbcOc9/SrMyM5RPQrkGz4aS9Zow==}
     engines: {node: '>= 6'}
@@ -4838,6 +4835,10 @@ packages:
     resolution: {integrity: sha512-oMA2dcrw6u0YfxJQXm342bFKX/E4sG9rbTzO9ptUcR/e8A33cHuvStiYOwH7fszkZlZ1z/ta9AAoPk2F4qIOHA==}
     engines: {node: '>=18'}
 
+  restty@0.1.35:
+    resolution: {integrity: sha512-IUr4NsdYCTErKBxuAd0eu/KdiGZhADBxA0ddSPEEIxAz8np3RT1bLiL9iIH+wglmUeSmHRmJzkPN7hGJJ+E/Yw==}
+    engines: {bun: '>=1.2.0'}
+
   retry@0.12.0:
     resolution: {integrity: sha512-9LkiTwjUh6rT555DtE9rTX+BKByPfrMzEAtnlEtdEwr3Nkffwiihqe2bWADg+OQRjt9gl6ICdmB/ZFDCGAtSow==}
     engines: {node: '>= 4'}
@@ -5099,6 +5100,11 @@ packages:
   tapable@2.3.0:
     resolution: {integrity: sha512-g9ljZiwki/LfxmQADO3dEY1CbpmXT5Hm2fJ+QaGKwSXUylMybePR7/67YW7jOrrvjEgL1Fmz5kzyAjWVWLlucg==}
     engines: {node: '>=6'}
+
+  text-shaper@0.1.22:
+    resolution: {integrity: sha512-OYxqPcNEox3tlXilxZVPNub8EU/A6Lxy9vlCAe362fiGI9f3pMav497wL7cecX0CPq1yVtiBn/lii/ZZUUk9bQ==}
+    peerDependencies:
+      typescript: ^5
 
   thenify-all@1.6.0:
     resolution: {integrity: sha512-RNxQH/qI8/t3thXJDwcstUO4zeqo64+Uy/+sNVRBx4Xn2OX+OZ9oP+iJnNFqplFra2ZUVeKCSa2oVWi3T4uVmA==}
@@ -9212,8 +9218,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  ghostty-web@0.4.0: {}
-
   glob-parent@5.1.2:
     dependencies:
       is-glob: 4.0.3
@@ -10745,6 +10749,12 @@ snapshots:
       onetime: 7.0.0
       signal-exit: 4.1.0
 
+  restty@0.1.35(typescript@6.0.2):
+    dependencies:
+      text-shaper: 0.1.22(typescript@6.0.2)
+    transitivePeerDependencies:
+      - typescript
+
   retry@0.12.0: {}
 
   retry@0.13.1: {}
@@ -11096,6 +11106,10 @@ snapshots:
   tailwindcss@4.2.2: {}
 
   tapable@2.3.0: {}
+
+  text-shaper@0.1.22(typescript@6.0.2):
+    dependencies:
+      typescript: 6.0.2
 
   thenify-all@1.6.0:
     dependencies:

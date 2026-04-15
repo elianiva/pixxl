@@ -10,7 +10,7 @@ Pixxl is built as a monorepo with three main modules:
 
 - **frontend** (React) — The user interface
   - Uses TanStack Router and TanStack Query
-  - Ghostty Terminal for terminal rendering
+  - Restty for terminal rendering
   - Depends on `shared` for type-safe contracts
 
 - **shared** (contracts) — Shared definitions between frontend and backend
@@ -33,7 +33,7 @@ Pixxl is built as a monorepo with three main modules:
 
 | Module                             | Purpose                                                       | Stack                                |
 | ---------------------------------- | ------------------------------------------------------------- | ------------------------------------ |
-| [frontend](../apps/frontend/docs/) | React SPA, file explorer, terminal UI, agent interface        | TanStack Start, React Query, Ghostty |
+| [frontend](../apps/frontend/docs/) | React SPA, file explorer, terminal UI, agent interface        | TanStack Start, React Query, Restty  |
 | [backend](../apps/backend/docs/)   | RPC server, WebSocket handler, terminal process manager       | Bun, Effect-TS, oRPC, XState         |
 | [shared](../packages/shared/docs/) | Contracts, schemas, types shared between frontend and backend | Effect Schema, oRPC                  |
 
@@ -96,7 +96,7 @@ Operations:
 
 **WebSocket (Real-time)**
 
-- **Terminal I/O**: Bidirectional stream between browser (xterm.js/Ghostty) and backend PTY process
+- **Terminal I/O**: Bidirectional stream between browser (Restty) and backend PTY process
   - Character input from browser to shell
   - Output stream from shell to terminal display
 - **Agent Streaming**: Agent thought process and action execution progress

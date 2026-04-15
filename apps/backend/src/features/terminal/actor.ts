@@ -6,7 +6,7 @@ export interface TerminalActorInput {
   terminalId: string;
   shell: string;
   cwd?: string;
-  scrollbackLines?: number; // Configurable, defaults to 10000
+  scrollbackLines?: number;
 }
 
 export interface Client {
@@ -63,10 +63,8 @@ export const terminalMachine = setup({
             const currentContext = self.getSnapshot()?.context ?? context;
             const output = new Uint8Array(data);
 
-            // Capture to scrollback for persistence
             currentContext.scrollback.push(output);
 
-            // Broadcast to connected clients
             currentContext.clients.forEach((client) => {
               if (!client.closed) {
                 client.send(output);
@@ -79,16 +77,9 @@ export const terminalMachine = setup({
           console.log(
             `[TerminalActor ${currentContext.terminalId}] PROCESS EXIT: code=${exitCode}, signal=${_signal}`,
           );
-          const message = JSON.stringify({
-            type: "dead",
-            exitCode,
-            reason: "Process exited",
-          });
-
           currentContext.clients.forEach((client) => {
             if (!client.closed) {
               client.closed = true;
-              client.send(message);
               client.close?.();
             }
           });
@@ -149,7 +140,7 @@ export const terminalMachine = setup({
       if (event.type !== "CLIENT_CONNECT") return;
       console.log(
         `[TerminalActor ${context.terminalId}] Replaying ${context.scrollback.size} scrollback lines to client`,
-      ); // Replay all scrollback to the new client
+      );
       for (const chunk of context.scrollback.iter()) {
         if (!event.client.closed) {
           event.client.send(chunk);
@@ -160,8 +151,7 @@ export const terminalMachine = setup({
     writeToPty: assign({
       terminal: ({ context, event }) => {
         if (event.type !== "INPUT" || !context.terminal) return context.terminal;
-        const data = Buffer.from(event.data, "base64").toString("utf8");
-        context.terminal.write(data);
+        context.terminal.write(event.data);
         return context.terminal;
       },
       metadata: ({ context }) => ({
@@ -178,7 +168,6 @@ export const terminalMachine = setup({
       },
       pendingResize: ({ context, event }) => {
         if (event.type !== "RESIZE") return context.pendingResize;
-        // If terminal not ready yet, queue the resize
         if (!context.terminal) {
           return { cols: event.cols, rows: event.rows };
         }
@@ -199,12 +188,12 @@ export const terminalMachine = setup({
           try {
             context.terminal.kill();
           } catch {
-            // Ignore errors during cleanup
+            // ignore
           }
           try {
             context.terminal.close();
           } catch {
-            // Ignore errors during cleanup
+            // ignore
           }
         }
         return undefined;
@@ -251,7 +240,6 @@ export const terminalMachine = setup({
         },
       },
     },
-
     starting: {
       entry: "spawnTerminal",
       always: "active",
@@ -261,7 +249,6 @@ export const terminalMachine = setup({
         },
       },
     },
-
     active: {
       entry: "applyPendingResize",
       on: {
@@ -270,12 +257,10 @@ export const terminalMachine = setup({
         },
         CLIENT_DISCONNECT: [
           {
-            // Multiple clients remain -> stay active
             guard: ({ context }) => context.clients.size > 1,
             actions: "removeClient",
           },
           {
-            // Last client left -> detach (don't kill process)
             target: "detached",
             actions: ["removeClient", "clearClients"],
           },
@@ -290,10 +275,7 @@ export const terminalMachine = setup({
         PROCESS_EXIT: "dead",
       },
     },
-
     detached: {
-      // Process is running but no clients connected
-      // Session persists here until explicitly closed or process dies
       on: {
         CLIENT_CONNECT: {
           target: "active",
@@ -306,20 +288,14 @@ export const terminalMachine = setup({
         PROCESS_EXIT: "dead",
       },
     },
-
     dead: {
-      // Terminal process has exited
-      // Session can be inspected but not reattached to running process
       type: "final",
       entry: "markDead",
     },
-
     closing: {
-      // Explicit cleanup requested
       entry: "killTerminal",
       always: "closed",
     },
-
     closed: {
       type: "final",
     },
@@ -328,10 +304,6 @@ export const terminalMachine = setup({
 
 export function createTerminalActor(input: TerminalActorInput) {
   const actor = createActor(terminalMachine, { input });
-
-  // Track process state to emit PROCESS_EXIT when needed
-  // Note: zigpty onExit callback handles active state
-  // For detached state, process exit still flows through the same callback
 
   actor.start();
   return actor;

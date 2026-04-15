@@ -36,7 +36,7 @@ packages/
 
 | Layer    | Stack                                                      |
 | -------- | ---------------------------------------------------------- |
-| Frontend | TanStack Start, TanStack Query/DB, Ghostty Terminal, Jotai |
+| Frontend | TanStack Start, TanStack Query/DB, Restty Terminal, Jotai |
 | Backend  | Bun, Effect-TS, oRPC, XState                               |
 | Shared   | Effect Schema, oRPC contracts                              |
 

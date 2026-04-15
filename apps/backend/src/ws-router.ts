@@ -8,13 +8,12 @@ import { RPCHandler } from "@orpc/server/bun-ws";
 import { onError, ORPCError } from "@orpc/server";
 import { router } from "./router";
 import {
-  handleTerminalConnection,
-  handleTerminalMessage,
-  handleTerminalClose,
+  handlePtyConnection,
+  handlePtyMessage,
+  handlePtyClose,
 } from "./features/terminal/ws-handler";
 import type { WsData } from "./types";
 
-// RPC handler singleton
 const rpcHandler = new RPCHandler(router, {
   interceptors: [
     onError((error) => {
@@ -39,8 +38,8 @@ const rpcHandler = new RPCHandler(router, {
 export function handleWsOpen(ws: ServerWebSocket<WsData>): void {
   const data = ws.data;
 
-  if (data.type === "terminal") {
-    handleTerminalConnection(data.terminalId, ws);
+  if (data.type === "pty") {
+    handlePtyConnection(data.terminalId, ws);
   }
 }
 
@@ -50,21 +49,19 @@ export async function handleWsMessage(
 ): Promise<void> {
   const data = ws.data;
 
-  // Terminal connection
-  if (data.type === "terminal" && data.terminalId.length > 0) {
-    handleTerminalMessage(ws, message.toString());
+  if (data.type === "pty" && data.terminalId.length > 0) {
+    handlePtyMessage(ws, message);
     return;
   }
 
-  // RPC connection (includes agent streaming)
   await rpcHandler.message(ws, message, { context: {} });
 }
 
 export function handleWsClose(ws: ServerWebSocket<WsData>): void {
   const data = ws.data;
 
-  if (data.type === "terminal") {
-    handleTerminalClose(ws);
+  if (data.type === "pty") {
+    handlePtyClose(ws);
     return;
   }
 

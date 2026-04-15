@@ -56,14 +56,12 @@ export const connectTerminalRpc = os.terminal.connectTerminal.handler(({ input }
     const configService = yield* ConfigService;
     const config = yield* configService.loadConfig();
 
-    // Try to get stored shell from terminal metadata for resuming
     const terminalService = yield* TerminalService;
     const terminalResult = yield* terminalService.getTerminal({
       projectId: input.projectId,
       id: input.id,
     });
 
-    // Use stored shell if available, otherwise fall back to current config
     const shell = Option.match(terminalResult, {
       onSome: (t) => t.shell ?? config.terminal.shell,
       onNone: () => config.terminal.shell,
@@ -74,7 +72,10 @@ export const connectTerminalRpc = os.terminal.connectTerminal.handler(({ input }
       shell,
     });
 
-    return { success: true, websocketUrl: `/terminal/${input.id}` };
+    return {
+      success: true,
+      websocketUrl: "/pty?terminalId=" + encodeURIComponent(input.id),
+    };
   })
     .pipe(runtime.runPromise)
     .catch(mapToOrpcError),

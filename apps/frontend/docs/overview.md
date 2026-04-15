@@ -48,7 +48,7 @@ Components arranged in the workspace:
 | State      | Jotai                        |
 | UI         | React 19 + Tailwind CSS      |
 | Components | shadcn/ui + Base UI          |
-| Terminal   | Ghostty Web                  |
+| Terminal   | Restty                       |
 | RPC Client | oRPC Client                  |
 | Contracts  | `@pixxl/shared`              |
 
@@ -94,7 +94,7 @@ The terminal feature is more complex:
 
 - Handles WebSocket connections in addition to regular data
 - Manages terminal lifecycle separately from React component lifecycle
-- Integrates Ghostty terminal emulator for rendering
+- Integrates Restty terminal emulator for rendering
 
 ## Data Flow
 
@@ -119,12 +119,12 @@ The terminal feature is more complex:
 
 ### Terminal WebSocket
 
-1. Component initializes via `terminal-ws.ts`
-2. WebSocket connection established to backend
+1. Component initializes via `useResttyTerminal`
+2. Restty opens a WebSocket connection to the backend PTY endpoint
 3. Backend attaches to PTY process
 4. Bidirectional flow:
-   - User input → WebSocket → PTY → Shell
-   - Shell output → PTY → WebSocket → Ghostty Terminal (xterm.js)
+   - User input → Restty → WebSocket → PTY → Shell
+   - Shell output → PTY → WebSocket → Restty
 
 ## State Management
 

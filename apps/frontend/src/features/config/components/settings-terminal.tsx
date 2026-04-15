@@ -11,7 +11,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { DEFAULT_CONFIG, type Terminal } from "@pixxl/shared/schema/config";
 import { useBlurSubmitSlider } from "../hooks/use-blur-submit";
-import { terminalThemes, terminalFonts } from "@/features/terminal/themes";
+import { getTerminalTheme, terminalThemes, terminalFonts } from "@/features/terminal/themes";
 
 interface TerminalSettingsProps {
   terminal: Terminal;
@@ -52,17 +52,20 @@ export function TerminalSettings({ terminal, onUpdate }: TerminalSettingsProps) 
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {terminalThemes.map((theme) => (
-                <SelectItem key={theme.id} value={theme.id}>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="inline-block h-3 w-3 rounded-full"
-                      style={{ backgroundColor: theme.theme.foreground }}
-                    />
-                    {theme.name}
-                  </div>
-                </SelectItem>
-              ))}
+              {terminalThemes.map((theme) => {
+                const preview = getTerminalTheme(theme.id);
+                return (
+                  <SelectItem key={theme.id} value={theme.id}>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="inline-block h-3 w-3 rounded-full"
+                        style={{ backgroundColor: preview?.foreground ?? "currentColor" }}
+                      />
+                      {theme.name}
+                    </div>
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </SettingRow>

@@ -7,7 +7,7 @@
  *
  * The server provides:
  *   - RPC over WebSocket at /rpc
- *   - Terminal I/O at /terminal/{id}
+ *   - PTY WebSocket at /pty?terminalId=...
  *   - Static frontend assets (compiled binary only)
  */
 
@@ -24,7 +24,6 @@ import _indexHtml from "../../frontend/dist/index.html" with { type: "file" };
 
 console.log(`Starting pixxl server on port ${PORT}${IS_COMPILED ? " (compiled binary mode)" : ""}`);
 
-// Graceful shutdown - dispose the managed runtime
 process.on("SIGINT", async () => {
   console.log("\nShutting down...");
   await disposeRuntime();

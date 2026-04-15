@@ -100,12 +100,12 @@ os.router({
 
 ### Terminal WebSocket
 
-Terminal connections use a separate WebSocket protocol:
+Terminal connections use a dedicated PTY WebSocket endpoint:
 
 **Connection flow**
 
 1. Client connects via WebSocket
-2. Bun Server accepts and identifies terminal by path `/terminal/{terminalId}`
+2. Bun Server accepts `/pty?terminalId=...`
 3. Server spawns or attaches to PTY (pseudo-terminal)
 4. PTY runs the shell process
 5. Bidirectional data:
