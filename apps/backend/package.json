@@ -14,6 +14,7 @@
     "@pixxl/shared": "workspace:*",
     "effect": "catalog:",
     "nanoid": "^5.1.7",
-    "xstate": "^5.30.0"
+    "xstate": "^5.30.0",
+    "zigpty": "^0.1.6"
   }
 }

@@ -1,4 +1,5 @@
 import { assign, createActor, setup } from "xstate";
+import { spawn, type IPty } from "zigpty";
 import { ScrollbackBuffer } from "./scrollback-buffer";
 
 export interface TerminalActorInput {
@@ -27,7 +28,7 @@ export interface TerminalActorContext {
   shell: string;
   cwd?: string;
   clients: Set<Client>;
-  terminal?: globalThis.Bun.Terminal;
+  terminal?: IPty;
   scrollback: ScrollbackBuffer;
   metadata: SessionMetadata;
   pendingResize?: { cols: number; rows: number };
@@ -48,57 +49,55 @@ export const terminalMachine = setup({
     input: {} as TerminalActorInput,
   },
   actions: {
-    spawnTerminal: assign(({ context }) => {
+    spawnTerminal: assign(({ context, self }) => {
       console.log(
         `[TerminalActor ${context.terminalId}] SPAWNING new terminal with shell: ${context.shell}`,
       );
-      const proc = Bun.spawn({
-        cmd: [context.shell],
+      const pty = spawn(context.shell, [], {
         cwd: context.cwd ?? Bun.env.HOME,
+        cols: 80,
+        rows: 24,
+        shell: true,
         terminal: {
-          cols: 80,
-          rows: 24,
-          data(_term, data) {
+          data(_terminal, data) {
+            const currentContext = self.getSnapshot()?.context ?? context;
             const output = new Uint8Array(data);
 
             // Capture to scrollback for persistence
-            context.scrollback.push(output);
+            currentContext.scrollback.push(output);
 
             // Broadcast to connected clients
-            context.clients.forEach((client) => {
+            currentContext.clients.forEach((client) => {
               if (!client.closed) {
                 client.send(output);
               }
             });
           },
-          exit(_terminal, exitCode, _signal) {
-            console.log(
-              `[TerminalActor ${context.terminalId}] PROCESS EXIT: code=${exitCode}, signal=${_signal}`,
-            );
-            // Note: Process exit while active notifies clients
-            // Process exit while detached triggers PROCESS_EXIT event via subscribe
-            // We handle this via actor.subscribe() in createTerminalActor
-            const message = JSON.stringify({
-              type: "dead",
-              exitCode,
-              reason: "Process exited",
-            });
+        },
+        onExit(exitCode, _signal) {
+          const currentContext = self.getSnapshot()?.context ?? context;
+          console.log(
+            `[TerminalActor ${currentContext.terminalId}] PROCESS EXIT: code=${exitCode}, signal=${_signal}`,
+          );
+          const message = JSON.stringify({
+            type: "dead",
+            exitCode,
+            reason: "Process exited",
+          });
 
-            context.clients.forEach((client) => {
-              if (!client.closed) {
-                client.closed = true;
-                client.send(message);
-                client.close?.();
-              }
-            });
+          currentContext.clients.forEach((client) => {
+            if (!client.closed) {
+              client.closed = true;
+              client.send(message);
+              client.close?.();
+            }
+          });
 
-            // Store exit code in metadata for dead state
-            (context.metadata as SessionMetadata).exitCode = exitCode;
-          },
+          self.send({ type: "PROCESS_EXIT", exitCode });
         },
       });
 
-      return { terminal: proc.terminal };
+      return { terminal: pty };
     }),
 
     addClient: assign({
@@ -161,7 +160,7 @@ export const terminalMachine = setup({
     writeToPty: assign({
       terminal: ({ context, event }) => {
         if (event.type !== "INPUT" || !context.terminal) return context.terminal;
-        const data = Buffer.from(event.data, "base64");
+        const data = Buffer.from(event.data, "base64").toString("utf8");
         context.terminal.write(data);
         return context.terminal;
       },
@@ -196,11 +195,14 @@ export const terminalMachine = setup({
 
     killTerminal: assign({
       terminal: ({ context }) => {
-        // Kill the underlying process if it exists
         if (context.terminal) {
           try {
-            // Bun.Terminal doesn't have explicit kill, but the process exits on close
-            // We rely on the process exiting naturally or being killed externally
+            context.terminal.kill();
+          } catch {
+            // Ignore errors during cleanup
+          }
+          try {
+            context.terminal.close();
           } catch {
             // Ignore errors during cleanup
           }
@@ -328,8 +330,8 @@ export function createTerminalActor(input: TerminalActorInput) {
   const actor = createActor(terminalMachine, { input });
 
   // Track process state to emit PROCESS_EXIT when needed
-  // Note: Bun.Terminal exit callback handles active state
-  // For detached state, we rely on process signal or timeout check
+  // Note: zigpty onExit callback handles active state
+  // For detached state, process exit still flows through the same callback
 
   actor.start();
   return actor;

@@ -53,6 +53,9 @@ importers:
       xstate:
         specifier: ^5.30.0
         version: 5.30.0
+      zigpty:
+        specifier: ^0.1.6
+        version: 0.1.6
 
   apps/frontend:
     dependencies:
@@ -5489,6 +5492,9 @@ packages:
   yoctocolors@2.1.2:
     resolution: {integrity: sha512-CzhO+pFNo8ajLM2d2IW/R93ipy99LWjtwblvC1RsoSUMZgyLbYFr221TnSNT7GjGdYui6P459mw9JH/g/zW2ug==}
     engines: {node: '>=18'}
+
+  zigpty@0.1.6:
+    resolution: {integrity: sha512-0B+6Xa4mKgyTNMq87HoGEUb30jQ08DZLEshSlgXPvUv+GB3E0zuTM+IUuYqe0CiaZyaZvCyx9snvGqxIKhl0sA==}
 
   zod-to-json-schema@3.25.2:
     resolution: {integrity: sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA==}
@@ -11509,6 +11515,8 @@ snapshots:
   yoctocolors-cjs@2.1.3: {}
 
   yoctocolors@2.1.2: {}
+
+  zigpty@0.1.6: {}
 
   zod-to-json-schema@3.25.2(zod@3.25.76):
     dependencies:
