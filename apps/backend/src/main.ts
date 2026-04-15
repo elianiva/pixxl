@@ -1,16 +1,3 @@
-/**
- * pixxl server entry point.
- *
- * Usage:
- *   bun src/main.ts              # Development mode
- *   ./bin/pixxl                  # Compiled binary
- *
- * The server provides:
- *   - RPC over WebSocket at /rpc
- *   - PTY WebSocket at /pty?terminalId=...
- *   - Static frontend assets (compiled binary only)
- */
-
 import * as Bun from "bun";
 import { PORT, IS_COMPILED } from "./config";
 import { handleRequest } from "./http-handler";

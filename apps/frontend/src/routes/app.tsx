@@ -28,13 +28,9 @@ function RouteComponent() {
 
   const projects = useLiveQuery(projectsCollection);
 
-  // Get project-scoped collections dynamically based on projectId
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const agents = useLiveQuery(projectId ? getAgentsCollection(projectId) : (null as any));
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const terminals = useLiveQuery(projectId ? getTerminalsCollection(projectId) : (null as any));
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const commands = useLiveQuery(projectId ? getCommandsCollection(projectId) : (null as any));
+  const agents = useLiveQuery(projectId && getAgentsCollection(projectId));
+  const terminals = useLiveQuery(projectId && getTerminalsCollection(projectId));
+  const commands = useLiveQuery(projectId && getCommandsCollection(projectId));
 
   function handleSelectProject(project: { id: string }) {
     void navigate({
@@ -74,9 +70,7 @@ function RouteComponent() {
 
   function handleUpdateAgent(id: string, name: string) {
     if (!projectId) return;
-    // Draft is mutable proxy, don't type it with readonly schema
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getAgentsCollection(projectId).update(id, (draft: any) => {
+    getAgentsCollection(projectId).update(id, (draft) => {
       draft.name = name;
       draft.updatedAt = new Date().toISOString();
     });
@@ -99,9 +93,7 @@ function RouteComponent() {
 
   function handleUpdateTerminal(id: string, name: string) {
     if (!projectId) return;
-    // Draft is mutable proxy, don't type it with readonly schema
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getTerminalsCollection(projectId).update(id, (draft: any) => {
+    getTerminalsCollection(projectId).update(id, (draft) => {
       draft.name = name;
       draft.updatedAt = new Date().toISOString();
     });

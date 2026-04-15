@@ -22,7 +22,7 @@ const rpcHandler = new RPCHandler(router, {
         if (error.data) {
           console.error("Data:", error.data);
         } else if (error.cause) {
-          const issues = (error.cause as any).issues;
+          const cause = error.cause as { issues?: unknown };\n          const issues = cause.issues;
           console.error(issues ?? error.cause);
         } else {
           console.error(error);
