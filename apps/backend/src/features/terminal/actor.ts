@@ -1,5 +1,6 @@
 import { assign, createActor, setup } from "xstate";
 import { spawn, type IPty } from "zigpty";
+import { homedir } from "node:os";
 import { ScrollbackBuffer } from "./scrollback-buffer";
 
 export interface TerminalActorInput {
@@ -54,7 +55,7 @@ export const terminalMachine = setup({
         `[TerminalActor ${context.terminalId}] SPAWNING new terminal with shell: ${context.shell}`,
       );
       const pty = spawn(context.shell, [], {
-        cwd: context.cwd ?? Bun.env.HOME,
+        cwd: context.cwd ?? homedir(),
         cols: 80,
         rows: 24,
         shell: true,

@@ -4,7 +4,7 @@
  */
 
 import { Layer, ManagedRuntime } from "effect";
-import { BunFileSystem, BunPath } from "@effect/platform-bun";
+import { NodeFileSystem, NodePath } from "@effect/platform-node";
 
 // Services
 import { EntityService } from "@pixxl/shared";
@@ -14,7 +14,7 @@ import { AgentService } from "@/features/agent/service";
 import { TerminalService } from "@/features/terminal/service";
 import { CommandService } from "@/features/command/service";
 
-const baseLayer = Layer.mergeAll(BunFileSystem.layer, BunPath.layer);
+const baseLayer = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
 const configLayer = ConfigService.layer.pipe(Layer.provideMerge(baseLayer));
 const projectLayer = ProjectService.layer.pipe(Layer.provideMerge(configLayer));
 const entityLayer = EntityService.layer.pipe(Layer.provideMerge(baseLayer));

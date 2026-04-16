@@ -14,7 +14,7 @@ import {
 } from "./error";
 import { ProjectService } from "../project/service";
 import { ConfigService } from "../config/service";
-import { BunFileSystem, BunPath } from "@effect/platform-bun";
+import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import { terminalManager } from "./manager";
 
 type TerminalServiceShape = {
@@ -236,6 +236,6 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
     Layer.provideMerge(EntityService.layer),
     Layer.provideMerge(ProjectService.live),
     Layer.provideMerge(ConfigService.layer),
-    Layer.provideMerge(Layer.mergeAll(BunFileSystem.layer, BunPath.layer)),
+    Layer.provideMerge(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer)),
   );
 }

@@ -9,7 +9,7 @@ import {
 import { CommandNotFoundError, CommandCreateError, CommandDeleteError } from "./error";
 import { ProjectService } from "../project/service";
 import { ConfigService } from "../config/service";
-import { BunFileSystem, BunPath } from "@effect/platform-bun";
+import { NodeFileSystem, NodePath } from "@effect/platform-node";
 
 type CommandServiceShape = {
   readonly createCommand: (
@@ -172,6 +172,6 @@ export class CommandService extends ServiceMap.Service<CommandService, CommandSe
     Layer.provideMerge(EntityService.layer),
     Layer.provideMerge(ProjectService.live),
     Layer.provideMerge(ConfigService.layer),
-    Layer.provideMerge(Layer.mergeAll(BunFileSystem.layer, BunPath.layer)),
+    Layer.provideMerge(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer)),
   );
 }

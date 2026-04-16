@@ -1,12 +1,13 @@
 {
-  "name": "backend",
+  "name": "@pixxl/backend",
   "version": "0.0.1",
+  "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --hot src/main.ts"
+    "check": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@effect/platform-bun": "4.0.0-beta.36",
+    "@effect/platform-node": "4.0.0-beta.36",
     "@mariozechner/pi-ai": "^0.64.0",
     "@mariozechner/pi-coding-agent": "^0.64.0",
     "@orpc/contract": "catalog:",
@@ -15,6 +16,12 @@
     "effect": "catalog:",
     "nanoid": "^5.1.7",
     "xstate": "^5.30.0",
-    "zigpty": "^0.1.6"
+    "zigpty": "^0.1.6",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^6.0.2"
   }
 }

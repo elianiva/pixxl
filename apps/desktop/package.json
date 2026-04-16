@@ -1,0 +1,62 @@
+{
+  "name": "@pixxl/desktop",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "dist": "pnpm --filter @pixxl/frontend build && pnpm run build && electron-builder",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@effect/platform-node": "4.0.0-beta.36",
+    "@mariozechner/pi-ai": "^0.64.0",
+    "@mariozechner/pi-coding-agent": "^0.64.0",
+    "@orpc/contract": "catalog:",
+    "@orpc/server": "^1.13.13",
+    "@pixxl/shared": "workspace:*",
+    "effect": "catalog:",
+    "electron-updater": "^6.6.2",
+    "nanoid": "^5.1.7",
+    "ws": "^8.20.0",
+    "xstate": "^5.30.0",
+    "zigpty": "^0.1.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "electron": "^35.0.0",
+    "electron-builder": "^25.0.3",
+    "electron-vite": "^3.1.0",
+    "typescript": "^6.0.2"
+  },
+  "build": {
+    "appId": "dev.pixxl.desktop",
+    "productName": "Pixxl",
+    "asar": true,
+    "files": [
+      "dist/main/**",
+      "dist/preload/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../frontend/dist",
+        "to": "renderer"
+      }
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.developer-tools"
+    },
+    "publish": [
+      {
+        "provider": "github"
+      }
+    ]
+  }
+}

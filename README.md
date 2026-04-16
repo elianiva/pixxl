@@ -1,6 +1,6 @@
 # pixxl
 
-A Pi-powered code workspace that brings your projects knowledge, terminals, and agents together in one place.
+A local-first desktop code workspace that brings project knowledge, terminals, and agents together in one place. Packaged as a macOS Electron app.
 
 ## What is pixxl?
 

@@ -25,17 +25,6 @@ const config = defineConfig({
     }),
     viteReact(),
   ],
-  build: {
-    rolldownOptions: {
-      external: ["@effect/platform-bun"],
-    },
-  },
-  optimizeDeps: {
-    exclude: ["@effect/platform-bun"],
-  },
-  ssr: {
-    external: ["@effect/platform-bun"],
-  },
 });
 
 export default config;

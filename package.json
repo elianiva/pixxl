@@ -1,34 +1,23 @@
 {
-  "name": "pixxl",
+  "name": "@pixxl/workspace",
   "version": "0.0.1",
+  "private": true,
   "description": "AI-powered local-first code workspace",
-  "bin": {
-    "pixxl": "./bin/pixxl"
-  },
-  "files": [
-    "bin/pixxl",
-    "README.md",
-    "LICENSE"
-  ],
   "type": "module",
   "scripts": {
-    "dev": "concurrently --names 'frontend,backend' 'pnpm --filter frontend dev' 'pnpm --filter backend dev'",
-    "dev:frontend": "pnpm --filter frontend dev",
-    "dev:backend": "pnpm --filter backend dev",
-    "start": "./bin/pixxl",
-    "build": "pnpm run build:frontend && pnpm run build:binary",
-    "build:frontend": "pnpm --filter frontend build",
-    "build:binary": "bash scripts/build.sh",
+    "dev": "concurrently --kill-others --names 'frontend,desktop' 'pnpm --filter @pixxl/frontend dev' 'pnpm --filter @pixxl/desktop dev'",
+    "dev:frontend": "pnpm --filter @pixxl/frontend dev",
+    "dev:desktop": "pnpm --filter @pixxl/desktop dev",
+    "build": "pnpm run build:desktop",
+    "build:frontend": "pnpm --filter @pixxl/frontend build",
+    "build:desktop": "pnpm --filter @pixxl/desktop dist",
     "check": "pnpm -r check",
-    "check:frontend": "pnpm --filter frontend check",
-    "prepublishOnly": "pnpm run build"
+    "check:frontend": "pnpm --filter @pixxl/frontend check",
+    "check:backend": "pnpm --filter @pixxl/backend check",
+    "check:desktop": "pnpm --filter @pixxl/desktop check"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1",
-    "vite-plus": "latest"
-  },
-  "engines": {
-    "bun": ">=1.2.0"
+    "concurrently": "^9.2.1"
   },
   "packageManager": "pnpm@10.32.1"
 }

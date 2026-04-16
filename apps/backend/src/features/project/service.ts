@@ -16,7 +16,7 @@ import {
   WorkspaceError,
 } from "./error";
 import { ConfigService } from "../config/service";
-import { BunFileSystem, BunPath } from "@effect/platform-bun";
+import { NodeFileSystem, NodePath } from "@effect/platform-node";
 
 type ProjectServiceShape = {
   readonly createProject: (
@@ -280,6 +280,6 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
   static layer = Layer.effect(ProjectService, ProjectService.make);
   static live = ProjectService.layer.pipe(
     Layer.provideMerge(ConfigService.layer),
-    Layer.provideMerge(Layer.mergeAll(BunFileSystem.layer, BunPath.layer)),
+    Layer.provideMerge(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer)),
   );
 }

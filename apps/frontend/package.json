@@ -1,10 +1,11 @@
 {
-  "name": "frontend",
+  "name": "@pixxl/frontend",
   "version": "0.0.1",
   "type": "module",
   "scripts": {
     "dev": "vp dev",
     "build": "vp build",
+    "check": "vp check",
     "preview": "vp preview",
     "ui": "pnpm dlx shadcn@latest"
   },

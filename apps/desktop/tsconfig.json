@@ -10,8 +10,10 @@
     "esModuleInterop": true,
     "types": ["node"],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["../backend/src/*"],
+      "@pixxl/shared": ["../../packages/shared/src"],
+      "@pixxl/shared/*": ["../../packages/shared/src/*"]
     }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "../backend/src/**/*"]
 }

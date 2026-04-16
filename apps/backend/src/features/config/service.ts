@@ -1,4 +1,4 @@
-import { BunFileSystem, BunPath } from "@effect/platform-bun";
+import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import { AppConfig, DEFAULT_CONFIG, PartialAppConfigSchema } from "@pixxl/shared";
 import { Config, Effect, FileSystem, Layer, Path, Schema, ServiceMap } from "effect";
 import {
@@ -195,6 +195,6 @@ export class ConfigService extends ServiceMap.Service<ConfigService, ConfigServi
 ) {
   static layer = Layer.effect(ConfigService, ConfigService.make);
   static live = ConfigService.layer.pipe(
-    Layer.provideMerge(Layer.mergeAll(BunFileSystem.layer, BunPath.layer)),
+    Layer.provideMerge(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer)),
   );
 }

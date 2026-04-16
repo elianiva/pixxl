@@ -16,7 +16,7 @@ import {
   DefaultResourceLoader,
 } from "@mariozechner/pi-coding-agent";
 import { AuthStorage } from "@mariozechner/pi-coding-agent";
-import { BunFileSystem, BunPath } from "@effect/platform-bun";
+import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import type { SessionInfo } from "@mariozechner/pi-coding-agent";
 import { AgentCreateError, AgentUpdateError, AgentDeleteError } from "./error";
 import { AgentInstance } from "./instance";
@@ -619,6 +619,6 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
     Layer.provideMerge(EntityService.layer),
     Layer.provideMerge(ProjectService.live),
     Layer.provideMerge(ConfigService.layer),
-    Layer.provideMerge(Layer.mergeAll(BunFileSystem.layer, BunPath.layer)),
+    Layer.provideMerge(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer)),
   );
 }
