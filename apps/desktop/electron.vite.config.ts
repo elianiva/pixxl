@@ -8,21 +8,15 @@ const backendSrc = resolve(workspaceRoot, "apps/backend/src");
 
 export default defineConfig({
   main: {
-    entry: "src/main.ts",
-    vite: {
-      resolve: {
-        alias: {
-          "@": backendSrc,
-        },
-      },
-      server: {
-        fs: {
-          allow: [workspaceRoot],
-        },
+    resolve: {
+      alias: {
+        "@": backendSrc,
       },
     },
-  },
-  preload: {
-    entry: "src/preload.ts",
+    server: {
+      fs: {
+        allow: [workspaceRoot],
+      },
+    },
   },
 });
