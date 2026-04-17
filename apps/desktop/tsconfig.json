@@ -6,11 +6,10 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "baseUrl": ".",
     "esModuleInterop": true,
     "types": ["node"],
     "paths": {
-      "@/*": ["../backend/src/*"],
+      "@pixxl/backend/*": ["../backend/src/*"],
       "@pixxl/shared": ["../../packages/shared/src"],
       "@pixxl/shared/*": ["../../packages/shared/src/*"]
     }

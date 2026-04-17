@@ -67,6 +67,7 @@ export async function startBackendServer(options: { port?: number } = {}): Promi
 
   const address = server.address() as AddressInfo;
   const port = address.port;
+  console.log(`[Backend] listening on http://${DEFAULT_BACKEND_HOST}:${port}`);
 
   let closed = false;
   const close = async () => {

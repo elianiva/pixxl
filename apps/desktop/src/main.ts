@@ -1,5 +1,4 @@
 import { app, BrowserWindow, Menu, shell } from "electron";
-import { autoUpdater } from "electron-updater";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { startBackendServer } from "../../backend/src/main";
@@ -9,10 +8,31 @@ let backend: Awaited<ReturnType<typeof startBackendServer>> | null = null;
 let shuttingDown = false;
 
 const appName = "Pixxl";
-const devRendererUrl = process.env.PIXXL_RENDERER_URL ?? "http://127.0.0.1:5173";
+const devRendererUrls = [
+  process.env.PIXXL_RENDERER_URL,
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+].filter((url): url is string => Boolean(url));
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function waitForDevRendererUrl() {
+  for (;;) {
+    for (const url of devRendererUrls) {
+      try {
+        const response = await fetch(url, { cache: "no-store" });
+        if (response.ok) {
+          await response.body?.cancel();
+          return url;
+        }
+      } catch {}
+    }
+    await sleep(200);
+  }
+}
 
 function getPreloadPath() {
-  return join(fileURLToPath(new URL(".", import.meta.url)), "../preload/index.js");
+  return join(fileURLToPath(new URL(".", import.meta.url)), "../preload/preload.mjs");
 }
 
 function getRendererIndexPath() {
@@ -113,7 +133,9 @@ async function createMainWindow(backendPort: number) {
       },
     });
   } else {
-    await window.loadURL(`${devRendererUrl}?backendPort=${backendPort}`);
+    const rendererUrl = await waitForDevRendererUrl();
+    console.log(`[Desktop] renderer ready at ${rendererUrl}`);
+    await window.loadURL(`${rendererUrl}?backendPort=${backendPort}`);
     window.webContents.openDevTools({ mode: "detach" });
   }
 
@@ -138,14 +160,9 @@ async function shutdown() {
 async function bootstrap() {
   buildMenu();
   backend = await startBackendServer();
+  console.log(`[Desktop] backend started on port ${backend.port}`);
   mainWindow = await createMainWindow(backend.port);
 
-  if (app.isPackaged) {
-    autoUpdater.autoDownload = true;
-    autoUpdater.checkForUpdatesAndNotify().catch((error) => {
-      console.error("[Updater] check failed:", error);
-    });
-  }
 }
 
 if (!app.requestSingleInstanceLock()) {
@@ -165,7 +182,9 @@ app.on("second-instance", async () => {
 });
 
 app.whenReady().then(() => {
-  void bootstrap();
+  void bootstrap().catch((error) => {
+    console.error("[Desktop] bootstrap failed:", error);
+  });
 });
 
 app.on("activate", async () => {
