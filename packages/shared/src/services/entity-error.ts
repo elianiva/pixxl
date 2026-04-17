@@ -8,6 +8,7 @@ export class EntityDecodeError extends Schema.TaggedErrorClass<EntityDecodeError
   {
     entityId: Schema.String,
     directory: Schema.String,
+    cause: Schema.optionalKey(Schema.Unknown),
   },
 ) {}
 
@@ -19,6 +20,7 @@ export class EntityEncodeError extends Schema.TaggedErrorClass<EntityEncodeError
   {
     entityId: Schema.optionalKey(Schema.String),
     directory: Schema.String,
+    cause: Schema.optionalKey(Schema.Unknown),
   },
 ) {}
 
@@ -30,6 +32,7 @@ export class EntityDirectoryError extends Schema.TaggedErrorClass<EntityDirector
   {
     directory: Schema.String,
     operation: Schema.String,
+    cause: Schema.optionalKey(Schema.Unknown),
   },
 ) {}
 
@@ -40,6 +43,7 @@ export class EntityFileReadError extends Schema.TaggedErrorClass<EntityFileReadE
   "EntityFileReadError",
   {
     filePath: Schema.String,
+    cause: Schema.optionalKey(Schema.Unknown),
   },
 ) {}
 
@@ -50,6 +54,7 @@ export class EntityFileWriteError extends Schema.TaggedErrorClass<EntityFileWrit
   "EntityFileWriteError",
   {
     filePath: Schema.String,
+    cause: Schema.optionalKey(Schema.Unknown),
   },
 ) {}
 

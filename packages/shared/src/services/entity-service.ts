@@ -92,11 +92,6 @@ type EntityServiceShape = {
   ) => EntityOperations<TEntity, TCreate, TUpdate>;
 };
 
-const mapFsError = (error: unknown, makeError: (_msg: string) => EntityServiceError) => {
-  const message = error instanceof Error ? error.message : String(error);
-  return makeError(message);
-};
-
 export class EntityService extends ServiceMap.Service<EntityService, EntityServiceShape>()(
   "@pixxl/EntityService",
   {
@@ -129,12 +124,9 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           const dirExists = yield* fs
             .exists(directoryPath)
             .pipe(
-              Effect.mapError((_e) =>
-                mapFsError(
-                  _e,
-                  (_msg) =>
-                    new EntityDirectoryError({ directory: directoryPath, operation: "check" }),
-                ),
+              Effect.mapError(
+                (cause) =>
+                  new EntityDirectoryError({ directory: directoryPath, operation: "check", cause }),
               ),
             );
 
@@ -142,12 +134,9 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
             yield* fs
               .makeDirectory(directoryPath, { recursive: true })
               .pipe(
-                Effect.mapError((_e) =>
-                  mapFsError(
-                    _e,
-                    (_msg) =>
-                      new EntityDirectoryError({ directory: directoryPath, operation: "create" }),
-                  ),
+                Effect.mapError(
+                  (cause) =>
+                    new EntityDirectoryError({ directory: directoryPath, operation: "create", cause }),
                 ),
               );
           }
@@ -165,8 +154,8 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           yield* fs
             .writeFileString(fp, content)
             .pipe(
-              Effect.mapError((_e) =>
-                mapFsError(_e, (_msg) => new EntityFileWriteError({ filePath: fp })),
+              Effect.mapError(
+                (cause) => new EntityFileWriteError({ filePath: fp, cause }),
               ),
             );
 
@@ -179,8 +168,8 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           const fileExists = yield* fs
             .exists(fp)
             .pipe(
-              Effect.mapError((_e) =>
-                mapFsError(_e, (_msg) => new EntityFileReadError({ filePath: fp })),
+              Effect.mapError(
+                (cause) => new EntityFileReadError({ filePath: fp, cause }),
               ),
             );
 
@@ -191,17 +180,18 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           const content = yield* fs
             .readFileString(fp)
             .pipe(
-              Effect.mapError((_e) =>
-                mapFsError(_e, (_msg) => new EntityFileReadError({ filePath: fp })),
+              Effect.mapError(
+                (cause) => new EntityFileReadError({ filePath: fp, cause }),
               ),
             );
 
           const entity = yield* decodeEntity(content).pipe(
             Effect.mapError(
-              (_e) =>
+              (cause) =>
                 new EntityDecodeError({
                   entityId: input.id,
                   directory: entityPath(input.entityBasePath),
+                  cause,
                 }),
             ),
           );
@@ -217,8 +207,8 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           const fileExists = yield* fs
             .exists(fp)
             .pipe(
-              Effect.mapError((_e) =>
-                mapFsError(_e, (_msg) => new EntityFileReadError({ filePath: fp })),
+              Effect.mapError(
+                (cause) => new EntityFileReadError({ filePath: fp, cause }),
               ),
             );
 
@@ -229,17 +219,18 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           const content = yield* fs
             .readFileString(fp)
             .pipe(
-              Effect.mapError((_e) =>
-                mapFsError(_e, (_msg) => new EntityFileReadError({ filePath: fp })),
+              Effect.mapError(
+                (cause) => new EntityFileReadError({ filePath: fp, cause }),
               ),
             );
 
           const current = yield* decodeEntity(content).pipe(
             Effect.mapError(
-              (_e) =>
+              (cause) =>
                 new EntityDecodeError({
                   entityId: input.id,
                   directory: entityPath(input.entityBasePath),
+                  cause,
                 }),
             ),
           );
@@ -252,8 +243,8 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           yield* fs
             .writeFileString(fp, JSON.stringify(entity, null, 2))
             .pipe(
-              Effect.mapError((_e) =>
-                mapFsError(_e, (_msg) => new EntityFileWriteError({ filePath: fp })),
+              Effect.mapError(
+                (cause) => new EntityFileWriteError({ filePath: fp, cause }),
               ),
             );
 
@@ -266,8 +257,8 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           const fileExists = yield* fs
             .exists(fp)
             .pipe(
-              Effect.mapError((_e) =>
-                mapFsError(_e, (_msg) => new EntityFileReadError({ filePath: fp })),
+              Effect.mapError(
+                (cause) => new EntityFileReadError({ filePath: fp, cause }),
               ),
             );
 
@@ -276,8 +267,8 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           yield* fs
             .remove(fp)
             .pipe(
-              Effect.mapError((_e) =>
-                mapFsError(_e, (_msg) => new EntityFileWriteError({ filePath: fp })),
+              Effect.mapError(
+                (cause) => new EntityFileWriteError({ filePath: fp, cause }),
               ),
             );
 
@@ -290,12 +281,9 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           const dirExists = yield* fs
             .exists(directoryPath)
             .pipe(
-              Effect.mapError((_e) =>
-                mapFsError(
-                  _e,
-                  (_msg) =>
-                    new EntityDirectoryError({ directory: directoryPath, operation: "check" }),
-                ),
+              Effect.mapError(
+                (cause) =>
+                  new EntityDirectoryError({ directory: directoryPath, operation: "check", cause }),
               ),
             );
 
@@ -304,12 +292,9 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           const entries = yield* fs
             .readDirectory(directoryPath)
             .pipe(
-              Effect.mapError((_e) =>
-                mapFsError(
-                  _e,
-                  (_msg) =>
-                    new EntityDirectoryError({ directory: directoryPath, operation: "read" }),
-                ),
+              Effect.mapError(
+                (cause) =>
+                  new EntityDirectoryError({ directory: directoryPath, operation: "read", cause }),
               ),
             );
 
@@ -319,11 +304,11 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           return yield* Effect.all(
             files.map((file) =>
               fs.readFileString(path.join(directoryPath, file)).pipe(
-                Effect.mapError((_e) => new EntityFileReadError({ filePath: file })),
+                Effect.mapError((cause) => new EntityFileReadError({ filePath: file, cause })),
                 Effect.flatMap((content) =>
                   decodeEntity(content).pipe(
                     Effect.mapError(
-                      (_e) => new EntityDecodeError({ entityId: file, directory: directoryPath }),
+                      (cause) => new EntityDecodeError({ entityId: file, directory: directoryPath, cause }),
                     ),
                   ),
                 ),

@@ -1,4 +1,5 @@
 import { Effect, Layer, Option, ServiceMap, FileSystem, Schedule } from "effect";
+import * as SynchronizedRef from "effect/SynchronizedRef";
 import type {
   AgentMetadata,
   CreateAgentInput,
@@ -16,7 +17,6 @@ import {
   DefaultResourceLoader,
 } from "@mariozechner/pi-coding-agent";
 import { AuthStorage } from "@mariozechner/pi-coding-agent";
-import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import type { SessionInfo } from "@mariozechner/pi-coding-agent";
 import { AgentCreateError, AgentUpdateError, AgentDeleteError } from "./error";
 import { AgentInstance } from "./instance";
@@ -39,7 +39,7 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
     const agentDir = `${homeDir}/${PI_AGENT_DIR}`;
     const settingsManager = SettingsManager.create(undefined, agentDir);
 
-    const instances = new Map<string, AgentInstance>();
+    const instancesRef = yield* SynchronizedRef.make(new Map<string, AgentInstance>());
 
     const agents = entity.forEntity<AgentMetadata, CreateAgentInput, UpdateAgentInput>({
       directoryName: "agents",
@@ -73,8 +73,6 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
       }
       const storagePath = yield* project.resolveStoragePath(projectResult.value.path);
 
-      // Lazy initialization: don't create session until first message
-      // Store empty sessionFile initially
       const metadata = yield* agents
         .create({
           id: input.id,
@@ -93,34 +91,16 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
       agentName: string,
     ) {
       const exists = yield* fs.exists(sessionFile).pipe(
-        Effect.mapError(
-          (cause) =>
-            new AgentCreateError({
-              name: agentName,
-              cause,
-            }),
-        ),
+        Effect.mapError((cause) => new AgentCreateError({ name: agentName, cause })),
       );
       if (exists) return true;
 
       yield* fs.writeFileString(sessionFile, "").pipe(
-        Effect.mapError(
-          (cause) =>
-            new AgentCreateError({
-              name: agentName,
-              cause,
-            }),
-        ),
+        Effect.mapError((cause) => new AgentCreateError({ name: agentName, cause })),
       );
 
       const verified = yield* fs.exists(sessionFile).pipe(
-        Effect.mapError(
-          (cause) =>
-            new AgentCreateError({
-              name: agentName,
-              cause,
-            }),
-        ),
+        Effect.mapError((cause) => new AgentCreateError({ name: agentName, cause })),
       );
 
       if (!verified) {
@@ -133,27 +113,19 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
       return true;
     });
 
-    const getOrCreateInstance = Effect.fn("AgentService.getOrCreateInstance")(function* (input: {
+    const buildInstance = Effect.fn("AgentService.buildInstance")(function* (input: {
       metadata: AgentMetadata;
-      /** Storage path in workspace where entity metadata is stored */
       entityBasePath: string;
-      /** Actual project path (user's project directory) for SessionManager and resource loader */
       projectPath: string;
     }) {
-      const existing = instances.get(input.metadata.id);
-      if (existing) return existing;
-
-      // Get agent directory from config service
       const agentDir = config.agentDir;
-
       const settingsManager = SettingsManager.create(undefined, agentDir);
 
-      // Lazy session creation: if no session file, create a new session
       let sessionFile = input.metadata.pi.sessionFile;
       let sessionManager: SessionManager;
+      let metadata = input.metadata;
 
       if (!sessionFile) {
-        // Create a new session lazily on first use
         sessionManager = SessionManager.create(input.projectPath);
         const sessionId = sessionManager.newSession();
         if (!sessionId) {
@@ -171,7 +143,6 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
         }
         sessionFile = newSessionFile;
 
-        // Update metadata with the new session file
         const updatedMetadataOpt = yield* agents.update({
           id: input.metadata.id,
           name: input.metadata.name,
@@ -187,10 +158,8 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
           });
         }
 
-        // Update the input metadata for the instance
-        input.metadata = updatedMetadataOpt.value;
+        metadata = updatedMetadataOpt.value;
       } else {
-        // Ensure existing session file exists with retry
         yield* ensureSessionFile(sessionFile, input.metadata.name).pipe(
           Effect.retry({
             schedule: Schedule.exponential("50 millis"),
@@ -207,7 +176,6 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
         settingsManager,
       });
 
-      // Load resources
       yield* Effect.promise(() => resourceLoader.reload());
 
       const result = yield* Effect.tryPromise({
@@ -226,8 +194,7 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
           }),
       });
 
-      const instance = new AgentInstance(input.metadata, sessionManager, result.session);
-      instances.set(input.metadata.id, instance);
+      const instance = new AgentInstance(metadata, sessionManager, result.session);
       return instance;
     });
 
@@ -287,9 +254,7 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
       }
       const storagePath = yield* project.resolveStoragePath(projectResult.value.path);
 
-      // Dispose instance
-      instances.get(input.agentId)?.dispose();
-      instances.delete(input.agentId);
+      yield* removeInstance({ agentId: input.agentId });
 
       yield* agents
         .delete({ entityBasePath: storagePath, id: input.agentId })
@@ -308,7 +273,8 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
     const getInstance = Effect.fn("AgentService.getInstance")(function* (input: {
       agentId: string;
     }) {
-      const cached = instances.get(input.agentId);
+      const map = yield* SynchronizedRef.get(instancesRef);
+      const cached = map.get(input.agentId);
       if (cached) return Option.some(cached);
 
       const metadata = yield* getAgent({ agentId: input.agentId });
@@ -322,21 +288,32 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
       }
 
       const storagePath = yield* project.resolveStoragePath(projectResult.value.path);
-      const instance = yield* getOrCreateInstance({
+      const instance = yield* buildInstance({
         metadata: metadata.value,
         entityBasePath: storagePath,
         projectPath: projectResult.value.path,
       });
+
+      yield* SynchronizedRef.update(instancesRef, (current) => {
+        const next = new Map(current);
+        next.set(input.agentId, instance);
+        return next;
+      });
+
       return Option.some(instance);
     });
 
-    const removeInstance = (input: { agentId: string }): void => {
-      const instance = instances.get(input.agentId);
-      if (instance) {
-        instance.dispose();
-        instances.delete(input.agentId);
-      }
-    };
+    const removeInstance = (input: { agentId: string }): Effect.Effect<void> =>
+      SynchronizedRef.update(instancesRef, (current) => {
+        const instance = current.get(input.agentId);
+        if (instance) {
+          instance.dispose();
+          const next = new Map(current);
+          next.delete(input.agentId);
+          return next;
+        }
+        return current;
+      });
 
     const attachSession = Effect.fn("AgentService.attachSession")(function* (input: {
       agentId: string;
@@ -352,7 +329,6 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
 
       const metadata = metadataOpt.value;
 
-      // Validate session file exists
       const exists = yield* fs.exists(input.sessionFile);
       if (!exists) {
         return yield* new AgentUpdateError({
@@ -361,10 +337,8 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
         });
       }
 
-      // Remove old instance
-      removeInstance({ agentId: input.agentId });
+      yield* removeInstance({ agentId: input.agentId });
 
-      // Update metadata
       const updated = yield* updateAgent({
         projectId: metadata.projectId,
         id: input.agentId,
@@ -398,7 +372,6 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
 
       const projectPath = projectResult.value.path;
 
-      // Create a new session
       const sessionManager = SessionManager.create(projectPath);
       const sessionId = sessionManager.newSession();
       if (!sessionId) {
@@ -416,10 +389,8 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
         });
       }
 
-      // Remove old instance
-      removeInstance({ agentId: input.agentId });
+      yield* removeInstance({ agentId: input.agentId });
 
-      // Update metadata with new session file
       const updated = yield* updateAgent({
         projectId: metadata.projectId,
         id: input.agentId,
@@ -441,8 +412,7 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
       });
     });
 
-    // oxlint-disable-next-line require-yield
-    const listAvailableModels = Effect.fn("AgentService.listAvailableModels")(function* () {
+    const listAvailableModels = Effect.sync(() => {
       const availableModels = modelRegistry.getAvailable();
       return availableModels.map((model) => ({
         provider: model.provider,
@@ -618,7 +588,5 @@ export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/Age
   static layer = Layer.effect(AgentService, AgentService.make).pipe(
     Layer.provideMerge(EntityService.layer),
     Layer.provideMerge(ProjectService.live),
-    Layer.provideMerge(ConfigService.layer),
-    Layer.provideMerge(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer)),
   );
 }

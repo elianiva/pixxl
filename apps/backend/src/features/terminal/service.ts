@@ -14,8 +14,7 @@ import {
 } from "./error";
 import { ProjectService } from "../project/service";
 import { ConfigService } from "../config/service";
-import { NodeFileSystem, NodePath } from "@effect/platform-node";
-import { terminalManager } from "./manager";
+import { TerminalManagerService } from "./manager";
 
 type TerminalServiceShape = {
   readonly createTerminal: (
@@ -177,7 +176,8 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
         projectId: string;
         id: string;
       }) {
-        terminalManager.remove(input.id);
+        const manager = yield* TerminalManagerService;
+        yield* manager.remove(input.id);
 
         const projectResult = yield* project.getProjectDetail({ id: input.projectId });
 
@@ -233,9 +233,8 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
   },
 ) {
   static layer = Layer.effect(TerminalService, TerminalService.make).pipe(
+    Layer.provideMerge(TerminalManagerService.layer),
     Layer.provideMerge(EntityService.layer),
     Layer.provideMerge(ProjectService.live),
-    Layer.provideMerge(ConfigService.layer),
-    Layer.provideMerge(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer)),
   );
 }

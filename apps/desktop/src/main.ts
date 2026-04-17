@@ -8,28 +8,6 @@ let backend: Awaited<ReturnType<typeof startBackendServer>> | null = null;
 let shuttingDown = false;
 
 const appName = "Pixxl";
-const devRendererUrls = [
-  process.env.PIXXL_RENDERER_URL,
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-].filter((url): url is string => Boolean(url));
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-async function waitForDevRendererUrl() {
-  for (;;) {
-    for (const url of devRendererUrls) {
-      try {
-        const response = await fetch(url, { cache: "no-store" });
-        if (response.ok) {
-          await response.body?.cancel();
-          return url;
-        }
-      } catch {}
-    }
-    await sleep(200);
-  }
-}
 
 function getPreloadPath() {
   return join(fileURLToPath(new URL(".", import.meta.url)), "../preload/preload.mjs");
@@ -86,12 +64,7 @@ function buildMenu() {
     },
     {
       label: "Window",
-      submenu: [
-        { role: "minimize" },
-        { role: "zoom" },
-        { type: "separator" },
-        { role: "front" },
-      ],
+      submenu: [{ role: "minimize" }, { role: "zoom" }, { type: "separator" }, { role: "front" }],
     },
     {
       label: "Help",
@@ -110,7 +83,7 @@ function buildMenu() {
 }
 
 async function createMainWindow(backendPort: number) {
-  const window = new BrowserWindow({
+  const win = new BrowserWindow({
     width: 1600,
     height: 1000,
     title: appName,
@@ -122,28 +95,26 @@ async function createMainWindow(backendPort: number) {
     },
   });
 
-  window.on("closed", () => {
-    if (mainWindow === window) mainWindow = null;
+  win.on("closed", () => {
+    if (mainWindow === win) mainWindow = null;
   });
 
   if (app.isPackaged) {
-    await window.loadFile(getRendererIndexPath(), {
+    await win.loadFile(getRendererIndexPath(), {
       query: {
         backendPort: String(backendPort),
       },
     });
   } else {
-    const rendererUrl = await waitForDevRendererUrl();
+    const rendererUrl = "http://localhost:5173";
     console.log(`[Desktop] renderer ready at ${rendererUrl}`);
-    await window.loadURL(`${rendererUrl}?backendPort=${backendPort}`);
-    window.webContents.openDevTools({ mode: "detach" });
+    await win.loadURL(`${rendererUrl}?backendPort=${backendPort}`);
+    win.webContents.openDevTools({ mode: "detach" });
   }
 
-  window.once("ready-to-show", () => {
-    window.show();
-  });
+  win.once("ready-to-show", () => win.show());
 
-  return window;
+  return win;
 }
 
 async function shutdown() {
@@ -162,7 +133,6 @@ async function bootstrap() {
   backend = await startBackendServer();
   console.log(`[Desktop] backend started on port ${backend.port}`);
   mainWindow = await createMainWindow(backend.port);
-
 }
 
 if (!app.requestSingleInstanceLock()) {
@@ -203,9 +173,7 @@ app.on("activate", async () => {
   await bootstrap();
 });
 
-app.on("before-quit", () => {
-  void shutdown();
-});
+app.on("before-quit", () => shutdown());
 
 app.on("window-all-closed", () => {
   // macOS keeps the app alive; single window only.

@@ -33,6 +33,7 @@ function TerminalPage() {
   }, []);
 
   const restty = useResttyTerminal({
+    projectId,
     terminalId,
     containerRef,
     themeId: terminalConfig.themeId,

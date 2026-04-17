@@ -15,50 +15,53 @@ import { getModel } from "@mariozechner/pi-ai";
 
 export type AgentStatus = "idle" | "streaming" | "error";
 
-// Simple event buffer that supports async iteration
-class EventBuffer {
-  private events: AgentSessionEvent[] = [];
-  private resolvers: Array<(e: AgentSessionEvent) => void> = [];
+/** Hot event bus: subscribers only receive events from the time they subscribe. */
+class HotEvents {
+  private listeners = new Set<(e: AgentSessionEvent) => void>();
 
   push(event: AgentSessionEvent): void {
-    console.log(
-      `[EventBuffer] push event #${this.events.length}:`,
-      (event as { type?: string }).type ?? "unknown",
-      `(${this.resolvers.length} waiting resolvers)`,
-    );
-    this.events.push(event);
-    // Resolve any waiting iterators
-    while (this.resolvers.length > 0) {
-      const resolve = this.resolvers.shift()!;
-      resolve(event);
+    for (const listener of this.listeners) {
+      listener(event);
     }
   }
 
-  async *iter(fromIndex = 0): AsyncGenerator<AgentSessionEvent> {
-    let index = fromIndex;
-    while (true) {
-      if (index < this.events.length) {
-        yield this.events[index++];
+  iterator(): AsyncIterator<AgentSessionEvent> {
+    const queue: AgentSessionEvent[] = [];
+    let resolve: ((e: AgentSessionEvent) => void) | null = null;
+
+    const handler = (e: AgentSessionEvent) => {
+      if (resolve) {
+        resolve(e);
+        resolve = null;
       } else {
-        // Wait for next event
-        const event = await new Promise<AgentSessionEvent>((resolve) => {
-          this.resolvers.push(resolve);
-        });
-        yield event;
-        index++;
+        queue.push(e);
       }
-    }
-  }
+    };
 
-  snapshot(): AgentSessionEvent[] {
-    return [...this.events];
+    this.listeners.add(handler);
+
+    return {
+      next: async (): Promise<IteratorResult<AgentSessionEvent>> => {
+        if (queue.length > 0) {
+          return { value: queue.shift()!, done: false };
+        }
+        const event = await new Promise<AgentSessionEvent>((r) => {
+          resolve = r;
+        });
+        return { value: event, done: false };
+      },
+      return: async () => {
+        this.listeners.delete(handler);
+        return { value: undefined, done: true } as IteratorResult<AgentSessionEvent>;
+      },
+    };
   }
 }
 
 export class AgentInstance {
   status: AgentStatus = "idle";
   error: string | undefined;
-  private eventBuffer = new EventBuffer();
+  private eventBus = new HotEvents();
   private unsubscribe: (() => void) | undefined;
 
   constructor(
@@ -66,9 +69,8 @@ export class AgentInstance {
     readonly sessionManager: SessionManager,
     readonly session: AgentSession,
   ) {
-    // Subscribe directly to Pi events
     this.unsubscribe = session.subscribe((event) => {
-      this.eventBuffer.push(event as AgentSessionEvent);
+      this.eventBus.push(event as AgentSessionEvent);
     });
   }
 
@@ -77,15 +79,10 @@ export class AgentInstance {
   }
 
   async prompt(text: string): Promise<void> {
-    console.log(
-      `[AgentInstance:${this.metadata.id}] prompt() called with text:`,
-      text.slice(0, 50),
-    );
     this.status = "streaming";
     this.error = undefined;
     try {
       await this.session.prompt(text);
-      console.log(`[AgentInstance:${this.metadata.id}] prompt() completed successfully`);
       this.status = "idle";
     } catch (cause) {
       console.error(`[AgentInstance:${this.metadata.id}] prompt() FAILED:`, cause);
@@ -149,8 +146,7 @@ export class AgentInstance {
     };
   }
 
-  // Get all buffered events as async iterable
   get events(): AsyncIterable<AgentSessionEvent> {
-    return this.eventBuffer.iter();
+    return { [Symbol.asyncIterator]: () => this.eventBus.iterator() };
   }
 }

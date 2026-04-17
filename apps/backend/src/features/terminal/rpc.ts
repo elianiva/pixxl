@@ -1,7 +1,7 @@
 import { Effect, Option } from "effect";
 import { os } from "@/contract";
 import { TerminalService } from "./service";
-import { terminalManager } from "./manager";
+import { TerminalManagerService } from "./manager";
 import { ConfigService } from "../config/service";
 import { runtime } from "@/runtime";
 import { mapToOrpcError } from "@/lib/error";
@@ -67,7 +67,8 @@ export const connectTerminalRpc = os.terminal.connectTerminal.handler(({ input }
       onNone: () => config.terminal.shell,
     });
 
-    terminalManager.getOrCreate({
+    const managerService = yield* TerminalManagerService;
+    yield* managerService.getOrCreate({
       terminalId: input.id,
       shell,
     });

@@ -33,7 +33,7 @@ export const getAgentFrontendConfigRpc = os.agent.getAgentFrontendConfig.handler
 export const listAvailableModelsRpc = os.agent.listAvailableModels.handler(() =>
   Effect.gen(function* () {
     const service = yield* AgentService;
-    return yield* service.listAvailableModels();
+    return yield* service.listAvailableModels;
   })
     .pipe(runtime.runPromise)
     .catch(mapToOrpcError),

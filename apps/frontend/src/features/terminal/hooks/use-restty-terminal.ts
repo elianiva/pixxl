@@ -4,6 +4,7 @@ import { rpc, WS_BASE } from "@/lib/rpc";
 import { getTerminalFontSources, getTerminalTheme } from "../themes";
 
 export interface ResttyTerminalOptions {
+  projectId: string;
   terminalId: string;
   containerRef: React.RefObject<HTMLDivElement | null>;
   themeId: string;
@@ -57,7 +58,10 @@ export function useResttyTerminal(options: ResttyTerminalOptions): UseResttyTerm
     const theme = getTerminalTheme(options.themeId);
     if (theme) restty.applyTheme(theme);
 
-    const result = await rpc.terminal.connectTerminal({ id: options.terminalId }).catch((error) => {
+    const result = await rpc.terminal.connectTerminal({
+      id: options.terminalId,
+      projectId: options.projectId,
+    }).catch((error) => {
       console.error("Failed to connect to terminal:", error);
       options.onError?.("Failed to connect to terminal");
       return null;
