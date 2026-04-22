@@ -23,6 +23,7 @@ type TerminalManagerServiceShape = {
   readonly listDetached: () => Effect.Effect<SessionInfo[]>;
   readonly remove: (terminalId: string) => Effect.Effect<boolean>;
   readonly has: (terminalId: string) => Effect.Effect<boolean>;
+  readonly disposeAll: () => Effect.Effect<void>;
 };
 
 const isStale = (actor: TerminalActor): boolean => {
@@ -136,6 +137,22 @@ export class TerminalManagerService extends ServiceMap.Service<
     const has = (terminalId: string): Effect.Effect<boolean> =>
       Effect.map(getSessionState(terminalId), (state) => state !== "none");
 
+    const disposeAll = (): Effect.Effect<void> =>
+      Effect.gen(function* () {
+        const actors = yield* SynchronizedRef.get(actorsRef);
+        for (const [, actor] of actors) {
+          const snapshot = actor.getSnapshot();
+          if (!snapshot || snapshot.matches("dead") || snapshot.matches("closed")) continue;
+          const pty = snapshot.context.terminal;
+          if (pty) {
+            try { pty.kill(); } catch { /* ignore */ }
+            try { pty.close(); } catch { /* ignore */ }
+          }
+          actor.send({ type: "CLOSE" });
+        }
+        yield* Effect.sleep("200 millis");
+      });
+
     return {
       getOrCreate,
       get,
@@ -144,6 +161,7 @@ export class TerminalManagerService extends ServiceMap.Service<
       listDetached,
       remove,
       has,
+      disposeAll,
     } as const;
   }),
 }) {

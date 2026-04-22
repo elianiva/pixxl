@@ -29,6 +29,7 @@ export interface UseResttyTerminalOptions {
 
 export function useResttyTerminal(options: ResttyTerminalOptions): UseResttyTerminalOptions {
   const resttyRef = useRef<Restty | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const init = useEffectEvent(async () => {
     const root = options.containerRef.current;
@@ -79,9 +80,31 @@ export function useResttyTerminal(options: ResttyTerminalOptions): UseResttyTerm
       : `${WS_BASE}${result.websocketUrl}`;
     restty.connectPty(websocketUrl);
     options.onConnected?.();
+
+    pollRef.current = setInterval(() => {
+      const current = resttyRef.current;
+      if (!current || current !== restty) {
+        if (pollRef.current) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
+        return;
+      }
+      if (!current.isPtyConnected()) {
+        if (pollRef.current) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
+        options.onDead?.();
+      }
+    }, 1000);
   });
 
   const dispose = useEffectEvent(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
     resttyRef.current?.destroy();
     resttyRef.current = null;
   });

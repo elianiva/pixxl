@@ -18,6 +18,7 @@ function TerminalPage() {
   });
   const containerRef = useRef<HTMLDivElement>(null);
   const [sessionKey, setSessionKey] = useState(0);
+  const [isDead, setIsDead] = useState(false);
 
   const terminalsCollection = getTerminalsCollection(projectId);
   const { data: terminals } = useLiveQuery((q) =>
@@ -29,6 +30,7 @@ function TerminalPage() {
   const terminalConfig = config?.terminal ?? DEFAULT_CONFIG.terminal;
 
   const handleRestart = useCallback(() => {
+    setIsDead(false);
     setSessionKey((key) => key + 1);
   }, []);
 
@@ -39,9 +41,11 @@ function TerminalPage() {
     themeId: terminalConfig.themeId,
     fontId: terminalConfig.fontId,
     fontSize: terminalConfig.fontSize,
+    onDead: () => setIsDead(true),
   });
 
   useEffect(() => {
+    setIsDead(false);
     void restty.init();
 
     const controller = new AbortController();
@@ -75,14 +79,31 @@ function TerminalPage() {
   return (
     <div className="h-full flex items-center justify-center p-4 relative" style={{ backgroundColor: bgColor }}>
       <div ref={containerRef} className="h-full w-full overflow-hidden rounded" />
-      <div className="absolute top-4 right-4">
-        <button
-          onClick={handleRestart}
-          className="px-3 py-1 text-xs rounded bg-background/80 border shadow"
-        >
-          Restart
-        </button>
-      </div>
+
+      {isDead && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+          <div className="bg-background border rounded-lg shadow-lg p-6 text-center max-w-sm">
+            <p className="text-sm text-muted-foreground mb-4">The terminal process has exited.</p>
+            <button
+              onClick={handleRestart}
+              className="px-4 py-2 text-sm rounded bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              Restart Terminal
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!isDead && (
+        <div className="absolute top-4 right-4">
+          <button
+            onClick={handleRestart}
+            className="px-3 py-1 text-xs rounded bg-background/80 border shadow"
+          >
+            Restart
+          </button>
+        </div>
+      )}
     </div>
   );
 }

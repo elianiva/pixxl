@@ -40,5 +40,5 @@ export function getTerminalTheme(themeId: string) {
 
 export function getTerminalFontSources(fontId: string) {
   const font = terminalFonts.find((entry) => entry.id === fontId) ?? terminalFonts[0];
-  return [{ type: "local", matchers: font.matchers, required: true }];
+  return [{ type: "local" as const, matchers: font.matchers, required: true }];
 }

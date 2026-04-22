@@ -1,10 +1,12 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { WebSocketServer } from "ws";
+import { Effect } from "effect";
 import { DEFAULT_BACKEND_HOST } from "./config";
-import { disposeRuntime } from "./runtime";
+import { disposeRuntime, runtime } from "./runtime";
 import { handleRpcConnection } from "./ws-router";
 import { handlePtyConnection } from "./features/terminal/ws-handler";
+import { TerminalManagerService } from "./features/terminal/manager";
 import type { AppSocket } from "./types";
 
 export interface BackendServer {
@@ -81,6 +83,16 @@ export async function startBackendServer(options: { port?: number } = {}): Promi
         else resolve();
       });
     });
+
+    await runtime
+      .runPromise(
+        Effect.gen(function* () {
+          const manager = yield* TerminalManagerService;
+          yield* manager.disposeAll();
+        }),
+      )
+      .catch(() => {});
+
     await disposeRuntime();
   };
 
