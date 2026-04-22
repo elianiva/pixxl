@@ -29,6 +29,13 @@ export const ListTerminalsInputSchema = Schema.Struct({
   projectId: Schema.String,
 });
 
+export const ConnectTerminalInputSchema = Schema.Struct({
+  id: Schema.String,
+  projectId: Schema.String,
+  cols: Schema.optional(Schema.Number),
+  rows: Schema.optional(Schema.Number),
+});
+
 export const TerminalMetadataListSchema = Schema.Array(TerminalMetadataSchema);
 
 export type CreateTerminalInput = typeof CreateTerminalInputSchema.Type;
@@ -47,6 +54,7 @@ export const GetTerminalSessionStateOutputSchema = Schema.Struct({
 });
 
 export type ListTerminalsInput = typeof ListTerminalsInputSchema.Type;
+export type ConnectTerminalInput = typeof ConnectTerminalInputSchema.Type;
 export type GetTerminalSessionStateInput = typeof GetTerminalSessionStateInputSchema.Type;
 export type TerminalSessionState = typeof TerminalSessionStateSchema.Type;
 export type GetTerminalSessionStateOutput = typeof GetTerminalSessionStateOutputSchema.Type;

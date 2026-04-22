@@ -8,6 +8,8 @@ export interface TerminalActorInput {
   shell: string;
   cwd?: string;
   scrollbackLines?: number;
+  cols?: number;
+  rows?: number;
 }
 
 export interface Client {
@@ -33,6 +35,8 @@ export interface TerminalActorContext {
   scrollback: ScrollbackBuffer;
   metadata: SessionMetadata;
   pendingResize?: { cols: number; rows: number };
+  cols: number;
+  rows: number;
 }
 
 export type TerminalActorEvents =
@@ -56,8 +60,8 @@ export const terminalMachine = setup({
       );
       const pty = spawn(context.shell, [], {
         cwd: context.cwd ?? homedir(),
-        cols: 80,
-        rows: 24,
+        cols: context.cols,
+        rows: context.rows,
         shell: true,
         terminal: {
           data(_terminal, data) {
@@ -228,6 +232,8 @@ export const terminalMachine = setup({
       attachCount: 0,
       isDetached: false,
     },
+    cols: input.cols ?? 80,
+    rows: input.rows ?? 24,
   }),
   states: {
     idle: {

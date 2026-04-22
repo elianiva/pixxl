@@ -33,6 +33,18 @@ export function useResttyTerminal(options: ResttyTerminalOptions): UseResttyTerm
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isDisposedRef = useRef(false);
 
+  const computeDimensions = () => {
+    const root = options.containerRef.current;
+    if (!root) return undefined;
+    const rect = root.getBoundingClientRect();
+    const cellWidth = options.fontSize * 0.6;
+    const cellHeight = options.fontSize * 1.25;
+    return {
+      cols: Math.max(1, Math.floor(rect.width / cellWidth)),
+      rows: Math.max(1, Math.floor(rect.height / cellHeight)),
+    };
+  };
+
   const startPolling = useEffectEvent((restty: Restty) => {
     if (pollRef.current) {
       clearInterval(pollRef.current);
@@ -78,9 +90,11 @@ export function useResttyTerminal(options: ResttyTerminalOptions): UseResttyTerm
           return;
         }
 
+        const dims = computeDimensions();
         const result = await rpc.terminal.connectTerminal({
           id: options.terminalId,
           projectId: options.projectId,
+          ...dims,
         });
         if (!result?.success) continue;
 
@@ -132,9 +146,12 @@ export function useResttyTerminal(options: ResttyTerminalOptions): UseResttyTerm
     const theme = getTerminalTheme(options.themeId);
     if (theme) restty.applyTheme(theme);
 
+    const dims = computeDimensions();
+
     const result = await rpc.terminal.connectTerminal({
       id: options.terminalId,
       projectId: options.projectId,
+      ...dims,
     }).catch((error) => {
       console.error("Failed to connect to terminal:", error);
       options.onError?.("Failed to connect to terminal");
@@ -152,6 +169,16 @@ export function useResttyTerminal(options: ResttyTerminalOptions): UseResttyTerm
       ? result.websocketUrl
       : `${WS_BASE}${result.websocketUrl}`;
     restty.connectPty(websocketUrl);
+
+    // Send exact dimensions as soon as the PTY transport connects
+    const settleResize = setInterval(() => {
+      if (restty.isPtyConnected()) {
+        restty.updateSize();
+        clearInterval(settleResize);
+      }
+    }, 50);
+    setTimeout(() => clearInterval(settleResize), 3000);
+
     options.onConnected?.();
     startPolling(restty);
   });
@@ -172,9 +199,11 @@ export function useResttyTerminal(options: ResttyTerminalOptions): UseResttyTerm
     if (restty.isPtyConnected()) return;
 
     try {
+      const dims = computeDimensions();
       const result = await rpc.terminal.connectTerminal({
         id: options.terminalId,
         projectId: options.projectId,
+        ...dims,
       });
       if (!result?.success) return;
 
@@ -182,6 +211,15 @@ export function useResttyTerminal(options: ResttyTerminalOptions): UseResttyTerm
         ? result.websocketUrl
         : `${WS_BASE}${result.websocketUrl}`;
       restty.connectPty(websocketUrl);
+
+      const settleResize = setInterval(() => {
+        if (restty.isPtyConnected()) {
+          restty.updateSize();
+          clearInterval(settleResize);
+        }
+      }, 50);
+      setTimeout(() => clearInterval(settleResize), 3000);
+
       startPolling(restty);
     } catch {
       // ignore

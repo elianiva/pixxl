@@ -71,6 +71,8 @@ export const connectTerminalRpc = os.terminal.connectTerminal.handler(({ input }
     yield* managerService.getOrCreate({
       terminalId: input.id,
       shell,
+      cols: input.cols,
+      rows: input.rows,
     });
 
     return {
