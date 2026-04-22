@@ -37,6 +37,7 @@ import {
   deleteTerminalRpc,
   listTerminalsRpc,
   connectTerminalRpc,
+  getTerminalSessionStateRpc,
 } from "./features/terminal/rpc";
 import { createCommandRpc, deleteCommandRpc, listCommandsRpc } from "./features/command/rpc";
 
@@ -85,6 +86,7 @@ export const router = os.router({
     deleteTerminal: deleteTerminalRpc,
     listTerminals: listTerminalsRpc,
     connectTerminal: connectTerminalRpc,
+    getTerminalSessionState: getTerminalSessionStateRpc,
   },
   command: {
     createCommand: createCommandRpc,

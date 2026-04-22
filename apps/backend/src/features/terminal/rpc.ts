@@ -81,3 +81,13 @@ export const connectTerminalRpc = os.terminal.connectTerminal.handler(({ input }
     .pipe(runtime.runPromise)
     .catch(mapToOrpcError),
 );
+
+export const getTerminalSessionStateRpc = os.terminal.getTerminalSessionState.handler(({ input }) =>
+  Effect.gen(function* () {
+    const managerService = yield* TerminalManagerService;
+    const state = yield* managerService.getSessionState(input.id);
+    return { state };
+  })
+    .pipe(runtime.runPromise)
+    .catch(mapToOrpcError),
+);

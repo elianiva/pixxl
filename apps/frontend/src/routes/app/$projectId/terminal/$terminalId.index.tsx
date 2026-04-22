@@ -19,6 +19,7 @@ function TerminalPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [sessionKey, setSessionKey] = useState(0);
   const [isDead, setIsDead] = useState(false);
+  const [isDisconnected, setIsDisconnected] = useState(false);
 
   const terminalsCollection = getTerminalsCollection(projectId);
   const { data: terminals } = useLiveQuery((q) =>
@@ -31,6 +32,7 @@ function TerminalPage() {
 
   const handleRestart = useCallback(() => {
     setIsDead(false);
+    setIsDisconnected(false);
     setSessionKey((key) => key + 1);
   }, []);
 
@@ -41,7 +43,15 @@ function TerminalPage() {
     themeId: terminalConfig.themeId,
     fontId: terminalConfig.fontId,
     fontSize: terminalConfig.fontSize,
-    onDead: () => setIsDead(true),
+    onConnected: () => {
+      setIsDisconnected(false);
+      setIsDead(false);
+    },
+    onDisconnected: () => setIsDisconnected(true),
+    onDead: () => {
+      setIsDisconnected(false);
+      setIsDead(true);
+    },
   });
 
   useEffect(() => {
@@ -91,6 +101,14 @@ function TerminalPage() {
               Restart Terminal
             </button>
           </div>
+        </div>
+      )}
+
+      {isDisconnected && !isDead && (
+        <div className="absolute top-4 left-4">
+          <span className="px-3 py-1 text-xs rounded bg-yellow-500/20 text-yellow-200 border border-yellow-500/30">
+            Reconnecting…
+          </span>
         </div>
       )}
 

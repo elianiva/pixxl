@@ -35,3 +35,13 @@ export const connectTerminalContract = oc
       }),
     ),
   );
+
+export const getTerminalSessionStateContract = oc
+  .input(Schema.toStandardSchemaV1(Schema.Struct({ id: Schema.String })))
+  .output(
+    Schema.toStandardSchemaV1(
+      Schema.Struct({
+        state: Schema.Literals(["active", "detached", "dead", "closed", "none"]),
+      }),
+    ),
+  );

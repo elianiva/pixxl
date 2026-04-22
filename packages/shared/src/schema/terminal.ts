@@ -36,4 +36,17 @@ export type UpdateTerminalInput = typeof UpdateTerminalInputSchema.Type;
 export type DeleteTerminalInput = typeof DeleteTerminalInputSchema.Type;
 export type TerminalMetadata = typeof TerminalMetadataSchema.Type;
 export type TerminalMetadataList = typeof TerminalMetadataListSchema.Type;
+export const GetTerminalSessionStateInputSchema = Schema.Struct({
+  id: Schema.String,
+});
+
+export const TerminalSessionStateSchema = Schema.Literals(["active", "detached", "dead", "closed", "none"]);
+
+export const GetTerminalSessionStateOutputSchema = Schema.Struct({
+  state: TerminalSessionStateSchema,
+});
+
 export type ListTerminalsInput = typeof ListTerminalsInputSchema.Type;
+export type GetTerminalSessionStateInput = typeof GetTerminalSessionStateInputSchema.Type;
+export type TerminalSessionState = typeof TerminalSessionStateSchema.Type;
+export type GetTerminalSessionStateOutput = typeof GetTerminalSessionStateOutputSchema.Type;
