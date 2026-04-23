@@ -3,7 +3,9 @@ packages:
   - "packages/*"
 
 allowBuilds:
+  '@google/genai': true
   electron: true
+  electron-winstaller: true
   esbuild: true
   koffi: true
   msgpackr-extract: true
@@ -11,7 +13,7 @@ allowBuilds:
   protobufjs: true
 
 catalog:
-  "@orpc/contract": "^1.13.13"
+  "@orpc/contract": "^1.14.4"
   "effect": "4.0.0-beta.36"
 
 pnpm:

@@ -17,7 +17,7 @@
     "check:desktop": "pnpm --filter @pixxl/desktop check"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^10.0.0"
   },
   "packageManager": "pnpm@10.33.0"
 }

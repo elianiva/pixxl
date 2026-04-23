@@ -7,11 +7,11 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@mariozechner/pi-ai": "^0.64.0",
-    "@mariozechner/pi-coding-agent": "^0.64.0",
+    "@mariozechner/pi-ai": "^0.73.1",
+    "@mariozechner/pi-coding-agent": "^0.73.1",
     "@orpc/contract": "catalog:",
     "@standard-schema/spec": "^1.1.0",
     "effect": "catalog:",
-    "nanoid": "^5.0.0"
+    "nanoid": "^5.1.11"
   }
 }
